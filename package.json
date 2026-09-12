@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:init": "tsx scripts/db-init.ts",
+    "db:init": "node --env-file=.env.local --import tsx scripts/db-init.ts",
     "test": "vitest run",
-    "db:migrate-passwords": "tsx scripts/migrate-passwords.ts"
+    "db:migrate-passwords": "node --env-file=.env.local --import tsx scripts/migrate-passwords.ts"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",
