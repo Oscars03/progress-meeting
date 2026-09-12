@@ -1,0 +1,17 @@
+# Normalise line endings so a Windows and a Linux checkout produce identical
+# blobs. Without this, a file saved on Windows comes back as a diff touching
+# every line, which buries the real change in the review.
+* text=auto eol=lf
+
+# Binary: never translated, never diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# Generated. Collapsed in diffs and excluded from language statistics.
+package-lock.json linguist-generated=true -diff
