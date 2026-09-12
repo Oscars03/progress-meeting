@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
+import { getPopulatedTabs } from '@/lib/db/init-db';
 import { requireSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
@@ -10,6 +11,7 @@ export default async function SettingsPage() {
 
   let users: SafeUser[] = [];
   let loadError = false;
+  let populatedTabs: string[] = [];
 
   if (isAdmin) {
     try {
@@ -26,6 +28,14 @@ export default async function SettingsPage() {
       // Database may not be initialised yet.
       loadError = true;
     }
+
+    try {
+      populatedTabs = await getPopulatedTabs();
+    } catch {
+      // Cannot reach the sheet: leave the button enabled rather than locking
+      // the one control that repairs an uninitialised database.
+      populatedTabs = [];
+    }
   }
 
   return (
@@ -33,7 +43,7 @@ export default async function SettingsPage() {
       <h2 className="text-2xl font-bold text-gray-900">การตั้งค่าระบบ (Settings)</h2>
 
       {isAdmin ? (
-        <UserManager initialUsers={users} loadError={loadError} />
+        <UserManager initialUsers={users} loadError={loadError} populatedTabs={populatedTabs} />
       ) : (
         <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">จัดการผู้ใช้</h3>

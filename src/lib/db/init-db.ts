@@ -24,7 +24,54 @@ function seedPassword(): string {
   return process.env.SEED_PASSWORD || 'changeme123';
 }
 
-export async function initDatabase() {
+/** Raised when initDatabase() would rewrite headers over a sheet that already holds data. */
+export class DatabaseAlreadyInitializedError extends Error {
+  readonly populatedTabs: string[];
+  constructor(populatedTabs: string[]) {
+    super(`ฐานข้อมูลมีข้อมูลอยู่แล้วใน: ${populatedTabs.join(', ')}`);
+    this.name = 'DatabaseAlreadyInitializedError';
+    this.populatedTabs = populatedTabs;
+  }
+}
+
+/**
+ * Which known tabs already hold data rows (anything below the header).
+ *
+ * initDatabase() rewrites every header row in place while leaving the data
+ * rows untouched, so running it over a populated sheet can shift every value
+ * out from under its column. Callers use this to refuse by default.
+ */
+export async function getPopulatedTabs(): Promise<string[]> {
+  const sheets = await getSheetsApi();
+  const spreadsheetId = getSpreadsheetId();
+  const tabs = Object.keys(SCHEMAS);
+
+  const info = await sheets.spreadsheets.get({ spreadsheetId });
+  const present = new Set(
+    (info.data.sheets ?? []).map((s) => s.properties?.title).filter(Boolean) as string[]
+  );
+  const existing = tabs.filter((t) => present.has(t));
+  if (existing.length === 0) return [];
+
+  const res = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId,
+    ranges: existing.map((t) => `${t}!A1:A2`),
+  });
+
+  const populated: string[] = [];
+  (res.data.valueRanges ?? []).forEach((vr, i) => {
+    // More than the header row means real data sits underneath.
+    if ((vr.values?.length ?? 0) > 1) populated.push(existing[i]);
+  });
+  return populated;
+}
+
+export async function initDatabase(options: { force?: boolean } = {}) {
+  const populated = await getPopulatedTabs();
+  if (populated.length > 0 && !options.force) {
+    throw new DatabaseAlreadyInitializedError(populated);
+  }
+
   const sheets = await getSheetsApi();
   const spreadsheetId = getSpreadsheetId();
 

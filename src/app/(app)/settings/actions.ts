@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { initDatabase } from '@/lib/db/init-db';
+import { initDatabase, getPopulatedTabs } from '@/lib/db/init-db';
 import { requireRole, canAssignRole, type Role } from '@/lib/auth-guard';
 import { hashPassword, validatePassword } from '@/lib/password';
 import type { UserRecord } from '@/lib/db/schema';
@@ -34,11 +34,17 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export async function initDbAction() {
+export async function initDbAction(force = false) {
   await requireRole('admin');
-  const result = await initDatabase();
+  const result = await initDatabase({ force });
   revalidatePath('/settings');
   return result;
+}
+
+/** Tabs that already hold data, so the UI can refuse to re-run db:init. */
+export async function getPopulatedTabsAction(): Promise<string[]> {
+  await requireRole('admin');
+  return getPopulatedTabs();
 }
 
 export async function getUsersAction(): Promise<SafeUser[]> {
