@@ -12,13 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ไม่มีบล็อก prefers-color-scheme ที่นี่โดยตั้งใจ:
+   UI ชุดนี้เป็นธีมสว่างอย่างเดียว (การ์ดใช้ bg-white ตายตัว ไม่มี dark: variant เลย)
+   การสลับ --foreground เป็นสีอ่อนตามธีมเครื่อง ทำให้ตัวอักษรในช่องกรอก
+   กลายเป็นขาวบนขาว มองไม่เห็น */
 body {
   background: var(--background);
   color: var(--foreground);
