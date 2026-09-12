@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:init": "node --env-file=.env.local --import tsx scripts/db-init.ts",
     "test": "vitest run",
+    "db:migrate-schema": "node --env-file=.env.local --import tsx scripts/db-migrate-schema.ts",
     "db:migrate-passwords": "node --env-file=.env.local --import tsx scripts/migrate-passwords.ts"
   },
   "dependencies": {
