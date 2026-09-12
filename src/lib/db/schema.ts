@@ -3,7 +3,7 @@ export const COMMON_COLUMNS = ['id', 'created_at', 'updated_at', 'row_version', 
 export const SCHEMAS = {
   users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active'],
   teams: [...COMMON_COLUMNS, 'name'],
-  meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes'],
+  meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
   tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links'],
   task_updates: [...COMMON_COLUMNS, 'task_id', 'week_key', 'progress_pct', 'summary', 'risks', 'next_plan', 'updated_by'],
@@ -13,6 +13,7 @@ export const SCHEMAS = {
   comments: [...COMMON_COLUMNS, 'entity_type', 'entity_id', 'body', 'author_id', 'mention_ids'],
   notifications: [...COMMON_COLUMNS, 'user_id', 'type', 'payload', 'read_at'],
   reminder_settings: [...COMMON_COLUMNS, 'user_id', 'channel', 'lead_hours'],
+  google_tokens: [...COMMON_COLUMNS, 'user_id', 'refresh_token', 'scope', 'account_email', 'connected_at', 'last_error'],
   availability_polls: [...COMMON_COLUMNS, 'title', 'owner_id', 'status', 'meeting_id', 'note'],
   availability_slots: [...COMMON_COLUMNS, 'poll_id', 'start_at', 'end_at'],
   availability_votes: [...COMMON_COLUMNS, 'slot_id', 'user_id', 'choice'],
@@ -72,6 +73,27 @@ export type MeetingRecord = BaseRecord & {
   recurrence_rule: string;
   owner_id: string;
   notes: string;
+  /** Event id in Google Calendar; empty when this meeting was never synced. */
+  google_event_id: string;
+  /** Whose calendar holds the event -- the account that created it. */
+  google_calendar_owner_id: string;
+  google_synced_at: string;
+};
+
+/**
+ * One stored Google authorisation per user.
+ *
+ * refresh_token is written through secret-box and is never readable from the
+ * sheet directly. last_error records why a connection stopped working, so the
+ * person can be told to reconnect instead of the feature failing silently.
+ */
+export type GoogleTokenRecord = BaseRecord & {
+  user_id: string;
+  refresh_token: string;
+  scope: string;
+  account_email: string;
+  connected_at: string;
+  last_error: string;
 };
 
 export type MeetingAttendeeRecord = BaseRecord & {

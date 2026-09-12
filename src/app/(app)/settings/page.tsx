@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { getPopulatedTabs } from '@/lib/db/init-db';
+import { getConnectedUserIds, getStoredToken, googleOAuthConfigured } from '@/lib/google/tokens';
+import CalendarCard from './calendar-card';
 import { requireSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
@@ -12,6 +14,20 @@ export default async function SettingsPage() {
   let users: SafeUser[] = [];
   let loadError = false;
   let populatedTabs: string[] = [];
+
+  // Calendar status is per-person, so it is read for everyone, not just admins.
+  const stored = await getStoredToken(actor.id).catch(() => null);
+  let connectedCount = 0;
+  let activeCount = 0;
+  try {
+    const connected = await getConnectedUserIds();
+    const allUsers = await SheetRepo.find<UserRecord>('users');
+    const active = allUsers.filter((u) => u.active === true);
+    activeCount = active.length;
+    connectedCount = active.filter((u) => connected.has(u.id)).length;
+  } catch {
+    // The card still renders; it just cannot report group coverage.
+  }
 
   if (isAdmin) {
     try {
@@ -41,6 +57,17 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <h2 className="text-2xl font-bold text-gray-900">การตั้งค่าระบบ (Settings)</h2>
+
+      <CalendarCard
+        status={{
+          connected: Boolean(stored),
+          accountEmail: stored?.accountEmail ?? '',
+          connectedAt: stored?.connectedAt ?? '',
+        }}
+        googleEnabled={googleOAuthConfigured()}
+        connectedCount={connectedCount}
+        activeCount={activeCount}
+      />
 
       {isAdmin ? (
         <UserManager initialUsers={users} loadError={loadError} populatedTabs={populatedTabs} />

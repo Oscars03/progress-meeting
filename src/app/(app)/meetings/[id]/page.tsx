@@ -13,6 +13,7 @@ import type {
 import MinutesEditor from './minutes-editor';
 import ActionItems from './action-items';
 import Agenda from './agenda';
+import CalendarSync from './calendar-sync';
 
 export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]'>) {
   const { id } = await props.params;
@@ -47,6 +48,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
     .map((t) => ({ id: t.id, title: t.title }));
 
   const canManage = actor.role === 'admin' || actor.role === 'manager';
+  const calendarOwner = users.find((u) => u.id === meeting.google_calendar_owner_id);
   const when = [meeting.start_at, meeting.end_at].filter(Boolean).join(' — ');
 
   return (
@@ -73,6 +75,13 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
           row_version: a.row_version,
         }))}
         canManage={canManage}
+      />
+
+      <CalendarSync
+        meetingId={id}
+        linked={Boolean(meeting.google_event_id)}
+        syncedAt={meeting.google_synced_at ?? ''}
+        ownerName={calendarOwner?.name ?? 'ผู้สร้างอีเวนต์'}
       />
 
       <MinutesEditor

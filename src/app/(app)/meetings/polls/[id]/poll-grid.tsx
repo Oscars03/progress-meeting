@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { closePollAction, confirmSlotAction, deletePollAction, voteAction } from '../actions';
+import { slotConflictsAction, type SlotBusy } from '../../../calendar-actions';
 
 type Choice = 'yes' | 'maybe' | 'no';
 
@@ -82,6 +83,30 @@ export default function PollGrid({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
+  const [conflicts, setConflicts] = useState<Map<string, SlotBusy> | null>(null);
+  const [checkingCalendars, setCheckingCalendars] = useState(false);
+
+  /**
+   * Free/busy is fetched on demand rather than with the page: it costs one
+   * Google call per connected member, which is not worth spending on everybody
+   * who merely opens the poll.
+   */
+  const checkCalendars = () => {
+    setError('');
+    setCheckingCalendars(true);
+    startTransition(async () => {
+      try {
+        const result = await slotConflictsAction(
+          slots.map((s) => ({ id: s.id, startAt: s.startAt, endAt: s.endAt }))
+        );
+        setConflicts(new Map(result.map((r) => [r.slotId, r])));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'อ่านปฏิทินไม่สำเร็จ');
+      } finally {
+        setCheckingCalendars(false);
+      }
+    });
+  };
 
   const run = (work: () => Promise<void>) => {
     setError('');
@@ -109,10 +134,30 @@ export default function PollGrid({
       )}
 
       {!closed && (
-        <p className="text-sm text-gray-600">
-          คุณตอบแล้ว{' '}
-          <span className="font-semibold text-gray-900 tabular-nums">{answered}</span> จาก{' '}
-          <span className="tabular-nums">{slots.length}</span> ช่วง
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-gray-600">
+            คุณตอบแล้ว{' '}
+            <span className="font-semibold text-gray-900 tabular-nums">{answered}</span> จาก{' '}
+            <span className="tabular-nums">{slots.length}</span> ช่วง
+          </p>
+          <button
+            onClick={checkCalendars}
+            disabled={isPending}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {checkingCalendars ? 'กำลังอ่านปฏิทิน...' : 'ตรวจจาก Google Calendar'}
+          </button>
+        </div>
+      )}
+
+      {conflicts && (
+        <p className="text-xs text-gray-400">
+          {(() => {
+            const checked = [...conflicts.values()][0]?.checked ?? 0;
+            return checked === 0
+              ? 'ยังไม่มีใครเชื่อมปฏิทิน — ไปที่หน้าการตั้งค่าเพื่อเชื่อมบัญชี'
+              : `อ่านจากปฏิทินของ ${checked} คนที่เชื่อมไว้ คนที่ยังไม่เชื่อมจะไม่ปรากฏที่นี่`;
+          })()}
         </p>
       )}
 
@@ -150,6 +195,12 @@ export default function PollGrid({
                 </span>
               )}
             </div>
+
+            {conflicts?.get(slot.id)?.busyNames.length ? (
+              <p className="text-xs text-amber-800">
+                ปฏิทินชนกับ: {conflicts.get(slot.id)!.busyNames.join(', ')}
+              </p>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 tabular-nums">
               <span>ว่าง {slot.yes}</span>

@@ -4,6 +4,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import { SheetRepo } from './db/sheet-repo';
 import { verifyPassword } from './password';
 import { allowedSignupDomains, normalizeEmail } from './signup-policy';
+import { CALENDAR_SCOPES, storeRefreshToken } from './google/tokens';
 import type { UserRecord } from './db/schema';
 
 async function findUserByEmail(email: string): Promise<UserRecord | null> {
@@ -41,6 +42,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: ['openid', 'email', 'profile', ...CALENDAR_SCOPES].join(' '),
+          // A refresh token is only issued for an offline grant, and only on
+          // the first consent -- prompt=consent asks again so an account that
+          // signed in before the calendar scopes existed still yields one.
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
     })
   );
 }
@@ -62,6 +73,20 @@ export const authOptions: NextAuthOptions = {
           if (existing.active !== true) return '/login?error=AccountInactive';
           user.id = existing.id;
           user.role = existing.role;
+
+          // Calendar access is a bonus, not a condition of signing in: a
+          // failure to store it must not lock somebody out of the app.
+          try {
+            await storeRefreshToken({
+              userId: existing.id,
+              refreshToken: account.refresh_token,
+              scope: account.scope ?? '',
+              accountEmail: email,
+            });
+          } catch (e) {
+            console.error('Could not store Google refresh token:', e);
+          }
+
           return true;
         }
 

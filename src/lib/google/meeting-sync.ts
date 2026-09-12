@@ -1,0 +1,227 @@
+import { SheetRepo } from '@/lib/db/sheet-repo';
+import type { MeetingRecord, UserRecord } from '@/lib/db/schema';
+import {
+  createEvent,
+  deleteEvent,
+  fetchEvent,
+  updateEvent,
+  NotConnectedError,
+  type EventInput,
+} from './calendar';
+import { getStoredToken } from './tokens';
+
+/**
+ * Keeping a meeting row and a Google Calendar event in step.
+ *
+ * Calendar sync is an enhancement layered on the sheet, never a requirement of
+ * it. Every function here reports what happened instead of throwing on a
+ * missing connection: a meeting that cannot be pushed to Google is still a
+ * meeting, and failing the save would make the calendar an outage surface for
+ * the core app.
+ */
+
+export type SyncOutcome =
+  | { ok: true; eventId: string; action: 'created' | 'updated' | 'deleted' }
+  | { ok: false; reason: 'not-connected' | 'not-linked' | 'error'; message: string };
+
+/** Emails to invite: everyone active, minus blanks and duplicates. */
+async function attendeeEmails(excludeUserId?: string): Promise<string[]> {
+  const users = await SheetRepo.find<UserRecord>('users');
+  const seen = new Set<string>();
+  for (const u of users) {
+    if (u.active !== true) continue;
+    if (excludeUserId && u.id === excludeUserId) continue;
+    const email = (u.email ?? '').trim().toLowerCase();
+    if (email) seen.add(email);
+  }
+  return [...seen];
+}
+
+function eventInputFrom(meeting: MeetingRecord, emails: string[]): EventInput {
+  const parts = [meeting.notes, meeting.meet_link].filter(Boolean);
+  return {
+    title: meeting.title,
+    description: parts.join('\n\n'),
+    location: meeting.location ?? '',
+    startAt: meeting.start_at,
+    endAt: meeting.end_at,
+    attendeeEmails: emails,
+  };
+}
+
+function describe(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * Push a meeting to Google as `organiserUserId`, creating or updating the event.
+ *
+ * The organiser is whoever is acting, not a fixed account -- the roadmap asked
+ * that anybody be able to schedule. Once an event exists it stays on its
+ * original organiser's calendar, because moving an event between calendars
+ * means deleting and recreating it, which re-notifies everybody.
+ */
+export async function pushMeeting(
+  meetingId: string,
+  organiserUserId: string
+): Promise<SyncOutcome> {
+  const meetings = await SheetRepo.find<MeetingRecord>('meetings');
+  const meeting = meetings.find((m) => m.id === meetingId);
+  if (!meeting) return { ok: false, reason: 'error', message: 'ไม่พบการประชุมนี้' };
+
+  const owner = meeting.google_calendar_owner_id || organiserUserId;
+
+  if (!(await getStoredToken(owner))) {
+    return {
+      ok: false,
+      reason: 'not-connected',
+      message:
+        owner === organiserUserId
+          ? 'คุณยังไม่ได้เชื่อมบัญชี Google Calendar'
+          : 'เจ้าของอีเวนต์เดิมยังไม่ได้เชื่อมบัญชี Google Calendar',
+    };
+  }
+
+  const emails = await attendeeEmails(owner);
+
+  try {
+    if (meeting.google_event_id) {
+      await updateEvent(owner, meeting.google_event_id, eventInputFrom(meeting, emails));
+      await SheetRepo.update<MeetingRecord>(
+        'meetings',
+        meeting.id,
+        { google_synced_at: new Date().toISOString() },
+        meeting.row_version,
+        organiserUserId
+      );
+      return { ok: true, eventId: meeting.google_event_id, action: 'updated' };
+    }
+
+    const { eventId } = await createEvent(owner, eventInputFrom(meeting, emails));
+    await SheetRepo.update<MeetingRecord>(
+      'meetings',
+      meeting.id,
+      {
+        google_event_id: eventId,
+        google_calendar_owner_id: owner,
+        google_synced_at: new Date().toISOString(),
+      },
+      meeting.row_version,
+      organiserUserId
+    );
+    return { ok: true, eventId, action: 'created' };
+  } catch (err) {
+    if (err instanceof NotConnectedError) {
+      return { ok: false, reason: 'not-connected', message: err.message };
+    }
+    return { ok: false, reason: 'error', message: describe(err) };
+  }
+}
+
+/**
+ * Pull calendar-side edits back into the meeting row.
+ *
+ * This is the inbound half of two-way sync. Without a public callback URL there
+ * is nothing for Google to notify, so it runs when somebody asks for it rather
+ * than on a change. A cancelled event marks the meeting cancelled instead of
+ * deleting the row, because minutes and action items hang off it.
+ */
+export async function pullMeeting(
+  meetingId: string,
+  actorUserId: string
+): Promise<SyncOutcome & { changed?: string[] }> {
+  const meetings = await SheetRepo.find<MeetingRecord>('meetings');
+  const meeting = meetings.find((m) => m.id === meetingId);
+  if (!meeting) return { ok: false, reason: 'error', message: 'ไม่พบการประชุมนี้' };
+
+  if (!meeting.google_event_id || !meeting.google_calendar_owner_id) {
+    return { ok: false, reason: 'not-linked', message: 'การประชุมนี้ยังไม่ได้ผูกกับ Google Calendar' };
+  }
+
+  try {
+    const remote = await fetchEvent(meeting.google_calendar_owner_id, meeting.google_event_id);
+
+    if (!remote) {
+      await SheetRepo.update<MeetingRecord>(
+        'meetings',
+        meeting.id,
+        { status: 'cancelled', google_synced_at: new Date().toISOString() },
+        meeting.row_version,
+        actorUserId
+      );
+      return {
+        ok: true,
+        eventId: meeting.google_event_id,
+        action: 'deleted',
+        changed: ['status'],
+      };
+    }
+
+    const patch: Record<string, string> = {};
+    const changed: string[] = [];
+
+    if (remote.title && remote.title !== meeting.title) {
+      patch.title = remote.title;
+      changed.push('หัวข้อ');
+    }
+    if (remote.startAt && new Date(remote.startAt).toISOString() !== meeting.start_at) {
+      patch.start_at = new Date(remote.startAt).toISOString();
+      changed.push('เวลาเริ่ม');
+    }
+    if (remote.endAt && new Date(remote.endAt).toISOString() !== meeting.end_at) {
+      patch.end_at = new Date(remote.endAt).toISOString();
+      changed.push('เวลาสิ้นสุด');
+    }
+    if (remote.location !== meeting.location) {
+      patch.location = remote.location;
+      changed.push('สถานที่');
+    }
+    if (remote.cancelled && meeting.status !== 'cancelled') {
+      patch.status = 'cancelled';
+      changed.push('สถานะ');
+    }
+
+    patch.google_synced_at = new Date().toISOString();
+
+    await SheetRepo.update<MeetingRecord>(
+      'meetings',
+      meeting.id,
+      patch,
+      meeting.row_version,
+      actorUserId
+    );
+
+    return { ok: true, eventId: meeting.google_event_id, action: 'updated', changed };
+  } catch (err) {
+    if (err instanceof NotConnectedError) {
+      return { ok: false, reason: 'not-connected', message: err.message };
+    }
+    return { ok: false, reason: 'error', message: describe(err) };
+  }
+}
+
+/** Remove the Google event when a meeting is cancelled in the app. */
+export async function removeMeetingEvent(
+  meeting: MeetingRecord,
+  actorUserId: string
+): Promise<SyncOutcome> {
+  if (!meeting.google_event_id || !meeting.google_calendar_owner_id) {
+    return { ok: false, reason: 'not-linked', message: 'ไม่มีอีเวนต์ให้ลบ' };
+  }
+  try {
+    await deleteEvent(meeting.google_calendar_owner_id, meeting.google_event_id);
+    await SheetRepo.update<MeetingRecord>(
+      'meetings',
+      meeting.id,
+      { google_event_id: '', google_calendar_owner_id: '', google_synced_at: '' },
+      meeting.row_version,
+      actorUserId
+    );
+    return { ok: true, eventId: meeting.google_event_id, action: 'deleted' };
+  } catch (err) {
+    if (err instanceof NotConnectedError) {
+      return { ok: false, reason: 'not-connected', message: err.message };
+    }
+    return { ok: false, reason: 'error', message: describe(err) };
+  }
+}

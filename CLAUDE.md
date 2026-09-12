@@ -112,3 +112,32 @@ Thai text, JS template literals and mixed quotes do not survive shell heredocs
 reliably; `\n` has come back as a real newline and broken a string literal.
 Write `.tsx` and `.ts` files with the editing tools, and keep shell scripting to
 commands.
+
+## Google Calendar runs as a user, never as the service account
+
+The service account is its own identity with its own empty calendar. It cannot
+read or write anyone's personal calendar, and no amount of scope fixes that —
+only sharing a calendar with it, or acting as a real user, does.
+
+So calendar calls use a per-user OAuth token (`lib/google/calendar.ts`), while
+the sheet keeps using the service account. Two different auth paths in one
+codebase; do not reach for `getSheetsApi()`'s credentials to talk to Calendar.
+
+Consequences worth remembering:
+
+- Refresh tokens only arrive with `access_type: 'offline'`, and usually only on
+  the **first** consent. `prompt: 'consent'` is set so an account that signed in
+  before the calendar scopes existed still yields one.
+- A sign-in that returns no refresh token means "still connected", not
+  "disconnected" — do not let it overwrite a stored token with nothing.
+- Members reach people who never connected by being **invited** to the
+  organiser's event, not by writing to each person's calendar. Only the
+  organiser needs a token.
+- `freebusy` returns busy intervals only, never titles. Keep it that way; the
+  app has no business reading what a colleague's clashing event is.
+- Calendar failure must never fail the underlying action. Creating a meeting
+  succeeds whether or not it reaches Google; sync functions return an outcome
+  instead of throwing.
+
+Inbound sync is manual. Google push notifications need a public HTTPS callback,
+which localhost does not have, so "two-way" here means a button.
