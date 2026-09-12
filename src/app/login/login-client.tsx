@@ -5,6 +5,8 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { registerAction } from './actions';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
+import { usePrefs } from '@/lib/ui/prefs';
+import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 
 function LoginForm({
   googleEnabled,
@@ -13,6 +15,7 @@ function LoginForm({
   googleEnabled: boolean;
   signupDomains: string[];
 }) {
+  const { t } = usePrefs();
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
@@ -62,7 +65,7 @@ function LoginForm({
         setError(res.message);
       }
     } catch {
-      setError('สมัครไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      setError(t('register.failed'));
     } finally {
       setLoading(false);
     }
@@ -82,13 +85,13 @@ function LoginForm({
       });
 
       if (res?.error) {
-        setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+        setError(t('login.failed'));
       } else {
         router.push(callbackUrl);
         router.refresh();
       }
     } catch {
-      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง');
+      setError(t('login.error'));
     } finally {
       setLoading(false);
     }
@@ -96,11 +99,16 @@ function LoginForm({
 
   return (
     <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
+      <div className="flex items-center justify-end gap-1.5">
+        <LocaleSwitcher />
+        <ThemeToggle />
+      </div>
+
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold text-gray-900">
-          {mode === 'login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
+          {mode === 'login' ? t('login.title') : t('register.title')}
         </h1>
-        <p className="text-sm text-gray-500">Weekly Progress Meeting System</p>
+        <p className="text-sm text-gray-500">{t('login.subtitle')}</p>
       </div>
 
       {error && (
@@ -119,7 +127,7 @@ function LoginForm({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            อีเมล
+            {t('login.email')}
           </label>
           <input
             type="email"
@@ -133,7 +141,7 @@ function LoginForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            รหัสผ่าน
+            {t('login.password')}
           </label>
           <input
             type="password"
@@ -150,7 +158,7 @@ function LoginForm({
           disabled={loading}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm disabled:opacity-50"
         >
-          {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+          {loading ? t('login.submitting') : t('login.submit')}
         </button>
       </form>
       )}
@@ -159,7 +167,7 @@ function LoginForm({
       <form onSubmit={handleRegister} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reg-name">
-            ชื่อ-นามสกุล
+            {t('register.name')}
           </label>
           <input
             id="reg-name"
@@ -173,7 +181,7 @@ function LoginForm({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reg-email">
-            อีเมล
+            {t('login.email')}
           </label>
           <input
             id="reg-email"
@@ -184,14 +192,14 @@ function LoginForm({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
           />
           <p className="mt-1 text-xs text-gray-500">
-            รับเฉพาะโดเมน:{' '}
+            {t('register.domainHint')}{' '}
             <span className="font-mono">{signupDomains.join(', ')}</span>
           </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reg-password">
-            รหัสผ่าน
+            {t('login.password')}
           </label>
           <input
             id="reg-password"
@@ -203,12 +211,12 @@ function LoginForm({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
           />
           <p className="mt-1 text-xs text-gray-500">
-            อย่างน้อย {MIN_PASSWORD_LENGTH} ตัวอักษร
+            {t('register.passwordHint', { n: MIN_PASSWORD_LENGTH })}
           </p>
         </div>
 
         <p className="text-xs text-gray-500">
-          บัญชีใหม่ต้องรอผู้ดูแลระบบอนุมัติก่อนจึงจะเข้าใช้งานได้
+          {t('register.approvalNote')}
         </p>
 
         <button
@@ -216,20 +224,20 @@ function LoginForm({
           disabled={loading}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm disabled:opacity-50"
         >
-          {loading ? 'กำลังส่งคำขอ...' : 'สมัครสมาชิก'}
+          {loading ? t('register.submitting') : t('register.submit')}
         </button>
       </form>
       )}
 
       {signupEnabled && (
         <p className="text-center text-sm text-gray-600">
-          {mode === 'login' ? 'ยังไม่มีบัญชี? ' : 'มีบัญชีอยู่แล้ว? '}
+          {mode === 'login' ? t('login.noAccount') + ' ' : t('login.hasAccount') + ' '}
           <button
             type="button"
             onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
             className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
           >
-            {mode === 'login' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}
+            {mode === 'login' ? t('register.submit') : t('login.submit')}
           </button>
         </p>
       )}
@@ -238,7 +246,7 @@ function LoginForm({
         <>
         <div className="relative flex py-1 items-center">
           <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink mx-3 text-gray-400 text-xs">หรือ</span>
+          <span className="flex-shrink mx-3 text-gray-400 text-xs">{t('login.or')}</span>
           <div className="flex-grow border-t border-gray-200"></div>
         </div>
 
@@ -253,7 +261,7 @@ function LoginForm({
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
           </svg>
-          เข้าสู่ระบบด้วย Google
+          {t('login.google')}
         </button>
         </>
       )}
