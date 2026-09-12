@@ -1,6 +1,7 @@
 'use client';
 
 import FullCalendar from '@fullcalendar/react';
+import { useRouter } from 'next/navigation';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 
@@ -27,6 +28,7 @@ function safeHttpUrl(value: unknown): string | undefined {
 }
 
 export default function CalendarView({ meetings }: { meetings: CalendarMeeting[] }) {
+  const router = useRouter();
   const events = meetings.map(m => ({
     id: m.id,
     title: m.title,
@@ -48,9 +50,10 @@ export default function CalendarView({ meetings }: { meetings: CalendarMeeting[]
         events={events}
         height="100%"
         eventClick={(info) => {
-          const href = safeHttpUrl(info.event.url);
+          // The meeting page holds the agenda, minutes and action items; the
+          // meet link is one field on it rather than the whole destination.
           info.jsEvent?.preventDefault();
-          if (href) window.open(href, '_blank', 'noopener,noreferrer');
+          router.push(`/meetings/${info.event.id}`);
         }}
       />
     </div>
