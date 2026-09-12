@@ -308,6 +308,91 @@ export class SheetRepo {
     return result as unknown as T;
   }
 
+  /**
+   * Remove a row for good, with the same optimistic-locking contract as
+   * update(): the caller passes the row_version it read, and a row changed by
+   * someone else in the meantime is refused rather than silently destroyed.
+   *
+   * The deleted row is written to audit_log first, so the record of what was
+   * removed outlives the row itself.
+   */
+  static async delete(
+    tabName: TableName,
+    id: string,
+    expectedVersion: number,
+    actorId: string = 'system'
+  ): Promise<void> {
+    assertHasCommonColumns(tabName);
+
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+      throw new ConflictError(
+        `ต้องระบุ row_version ที่อ่านมาก่อนลบ (ได้รับ: ${String(expectedVersion)})`
+      );
+    }
+
+    await writeQueue.enqueue(tabName, async () => {
+      const sheets = await getSheetsApi();
+      const spreadsheetId = getSpreadsheetId();
+
+      const values = await this.getRawValues(tabName);
+      if (values.length <= 1) throw new NotFoundError(`ไม่พบข้อมูลในตาราง ${tabName}`);
+
+      const headers = values[0];
+      const rowIndex = values.findIndex((r) => r[0] === id);
+      if (rowIndex === -1) throw new NotFoundError(`ไม่พบข้อมูล id ${id} ในตาราง ${tabName}`);
+
+      const currentRow = values[rowIndex];
+      const versionIdx = headers.indexOf('row_version');
+      if (versionIdx === -1) {
+        throw new Error(`ตาราง ${tabName} ไม่มีคอลัมน์ row_version`);
+      }
+
+      const currentVersion = Number.parseInt(currentRow[versionIdx], 10);
+      if (Number.isNaN(currentVersion)) {
+        throw new ConflictError(`row_version ของแถวนี้ไม่ถูกต้อง (${currentRow[versionIdx]})`);
+      }
+      if (expectedVersion !== currentVersion) {
+        throw new ConflictError(
+          `ข้อมูลถูกแก้ไขโดยผู้อื่นไปแล้ว (คาดว่า ${expectedVersion} แต่ปัจจุบันคือ ${currentVersion}) กรุณาโหลดใหม่`
+        );
+      }
+
+      const oldObj: Record<string, CellValue> = {};
+      headers.forEach((h, i) => {
+        oldObj[h] = fromCell(h, currentRow[i]);
+      });
+
+      const now = new Date().toISOString();
+      const auditLogData = buildAuditRow(actorId, tabName, id, 'DELETE', oldObj, {}, now);
+      const mainSheetId = await getSheetId(sheets, spreadsheetId, tabName);
+      const auditSheetId = await getSheetId(sheets, spreadsheetId, 'audit_log');
+
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            { appendCells: { sheetId: auditSheetId, rows: [makeRowData(auditLogData)], fields: '*' } },
+            {
+              // values[0] is the header at grid row 0, so the index into
+              // `values` is already the grid row index.
+              deleteDimension: {
+                range: {
+                  sheetId: mainSheetId,
+                  dimension: 'ROWS',
+                  startIndex: rowIndex,
+                  endIndex: rowIndex + 1,
+                },
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    cache.delete(tabName);
+    cache.delete('audit_log');
+  }
+
   /** Test seam: drop cached reads. */
   static clearCache(): void {
     cache.clear();

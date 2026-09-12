@@ -8,6 +8,8 @@ import {
   updateUserPasswordAction,
   addUserAction,
   setUserActiveAction,
+  updateUserRoleAction,
+  deleteUserAction,
 } from './actions';
 
 export type SafeUser = {
@@ -52,6 +54,8 @@ export default function UserManager({
   const [message, setMessage] = useState<Message | null>(null);
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [draftRole, setDraftRole] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
   const [showClearForm, setShowClearForm] = useState(false);
@@ -109,6 +113,40 @@ export default function UserManager({
       setMessage({
         type: 'success',
         text: `ล้างข้อมูลแล้ว ${res.clearedTabs.length} แท็บ — ปุ่ม db:init กลับมาใช้งานได้`,
+      });
+    });
+  };
+
+  const handleDeleteUser = (user: SafeUser) => {
+    const warning = [
+      `ลบ ${user.email} ถาวร กู้คืนไม่ได้`,
+      'หากต้องการเพียงระงับการเข้าใช้ ให้กด "ปิดใช้งาน" แทน ซึ่งย้อนกลับได้',
+      'พิมพ์อีเมลของผู้ใช้เพื่อยืนยัน:',
+    ].join('\n\n');
+
+    const typed = prompt(warning);
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
+      setMessage({ type: 'error', text: 'อีเมลที่พิมพ์ไม่ตรง ยกเลิกการลบแล้ว' });
+      return;
+    }
+
+    run(async () => {
+      const res = await deleteUserAction(user.id, user.row_version);
+      setMessage({ type: 'success', text: `ลบบัญชี ${res.email} แล้ว` });
+    });
+  };
+  const handleSaveRole = (user: SafeUser) => {
+    if (draftRole === user.role) {
+      setEditingRoleId(null);
+      return;
+    }
+    run(async () => {
+      await updateUserRoleAction(user.id, draftRole, user.row_version);
+      setEditingRoleId(null);
+      setMessage({
+        type: 'success',
+        text: `เปลี่ยนสิทธิ์ของ ${user.name} เป็น ${draftRole} แล้ว`,
       });
     });
   };
@@ -400,17 +438,52 @@ export default function UserManager({
                   <td className="py-3 px-3 font-medium text-gray-900">{u.name}</td>
                   <td className="py-3 px-3 text-gray-600">{u.email}</td>
                   <td className="py-3 px-3">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        u.role === 'admin'
-                          ? 'bg-purple-100 text-purple-700'
-                          : u.role === 'manager'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-blue-100 text-blue-700'
-                      }`}
-                    >
-                      {u.role}
-                    </span>
+                    {editingRoleId === u.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={draftRole}
+                          onChange={(e) => setDraftRole(e.target.value)}
+                          aria-label={`สิทธิ์ของ ${u.name}`}
+                          className="px-2 py-1 border border-gray-300 rounded-lg text-xs text-gray-900 bg-white"
+                        >
+                          {ROLES.map((r) => (
+                            <option key={r.value} value={r.value}>
+                              {r.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleSaveRole(u)}
+                          disabled={isPending}
+                          className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+                        >
+                          บันทึก
+                        </button>
+                        <button
+                          onClick={() => setEditingRoleId(null)}
+                          className="text-xs px-2 py-1 text-gray-600 hover:text-gray-800"
+                        >
+                          ยกเลิก
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingRoleId(u.id);
+                          setDraftRole(u.role);
+                        }}
+                        title="คลิกเพื่อเปลี่ยนสิทธิ์"
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 ${
+                          u.role === 'admin'
+                            ? 'bg-purple-100 text-purple-700'
+                            : u.role === 'manager'
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {u.role} ✎
+                      </button>
+                    )}
                   </td>
                   <td className="py-3 px-3">
                     <span
@@ -465,6 +538,14 @@ export default function UserManager({
                           className="text-xs text-gray-500 hover:text-gray-800 font-medium hover:underline disabled:opacity-50"
                         >
                           {u.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(u)}
+                          disabled={isPending}
+                          title="ลบถาวร -- ปกติควรใช้ปิดใช้งานแทน"
+                          className="text-xs text-red-600 hover:text-red-800 font-medium hover:underline disabled:opacity-50"
+                        >
+                          ลบ
                         </button>
                       </div>
                     )}

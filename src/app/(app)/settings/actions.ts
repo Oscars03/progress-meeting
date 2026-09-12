@@ -154,6 +154,86 @@ export async function addUserAction(formData: {
   revalidatePath('/settings');
 }
 
+/**
+ * Change a user's role.
+ *
+ * Four things are refused, in order of how badly they end: granting a role
+ * above your own, demoting yourself, and demoting the last active admin --
+ * either of the last two would leave the install with no one who can undo it.
+ */
+export async function updateUserRoleAction(userId: string, role: string, rowVersion: number) {
+  const actor = await requireRole('admin');
+
+  if (!ASSIGNABLE_ROLES.includes(role as Role)) {
+    throw new Error(`สิทธิ์ไม่ถูกต้อง: ${role}`);
+  }
+  const nextRole = role as Role;
+
+  if (!canAssignRole(actor, nextRole)) {
+    throw new Error('ไม่สามารถกำหนดสิทธิ์ที่สูงกว่าสิทธิ์ของตนเองได้');
+  }
+
+  const target = await SheetRepo.findOne<UserRecord>('users', userId);
+  if (!target) {
+    throw new Error('ไม่พบผู้ใช้รายนี้');
+  }
+  if (target.role === nextRole) {
+    return;
+  }
+
+  if (userId === actor.id && nextRole !== 'admin') {
+    throw new Error(
+      'ไม่สามารถลดสิทธิ์ของตนเองได้ — ให้ผู้ดูแลระบบคนอื่นเป็นผู้ดำเนินการแทน'
+    );
+  }
+
+  // Losing the last admin locks everyone out of user management for good.
+  if (target.role === 'admin') {
+    const users = await SheetRepo.find<UserRecord>('users');
+    const activeAdmins = users.filter((u) => u.role === 'admin' && u.active === true);
+    if (activeAdmins.length <= 1) {
+      throw new Error('ต้องเหลือผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 บัญชี');
+    }
+  }
+
+  await SheetRepo.update<UserRecord>('users', userId, { role: nextRole }, rowVersion, actor.id);
+  revalidatePath('/settings');
+}
+
+/**
+ * Delete a user permanently.
+ *
+ * Deactivating is almost always the better move -- it keeps the row, and any
+ * record that points at it, intact. Deletion is offered for rows that should
+ * never have existed (a mistyped signup, a test account), so it refuses the
+ * two cases that cannot be undone from inside the app: deleting yourself, and
+ * deleting the last active admin.
+ */
+export async function deleteUserAction(userId: string, rowVersion: number) {
+  const actor = await requireRole('admin');
+
+  if (userId === actor.id) {
+    throw new Error('ไม่สามารถลบบัญชีของตนเองได้');
+  }
+
+  const target = await SheetRepo.findOne<UserRecord>('users', userId);
+  if (!target) {
+    throw new Error('ไม่พบผู้ใช้รายนี้');
+  }
+
+  if (target.role === 'admin' && target.active === true) {
+    const users = await SheetRepo.find<UserRecord>('users');
+    const activeAdmins = users.filter((u) => u.role === 'admin' && u.active === true);
+    if (activeAdmins.length <= 1) {
+      throw new Error('ต้องเหลือผู้ดูแลระบบที่ใช้งานอยู่อย่างน้อย 1 บัญชี');
+    }
+  }
+
+  await SheetRepo.delete('users', userId, rowVersion, actor.id);
+  revalidatePath('/settings');
+  return { email: target.email };
+}
+
 export async function setUserActiveAction(userId: string, active: boolean, rowVersion: number) {
   const actor = await requireRole('admin');
 
