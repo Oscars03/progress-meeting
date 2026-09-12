@@ -3,8 +3,16 @@
 import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { registerAction } from './actions';
+import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 
-function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
+function LoginForm({
+  googleEnabled,
+  signupDomains,
+}: {
+  googleEnabled: boolean;
+  signupDomains: string[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
@@ -20,6 +28,46 @@ function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(urlError ? (SIGNIN_ERRORS[urlError] ?? 'เข้าสู่ระบบไม่สำเร็จ') : '');
   const [loading, setLoading] = useState(false);
+  const signupEnabled = signupDomains.length > 0;
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const switchMode = (next: 'login' | 'register') => {
+    setMode(next);
+    setError('');
+    setNotice('');
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    setLoading(true);
+
+    try {
+      const res = await registerAction({
+        name: regName,
+        email: regEmail,
+        password: regPassword,
+      });
+      if (res.ok) {
+        setNotice(res.message);
+        setRegName('');
+        setRegEmail('');
+        setRegPassword('');
+      } else {
+        setError(res.message);
+      }
+    } catch {
+      setError('สมัครไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -49,7 +97,9 @@ function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   return (
     <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900">เข้าสู่ระบบ</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {mode === 'login' ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
+        </h1>
         <p className="text-sm text-gray-500">Weekly Progress Meeting System</p>
       </div>
 
@@ -59,6 +109,13 @@ function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         </div>
       )}
 
+      {notice && (
+        <div className="p-3 text-sm text-green-800 bg-green-50 rounded-lg border border-green-200">
+          {notice}
+        </div>
+      )}
+
+      {mode === 'login' && (
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -96,8 +153,88 @@ function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
           {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
         </button>
       </form>
+      )}
 
-      {googleEnabled && (
+      {mode === 'register' && (
+      <form onSubmit={handleRegister} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reg-name">
+            ชื่อ-นามสกุล
+          </label>
+          <input
+            id="reg-name"
+            type="text"
+            required
+            value={regName}
+            onChange={(e) => setRegName(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reg-email">
+            อีเมล
+          </label>
+          <input
+            id="reg-email"
+            type="email"
+            required
+            value={regEmail}
+            onChange={(e) => setRegEmail(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            รับเฉพาะโดเมน:{' '}
+            <span className="font-mono">{signupDomains.join(', ')}</span>
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reg-password">
+            รหัสผ่าน
+          </label>
+          <input
+            id="reg-password"
+            type="password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            value={regPassword}
+            onChange={(e) => setRegPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            อย่างน้อย {MIN_PASSWORD_LENGTH} ตัวอักษร
+          </p>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          บัญชีใหม่ต้องรอผู้ดูแลระบบอนุมัติก่อนจึงจะเข้าใช้งานได้
+        </p>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm disabled:opacity-50"
+        >
+          {loading ? 'กำลังส่งคำขอ...' : 'สมัครสมาชิก'}
+        </button>
+      </form>
+      )}
+
+      {signupEnabled && (
+        <p className="text-center text-sm text-gray-600">
+          {mode === 'login' ? 'ยังไม่มีบัญชี? ' : 'มีบัญชีอยู่แล้ว? '}
+          <button
+            type="button"
+            onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
+            className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+          >
+            {mode === 'login' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}
+          </button>
+        </p>
+      )}
+
+      {googleEnabled && mode === 'login' && (
         <>
         <div className="relative flex py-1 items-center">
           <div className="flex-grow border-t border-gray-200"></div>
@@ -140,10 +277,16 @@ function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   );
 }
 
-export default function LoginClient({ googleEnabled }: { googleEnabled: boolean }) {
+export default function LoginClient({
+  googleEnabled,
+  signupDomains,
+}: {
+  googleEnabled: boolean;
+  signupDomains: string[];
+}) {
   return (
     <Suspense fallback={<div className="text-gray-500 text-sm">กำลังโหลด...</div>}>
-      <LoginForm googleEnabled={googleEnabled} />
+      <LoginForm googleEnabled={googleEnabled} signupDomains={signupDomains} />
     </Suspense>
   );
 }

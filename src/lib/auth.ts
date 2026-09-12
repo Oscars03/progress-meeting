@@ -3,23 +3,8 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { SheetRepo } from './db/sheet-repo';
 import { verifyPassword } from './password';
+import { allowedSignupDomains, normalizeEmail } from './signup-policy';
 import type { UserRecord } from './db/schema';
-
-/**
- * Domains permitted to self-register through Google, comma separated.
- * When empty (the default) Google sign-in is limited to accounts an admin has
- * already provisioned in the `users` sheet.
- */
-function allowedSignupDomains(): string[] {
-  return (process.env.ALLOWED_SIGNUP_DOMAINS || '')
-    .split(',')
-    .map((d) => d.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function normalizeEmail(email: unknown): string {
-  return typeof email === 'string' ? email.trim().toLowerCase() : '';
-}
 
 async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const users = await SheetRepo.find<UserRecord>('users');
