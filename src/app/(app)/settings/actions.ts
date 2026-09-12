@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { initDatabase, getPopulatedTabs } from '@/lib/db/init-db';
+import { clearDatabase } from '@/lib/db/clear-db';
 import { requireRole, canAssignRole, type Role } from '@/lib/auth-guard';
-import { hashPassword, validatePassword } from '@/lib/password';
+import { hashPassword, validatePassword, verifyPassword, isHashed } from '@/lib/password';
 import type { UserRecord } from '@/lib/db/schema';
 
 const ASSIGNABLE_ROLES: Role[] = ['admin', 'manager', 'member', 'viewer'];
@@ -37,6 +38,39 @@ function normalizeEmail(email: string): string {
 export async function initDbAction(force = false) {
   await requireRole('admin');
   const result = await initDatabase({ force });
+  revalidatePath('/settings');
+  return result;
+}
+
+/**
+ * Wipe every data row, unlocking db:init again.
+ *
+ * Guarded by the caller's own password rather than a shared secret, so the
+ * audit trail names a person and a stolen session alone is not enough. The
+ * password is re-checked here even though the session already proved admin:
+ * this is the last irreversible step in the app.
+ */
+export async function clearDatabaseAction(password: string) {
+  const actor = await requireRole('admin');
+
+  const me = await SheetRepo.findOne<UserRecord>('users', actor.id);
+  if (!me) {
+    throw new Error('ไม่พบบัญชีของคุณในฐานข้อมูล');
+  }
+
+  // Google-only accounts carry no password, so they cannot clear the database.
+  if (!isHashed(me.password_hash)) {
+    throw new Error(
+      'บัญชีนี้เข้าสู่ระบบด้วย Google จึงไม่มีรหัสผ่านสำหรับยืนยัน ' +
+        'กรุณาเข้าสู่ระบบด้วยบัญชีที่ตั้งรหัสผ่านไว้ (เช่น admin@test.com) เพื่อล้างข้อมูล'
+    );
+  }
+
+  if (!(await verifyPassword(password, me.password_hash))) {
+    throw new Error('รหัสผ่านไม่ถูกต้อง');
+  }
+
+  const result = await clearDatabase();
   revalidatePath('/settings');
   return result;
 }
