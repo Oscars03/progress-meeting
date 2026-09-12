@@ -1,85 +1,130 @@
+import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { SheetRepo } from './db/sheet-repo';
+import { verifyPassword } from './password';
+import type { UserRecord } from './db/schema';
 
-// Need to define NextAuthOptions for v4. If using v5, it's slightly different. Let's assume v4 for simplicity.
-export const authOptions = {
-  providers: [
+/**
+ * Domains permitted to self-register through Google, comma separated.
+ * When empty (the default) Google sign-in is limited to accounts an admin has
+ * already provisioned in the `users` sheet.
+ */
+function allowedSignupDomains(): string[] {
+  return (process.env.ALLOWED_SIGNUP_DOMAINS || '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function normalizeEmail(email: unknown): string {
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
+}
+
+async function findUserByEmail(email: string): Promise<UserRecord | null> {
+  const users = await SheetRepo.find<UserRecord>('users');
+  return users.find((u) => normalizeEmail(u.email) === email) ?? null;
+}
+
+const providers: NextAuthOptions['providers'] = [
+  CredentialsProvider({
+    name: 'Credentials',
+    credentials: {
+      email: { label: 'Email', type: 'email' },
+      password: { label: 'Password', type: 'password' },
+    },
+    async authorize(credentials) {
+      const email = normalizeEmail(credentials?.email);
+      const password = credentials?.password;
+      if (!email || !password) return null;
+
+      const user = await findUserByEmail(email);
+      if (!user || user.active !== true) return null;
+
+      // Fails closed for legacy plaintext rows -- see npm run db:migrate-passwords.
+      const ok = await verifyPassword(password, user.password_hash);
+      if (!ok) return null;
+
+      return { id: user.id, name: user.name, email: user.email, role: user.role };
+    },
+  }),
+];
+
+// Only offer Google when it is actually configured.
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-        
-        const users = await SheetRepo.find<any>('users');
-        const user = users.find(u => u.email === credentials.email);
-        
-        if (user && user.active) {
-          // For demo, just check if password string matches or it's generic 'hashed_pwd' from seed
-          if (credentials.password === 'password' || user.password_hash === credentials.password) {
-            return {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              role: user.role
-            };
-          }
-        }
-        return null;
-      }
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     })
-  ],
+  );
+}
+
+export const authOptions: NextAuthOptions = {
+  providers,
   callbacks: {
-    async signIn({ user, account }: any) {
-      if (account?.provider === 'google') {
-        try {
-          const users = await SheetRepo.find<any>('users');
-          let existing = users.find(u => u.email === user.email);
-          if (!existing) {
-            existing = await SheetRepo.insert('users', {
-              name: user.name || 'Google User',
-              email: user.email,
-              password_hash: '',
-              role: 'member',
-              team_id: '',
-              line_id: '',
-              active: true
-            });
-          }
+    async signIn({ user, account }) {
+      if (account?.provider !== 'google') return true;
+
+      const email = normalizeEmail(user.email);
+      if (!email) return false;
+
+      try {
+        const existing = await findUserByEmail(email);
+
+        if (existing) {
+          // An account an admin has deactivated must not sign in through Google.
+          if (existing.active !== true) return '/login?error=AccountInactive';
           user.id = existing.id;
           user.role = existing.role;
           return true;
-        } catch (e) {
-          console.error('Google sign-in error:', e);
-          return false;
         }
+
+        const domain = email.split('@')[1] ?? '';
+        if (!allowedSignupDomains().includes(domain)) {
+          return '/login?error=AccessDenied';
+        }
+
+        // Self-registration lands inactive; an admin must approve before login.
+        await SheetRepo.insert(
+          'users',
+          {
+            name: user.name || email,
+            email,
+            password_hash: '',
+            role: 'member',
+            team_id: '',
+            line_id: '',
+            active: false,
+          },
+          'google-signup'
+        );
+
+        return '/login?error=PendingApproval';
+      } catch (e) {
+        console.error('Google sign-in error:', e);
+        return false;
       }
-      return true;
     },
-    async jwt({ token, user }: any) {
+
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
       }
       return token;
     },
-    async session({ session, token }: any) {
+
+    async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
       return session;
-    }
+    },
   },
   pages: {
-    signIn: '/login', // Optional, if we want a custom login page
+    signIn: '/login',
   },
-  session: { strategy: 'jwt' as const }
+  session: { strategy: 'jwt' },
 };

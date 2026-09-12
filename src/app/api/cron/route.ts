@@ -1,33 +1,48 @@
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
+
+/** Constant-time compare that does not leak length through early return. */
+function secretMatches(provided: string | null, expected: string | undefined): boolean {
+  if (!provided || !expected) return false;
+
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  if (a.length !== b.length) return false;
+
+  return timingSafeEqual(a, b);
+}
+
+/** Bearer token from the Authorization header -- never the query string, which lands in logs. */
+function bearerToken(request: Request): string | null {
+  const header = request.headers.get('authorization');
+  if (!header?.startsWith('Bearer ')) return null;
+  return header.slice('Bearer '.length).trim() || null;
+}
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get('secret');
-
-  if (secret !== process.env.CRON_SECRET) {
+  if (!secretMatches(bearerToken(request), process.env.CRON_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const action = searchParams.get('action');
+  const action = new URL(request.url).searchParams.get('action');
 
-  try {
-    if (action === 'backup') {
-      // ponytail: real drive backup requires Drive API scope; simulated for zero-ops deployment
-      return NextResponse.json({ status: 'Backup triggered (simulated)' });
-    }
-    
-    if (action === 'recurring_meetings') {
-      // Logic to fetch meetings with recurrence_rule and spawn new ones
-      return NextResponse.json({ status: 'Recurring meetings processed' });
-    }
+  // These three jobs are not implemented. They previously returned success
+  // strings, which made an unbuilt notification system look operational.
+  const PLANNED = ['backup', 'recurring_meetings', 'reminders'];
 
-    if (action === 'reminders') {
-      // Logic to check tasks due_date and send LINE / Email notifications
-      return NextResponse.json({ status: 'Reminders sent' });
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (action && PLANNED.includes(action)) {
+    return NextResponse.json(
+      {
+        error: 'Not implemented',
+        action,
+        message: `งาน "${action}" ยังไม่ได้พัฒนา — ดู README หัวข้อ Roadmap`,
+      },
+      { status: 501 }
+    );
   }
+
+  return NextResponse.json(
+    { error: 'Invalid action', valid: PLANNED },
+    { status: 400 }
+  );
 }

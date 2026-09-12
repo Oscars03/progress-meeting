@@ -1,27 +1,37 @@
 import { NextResponse } from 'next/server';
 import { writeQueue } from '@/lib/db/write-queue';
 import { SheetRepo } from '@/lib/db/sheet-repo';
+import { requireSession, AuthorizationError } from '@/lib/auth-guard';
+
+const WATCHED_TABS = ['users', 'tasks', 'meetings'] as const;
 
 export async function GET() {
   try {
-    // Just a simple check if we can reach the sheet meta
+    await requireSession();
+  } catch (error) {
+    const status = error instanceof AuthorizationError ? 401 : 500;
+    return NextResponse.json({ status: 'UNAUTHORIZED' }, { status });
+  }
+
+  try {
     await SheetRepo.find('meta');
-    
-    // Check queue depths
-    const queues = ['users', 'tasks', 'meetings'].map(q => ({
-      name: q,
-      depth: writeQueue.getQueueDepth(q)
-    }));
 
     return NextResponse.json({
       status: 'OK',
-      queues,
-      message: 'System is healthy'
+      queues: WATCHED_TABS.map((name) => ({
+        name,
+        depth: writeQueue.getQueueDepth(name),
+        busy: writeQueue.isBusy(name),
+      })),
+      message: 'System is healthy',
     });
-  } catch (error: any) {
-    return NextResponse.json({
-      status: 'ERROR',
-      message: error.message
-    }, { status: 500 });
+  } catch (error) {
+    // Detail stays server-side: Sheets errors carry the spreadsheet id and the
+    // service-account address.
+    console.error('status check failed:', error);
+    return NextResponse.json(
+      { status: 'ERROR', message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' },
+      { status: 500 }
+    );
   }
 }

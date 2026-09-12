@@ -14,10 +14,16 @@ export const SCHEMAS = {
   notifications: [...COMMON_COLUMNS, 'user_id', 'type', 'payload', 'read_at'],
   reminder_settings: [...COMMON_COLUMNS, 'user_id', 'channel', 'lead_hours'],
   audit_log: [...COMMON_COLUMNS, 'actor_id', 'entity', 'entity_id', 'action', 'old', 'new', 'at'],
-  meta: ['key', 'value', 'updated_at'],
+  // `meta` carries the common columns like every other tab: the repository
+  // locates rows by column A being `id`, so a tab without them cannot be
+  // read or written correctly.
+  meta: [...COMMON_COLUMNS, 'key', 'value'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
+
+/** Every value a sheet cell can round-trip through `find`. */
+export type CellValue = string | number | boolean | null | undefined | unknown[] | Record<string, unknown>;
 
 export type BaseRecord = {
   id: string;
@@ -25,5 +31,58 @@ export type BaseRecord = {
   updated_at: string;
   row_version: number;
   created_by: string;
-  [key: string]: any;
 };
+
+export type UserRecord = BaseRecord & {
+  name: string;
+  email: string;
+  password_hash: string;
+  role: string;
+  team_id: string;
+  line_id: string;
+  active: boolean;
+};
+
+export type TaskRecord = BaseRecord & {
+  title: string;
+  details: string;
+  owner_id: string;
+  assignee_ids: string[] | string;
+  due_date: string;
+  priority: string;
+  progress_pct: number | string;
+  status: string;
+  overdue_flag: boolean;
+  category: string;
+  project: string;
+  meeting_id: string;
+  links: string[] | string;
+};
+
+export type MeetingRecord = BaseRecord & {
+  title: string;
+  start_at: string;
+  end_at: string;
+  location: string;
+  meet_link: string;
+  status: string;
+  recurrence_rule: string;
+  owner_id: string;
+  notes: string;
+};
+
+/** Every table has the common columns, so this is the floor for any row. */
+export type AnyRecord = BaseRecord & Record<string, CellValue>;
+
+/** Guard used by the repository before it assumes column A holds the id. */
+export function assertHasCommonColumns(tabName: TableName): void {
+  const headers = SCHEMAS[tabName] as readonly string[];
+  for (const [i, col] of COMMON_COLUMNS.entries()) {
+    if (headers[i] !== col) {
+      throw new Error(
+        `Schema for "${tabName}" must begin with ${COMMON_COLUMNS.join(', ')} ` +
+          `(column ${i} is "${headers[i]}"). The repository locates rows by column A holding the id.`
+      );
+    }
+  }
+}

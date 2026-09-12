@@ -1,28 +1,81 @@
 'use server';
 
-import { SheetRepo } from '@/lib/db/sheet-repo';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { SheetRepo } from '@/lib/db/sheet-repo';
+import { requireRole } from '@/lib/auth-guard';
+import type { TaskRecord } from '@/lib/db/schema';
+
+/** The only statuses a task may hold; mirrors the Kanban columns. */
+export const TASK_STATUSES = [
+  'draft',
+  'assigned',
+  'in_progress',
+  'blocked',
+  'ready_to_present',
+  'presented',
+  'follow_up',
+  'done',
+] as const;
+
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+function assertStatus(value: string): asserts value is TaskStatus {
+  if (!(TASK_STATUSES as readonly string[]).includes(value)) {
+    throw new Error(`สถานะไม่ถูกต้อง: ${value}`);
+  }
+}
 
 export async function updateTaskStatus(taskId: string, newStatus: string, rowVersion: number) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) throw new Error('Unauthorized');
-  
-  await SheetRepo.update('tasks', taskId, { 
-    status: newStatus,
-    row_version: rowVersion
-  }, session.user.id);
-  
+  const actor = await requireRole('member');
+  assertStatus(newStatus);
+
+  await SheetRepo.update<TaskRecord>(
+    'tasks',
+    taskId,
+    { status: newStatus },
+    rowVersion,
+    actor.id
+  );
+
   revalidatePath('/tasks');
   revalidatePath('/dashboard');
 }
 
-export async function createTask(data: any) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) throw new Error('Unauthorized');
-  
-  await SheetRepo.insert('tasks', data, session.user.id);
+export async function createTask(data: {
+  title: string;
+  details?: string;
+  due_date?: string;
+  priority?: string;
+  status?: string;
+}) {
+  const actor = await requireRole('member');
+
+  const title = data.title?.trim();
+  if (!title) throw new Error('กรุณากรอกชื่องาน');
+
+  const status = data.status?.trim() || 'draft';
+  assertStatus(status);
+
+  await SheetRepo.insert(
+    'tasks',
+    {
+      title,
+      details: data.details?.trim() ?? '',
+      owner_id: actor.id,
+      assignee_ids: [],
+      due_date: data.due_date ?? '',
+      priority: data.priority ?? 'medium',
+      progress_pct: 0,
+      status,
+      overdue_flag: false,
+      category: '',
+      project: '',
+      meeting_id: '',
+      links: [],
+    },
+    actor.id
+  );
+
   revalidatePath('/tasks');
   revalidatePath('/dashboard');
 }

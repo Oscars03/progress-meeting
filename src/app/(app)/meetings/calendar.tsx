@@ -4,13 +4,35 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 
-export default function CalendarView({ meetings }: { meetings: any[] }) {
+type CalendarMeeting = {
+  id: string;
+  title: string;
+  start_at: string;
+  end_at: string;
+  meet_link?: string;
+};
+
+/**
+ * Only http(s) links may be opened. Values come from the sheet, so a
+ * `javascript:` URL would otherwise run in the viewer's context.
+ */
+function safeHttpUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export default function CalendarView({ meetings }: { meetings: CalendarMeeting[] }) {
   const events = meetings.map(m => ({
     id: m.id,
     title: m.title,
     start: m.start_at,
     end: m.end_at,
-    url: m.meet_link
+    url: safeHttpUrl(m.meet_link)
   }));
 
   return (
@@ -26,10 +48,9 @@ export default function CalendarView({ meetings }: { meetings: any[] }) {
         events={events}
         height="100%"
         eventClick={(info) => {
-          if (info.event.url) {
-            info.jsEvent.preventDefault();
-            window.open(info.event.url, '_blank');
-          }
+          const href = safeHttpUrl(info.event.url);
+          info.jsEvent?.preventDefault();
+          if (href) window.open(href, '_blank', 'noopener,noreferrer');
         }}
       />
     </div>

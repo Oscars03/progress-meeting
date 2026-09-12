@@ -1,30 +1,69 @@
 type Task<T> = () => Promise<T>;
 
 class Mutex {
-  private queue: Array<(value: void | PromiseLike<void>) => void> = [];
+  private queue: Array<() => void> = [];
   private locked = false;
 
   async lock(): Promise<() => void> {
     if (this.locked) {
-      await new Promise<void>(resolve => this.queue.push(resolve));
+      await new Promise<void>((resolve) => this.queue.push(resolve));
     }
     this.locked = true;
+
+    let released = false;
     return () => {
+      if (released) return;
+      released = true;
       this.locked = false;
-      const next = this.queue.shift();
-      if (next) next();
+      this.queue.shift()?.();
     };
+  }
+
+  get depth(): number {
+    return this.queue.length;
+  }
+
+  get busy(): boolean {
+    return this.locked;
   }
 }
 
-class WriteQueue {
-  private mutexes: Record<string, Mutex> = {};
+function statusOf(error: unknown): number | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const e = error as { status?: unknown; response?: { status?: unknown } };
+  const raw = e.response?.status ?? e.status;
+  return typeof raw === 'number' ? raw : undefined;
+}
 
-  private getMutex(tabName: string) {
-    if (!this.mutexes[tabName]) {
-      this.mutexes[tabName] = new Mutex();
+function retryAfterMs(error: unknown): number | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const headers = (error as { response?: { headers?: Record<string, unknown> } }).response?.headers;
+  const raw = headers?.['retry-after'];
+  const seconds = Number.parseInt(String(raw ?? ''), 10);
+  return Number.isNaN(seconds) ? undefined : seconds * 1000;
+}
+
+/**
+ * Transient only. 403 is deliberately excluded: from the Sheets API it is
+ * almost always a permissions failure that will never succeed, and retrying it
+ * costs three attempts and several seconds of held mutex before surfacing.
+ */
+function isTransient(error: unknown): boolean {
+  const status = statusOf(error);
+  if (status === undefined) return false;
+  return status === 429 || (status >= 500 && status < 600);
+}
+
+class WriteQueue {
+  private mutexes = new Map<string, Mutex>();
+
+  private getMutex(tabName: string): Mutex {
+    let m = this.mutexes.get(tabName);
+    if (!m) {
+      m = new Mutex();
+      this.mutexes.set(tabName, m);
     }
-    return this.mutexes[tabName];
+    return m;
   }
 
   async enqueue<T>(tabName: string, task: Task<T>): Promise<T> {
@@ -37,27 +76,30 @@ class WriteQueue {
   }
 
   async withRetry<T>(task: Task<T>, maxRetries = 3): Promise<T> {
-    let attempt = 0;
-    while (attempt < maxRetries) {
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await task();
-      } catch (error: any) {
-        attempt++;
-        const status = error?.response?.status;
-        if ((status === 429 || status === 403) && attempt < maxRetries) {
-          const retryAfter = error?.response?.headers?.['retry-after'];
-          const delayMs = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000;
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-        } else {
-          throw error;
-        }
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxRetries || !isTransient(error)) throw error;
+
+        const delayMs = retryAfterMs(error) ?? 2 ** attempt * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
-    throw new Error('Max retries exceeded');
+
+    throw lastError;
   }
 
+  /** Callers waiting for the lock, excluding the one currently holding it. */
   getQueueDepth(tabName: string): number {
-    return this.mutexes[tabName] ? (this.mutexes[tabName] as any).queue.length : 0;
+    return this.mutexes.get(tabName)?.depth ?? 0;
+  }
+
+  isBusy(tabName: string): boolean {
+    return this.mutexes.get(tabName)?.busy ?? false;
   }
 }
 
