@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateTaskStatus, TASK_STATUSES } from './actions';
+import { updateTaskStatus } from './actions';
+import { TASK_STATUSES } from './statuses';
 import type { TaskRecord } from '@/lib/db/schema';
 
 const COLUMN_LABELS: Record<string, string> = {

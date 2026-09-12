@@ -4,20 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole } from '@/lib/auth-guard';
 import type { TaskRecord } from '@/lib/db/schema';
-
-/** The only statuses a task may hold; mirrors the Kanban columns. */
-export const TASK_STATUSES = [
-  'draft',
-  'assigned',
-  'in_progress',
-  'blocked',
-  'ready_to_present',
-  'presented',
-  'follow_up',
-  'done',
-] as const;
-
-export type TaskStatus = (typeof TASK_STATUSES)[number];
+import { TASK_STATUSES, type TaskStatus } from './statuses';
 
 function assertStatus(value: string): asserts value is TaskStatus {
   if (!(TASK_STATUSES as readonly string[]).includes(value)) {
