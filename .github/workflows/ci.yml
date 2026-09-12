@@ -31,14 +31,19 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Typecheck
-        run: npx tsc --noEmit
-
       - name: Tests
         run: npm test
 
+      # Build comes before the typecheck, not after. next-env.d.ts and
+      # .next/types hold the generated PageProps and LayoutProps globals that
+      # the route files use, and both are gitignored -- so on a fresh checkout
+      # tsc cannot resolve them until a build has produced them.
+      #
       # No secrets are provided on purpose. The build does not read .env.local
       # -- verified by building with the file removed -- so a build that starts
       # needing credentials is a regression worth failing on.
       - name: Build
         run: npm run build
+
+      - name: Typecheck
+        run: npx tsc --noEmit
