@@ -89,22 +89,23 @@ export default function AppNav({ userName }: { userName: string }) {
   const toggleLabel = collapsed ? t('nav.expand') : t('nav.collapse');
 
   return (
-    // w-72 when expanded: the mark, a gap and the system name share one row,
-    // and at 18px the name alone is ~213px -- more than the 223px a w-64 rail
-    // leaves once the mark sits beside it.
-    <nav className="w-full md:w-72 md:collapsed:w-16 bg-white border-r border-gray-200 p-4 md:collapsed:px-3 flex flex-col gap-4 shadow-sm shrink-0 transition-[width] duration-200 motion-reduce:transition-none">
-      {/* Expanded: the mark is exactly as tall as the name's line. Both inherit
-          text-lg from the grid, so h-[1lh] on the image resolves to the same
-          line height the h1 uses -- equal by construction, not by a magic number. */}
+    // w-76 (304px) when expanded. The row is mark + gap + name: a 44px mark,
+    // 8px, and the ~213px name at 18px come to ~265px, past the 256px of
+    // content a w-72 rail leaves.
+    <nav className="w-full md:w-76 md:collapsed:w-16 bg-white border-r border-gray-200 p-4 md:collapsed:px-3 flex flex-col gap-4 shadow-sm shrink-0 transition-[width] duration-200 motion-reduce:transition-none">
+      {/* Expanded: the mark spans both lines -- the name and "IRiSH Lab" --
+          and is exactly as tall as the two together. It inherits text-lg from
+          the grid, so 1lh is the name's line height; 1rem is text-xs's line
+          height, which the lab label uses. Equal by construction. */}
       <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 text-lg md:collapsed:hidden">
         {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
         <img
           src="/brand/irish-mark.svg"
           alt=""
           aria-hidden="true"
-          width={28}
-          height={28}
-          className="brand-logo h-[1lh] w-auto"
+          width={44}
+          height={44}
+          className="brand-logo row-span-2 h-[calc(1lh+1rem)] w-auto"
         />
         <h1 className="font-bold text-gray-900 whitespace-nowrap">{t('app.name')}</h1>
         {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
