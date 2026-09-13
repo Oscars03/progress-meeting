@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { registerAction } from './actions';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { usePrefs } from '@/lib/ui/prefs';
-import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
 
 /** NextAuth's ?error= codes, including the ones our signIn callback returns. */
@@ -107,37 +106,13 @@ function LoginForm({
   return (
     // Sized to fit one screen without scrolling: the switchers sit in the
     // card's corner instead of taking a row, and vertical rhythm is 16px.
-    <div className="relative w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-4">
-      <div className="absolute top-4 right-4 flex items-center gap-1.5">
-        <LocaleSwitcher />
-        <ThemeToggle />
+    <div className="relative w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 space-y-4">
+      {/* Switchers moved to nav bar */}
+      <div className="text-center pt-2 pb-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          {mode === 'login' ? t('login.title') : t('register.title')}
+        </h1>
       </div>
-
-      {/* The lab's text lockup carries the lab name; the system name sits
-          beneath it as the headline. pt-9 clears the corner switchers: the
-          220px lockup reaches under them horizontally, so it has to start below
-          their 32px-tall box. The SVG's transparent margin hides a collision
-          by eye, so measure the boxes rather than trusting a screenshot. */}
-      <div className="text-center space-y-2 pt-9">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a vector logo gains nothing from next/image optimisation */}
-        <img
-          src="/brand/irish-logo-text.svg"
-          alt="IRiSH — Intelligent Robot and Industrial System Hub"
-          width={220}
-          height={110}
-          className="brand-logo mx-auto"
-        />
-        <div className="space-y-0.5">
-          <h1 className="text-2xl font-bold leading-tight text-gray-900 text-balance">
-            {t('app.name')}
-          </h1>
-          <p className="text-sm text-gray-500 text-balance">{t('app.tagline')}</p>
-        </div>
-      </div>
-
-      <h2 className="pt-4 border-t border-gray-100 text-center text-lg font-semibold text-gray-900">
-        {mode === 'login' ? t('login.title') : t('register.title')}
-      </h2>
 
       {error && (
         <div className="p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
@@ -307,6 +282,16 @@ function LoginForm({
           <p className="text-gray-400">{t('login.devInitMoved')}</p>
         </div>
       )}
+
+      {/* Brand logo at the bottom */}
+      <div className="pt-6 mt-4 flex justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/irish-logo-text.png"
+          alt="IRiSH"
+          className="brand-logo h-20 w-auto opacity-80 object-contain"
+        />
+      </div>
     </div>
   );
 }

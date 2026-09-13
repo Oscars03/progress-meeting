@@ -60,6 +60,29 @@ body {
   color: var(--foreground);
 }
 
+/* Logo Masks for Coloring */
+.mask-irish-mark {
+  mask-image: url('/brand/irish-mark.svg');
+  -webkit-mask-image: url('/brand/irish-mark.svg');
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
+}
+
+.mask-irish-logo-text {
+  mask-image: url('/brand/irish-logo-text.svg');
+  -webkit-mask-image: url('/brand/irish-logo-text.svg');
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
+}
+
 /* Surfaces */
 :root[data-theme='dark'] .bg-white { background-color: #1c1c1e !important; }
 :root[data-theme='dark'] .bg-gray-50 { background-color: #17171a !important; }
