@@ -40,3 +40,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# lab logo originals: the artwork stays local, only its README is tracked.
+# The files the site actually serves are copied into public/brand/.
+/IRiSH Lab Logo/*
+!/IRiSH Lab Logo/README.md
+
+# Markdown other than README stays local and is not published to GitHub.
+# Kept last so it overrides the logo folder rules above for README.md too.
+*.md
+!README.md

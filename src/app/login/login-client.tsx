@@ -109,7 +109,7 @@ function LoginForm({
       {/* The lab's text lockup carries the lab name; the system name sits
           beneath it as the headline. pt-9 clears the corner switchers: the
           220px lockup reaches under them horizontally, so it has to start below
-          their 40px-tall box. The SVG's transparent margin hides a collision
+          their 32px-tall box. The SVG's transparent margin hides a collision
           by eye, so measure the boxes rather than trusting a screenshot. */}
       <div className="text-center space-y-2 pt-9">
         {/* eslint-disable-next-line @next/next/no-img-element -- a vector logo gains nothing from next/image optimisation */}
