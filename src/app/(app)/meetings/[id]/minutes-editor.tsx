@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveMinutesAction } from './actions';
+import { usePrefs } from '@/lib/ui/prefs';
 
 export default function MinutesEditor({
   meetingId,
@@ -15,6 +16,7 @@ export default function MinutesEditor({
   minutesId: string | null;
   rowVersion: number | null;
 }) {
+  const { t } = usePrefs();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [content, setContent] = useState(initialContent);
@@ -26,14 +28,15 @@ export default function MinutesEditor({
     setMessage(null);
     startTransition(async () => {
       try {
-        await saveMinutesAction(meetingId, content, minutesId, rowVersion);
-        setMessage({ type: 'ok', text: 'บันทึกแล้ว' });
+        const res = await saveMinutesAction(meetingId, content, minutesId, rowVersion);
+        if (!res.ok) {
+          setMessage({ type: 'error', text: t(res.error, res.vars) });
+          return;
+        }
+        setMessage({ type: 'ok', text: t('common.saved') });
         router.refresh();
-      } catch (err) {
-        setMessage({
-          type: 'error',
-          text: err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ',
-        });
+      } catch {
+        setMessage({ type: 'error', text: t('error.generic') });
       }
     });
   };
@@ -41,9 +44,9 @@ export default function MinutesEditor({
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold text-gray-900">บันทึกการประชุม (Minutes)</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t('minutes.title')}</h3>
         {dirty && !isPending && (
-          <span className="text-xs text-amber-700">ยังไม่ได้บันทึก</span>
+          <span className="text-xs text-amber-700">{t('minutes.unsaved')}</span>
         )}
       </div>
 
@@ -64,7 +67,7 @@ export default function MinutesEditor({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={10}
-        placeholder="สรุปสิ่งที่คุยกัน มติที่ประชุม และประเด็นค้าง"
+        placeholder={t('minutes.placeholder')}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
@@ -74,11 +77,9 @@ export default function MinutesEditor({
           disabled={isPending || !dirty}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
         >
-          {isPending ? 'กำลังบันทึก...' : 'บันทึก'}
+          {isPending ? t('common.saving') : t('common.save')}
         </button>
-        <p className="text-xs text-gray-500">
-          หนึ่งการประชุมมีบันทึกหนึ่งฉบับ — กดบันทึกซ้ำคือแก้ฉบับเดิม
-        </p>
+        <p className="text-xs text-gray-500">{t('minutes.oneRecord')}</p>
       </div>
     </section>
   );

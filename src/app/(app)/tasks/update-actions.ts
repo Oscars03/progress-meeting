@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole } from '@/lib/auth-guard';
 import { weekKey } from '@/lib/week';
+import { toResult, type ActionResult } from '@/lib/action-result';
+import { UserError } from '@/lib/user-error';
 import type { TaskRecord, TaskUpdateRecord } from '@/lib/db/schema';
 
 function clampPct(value: unknown): number {
@@ -30,14 +32,25 @@ export async function saveWeeklyUpdateAction(input: {
   risks: string;
   nextPlan: string;
   weekKey?: string;
+}): Promise<ActionResult> {
+  return toResult(() => saveWeeklyUpdate(input));
+}
+
+async function saveWeeklyUpdate(input: {
+  taskId: string;
+  progressPct: number;
+  summary: string;
+  risks: string;
+  nextPlan: string;
+  weekKey?: string;
 }) {
   const actor = await requireRole('member');
 
   const taskId = input.taskId;
-  if (!taskId) throw new Error('ไม่พบรหัสงาน');
+  if (!taskId) throw new UserError('error.notFound');
 
   const summary = (input.summary ?? '').trim();
-  if (!summary) throw new Error('กรุณากรอกสรุปความคืบหน้า');
+  if (!summary) throw new UserError('weekly.summaryRequired');
 
   const key = input.weekKey?.trim() || weekKey();
   const progress = clampPct(input.progressPct);
@@ -48,7 +61,7 @@ export async function saveWeeklyUpdateAction(input: {
   ]);
 
   const task = tasks.find((t) => t.id === taskId);
-  if (!task) throw new Error('ไม่พบงานนี้');
+  if (!task) throw new UserError('error.notFound');
 
   const existing = updates.find((u) => u.task_id === taskId && u.week_key === key);
 

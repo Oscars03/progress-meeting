@@ -30,7 +30,7 @@ export async function GET() {
     // service-account address.
     console.error('status check failed:', error);
     return NextResponse.json(
-      { status: 'ERROR', message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' },
+      { status: 'ERROR', message: 'Cannot reach the database' },
       { status: 500 }
     );
   }

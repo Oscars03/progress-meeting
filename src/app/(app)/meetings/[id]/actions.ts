@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession } from '@/lib/auth-guard';
+import { toResult, type ActionResult } from '@/lib/action-result';
+import { UserError } from '@/lib/user-error';
 import type {
   ActionItemRecord,
   MeetingAttendeeRecord,
@@ -14,8 +16,12 @@ export type ActionItemStatus = (typeof ACTION_ITEM_STATUSES)[number];
 
 function assertItemStatus(value: string): asserts value is ActionItemStatus {
   if (!(ACTION_ITEM_STATUSES as readonly string[]).includes(value)) {
-    throw new Error(`สถานะไม่ถูกต้อง: ${value}`);
+    throw new UserError('error.invalidValue', { value });
   }
+}
+
+function requireMeetingId(meetingId: string) {
+  if (!meetingId) throw new UserError('error.notFound');
 }
 
 function revalidate(meetingId: string) {
@@ -33,27 +39,29 @@ export async function saveMinutesAction(
   content: string,
   existingId: string | null,
   rowVersion: number | null
-) {
-  const actor = await requireRole('member');
-  if (!meetingId) throw new Error('ไม่พบรหัสการประชุม');
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('member');
+    requireMeetingId(meetingId);
 
-  if (existingId && rowVersion !== null) {
-    await SheetRepo.update<MinutesRecord>(
-      'minutes',
-      existingId,
-      { content, recorded_by: actor.id },
-      rowVersion,
-      actor.id
-    );
-  } else {
-    await SheetRepo.insert(
-      'minutes',
-      { meeting_id: meetingId, content, recorded_by: actor.id },
-      actor.id
-    );
-  }
+    if (existingId && rowVersion !== null) {
+      await SheetRepo.update<MinutesRecord>(
+        'minutes',
+        existingId,
+        { content, recorded_by: actor.id },
+        rowVersion,
+        actor.id
+      );
+    } else {
+      await SheetRepo.insert(
+        'minutes',
+        { meeting_id: meetingId, content, recorded_by: actor.id },
+        actor.id
+      );
+    }
 
-  revalidate(meetingId);
+    revalidate(meetingId);
+  });
 }
 
 export async function addActionItemAction(input: {
@@ -62,27 +70,29 @@ export async function addActionItemAction(input: {
   ownerId: string;
   dueDate: string;
   sourceTaskId: string;
-}) {
-  const actor = await requireRole('member');
+}): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('member');
 
-  const title = input.title.trim();
-  if (!title) throw new Error('กรุณากรอกหัวข้องาน');
-  if (!input.meetingId) throw new Error('ไม่พบรหัสการประชุม');
+    const title = input.title.trim();
+    if (!title) throw new UserError('items.titleRequired');
+    requireMeetingId(input.meetingId);
 
-  await SheetRepo.insert(
-    'action_items',
-    {
-      meeting_id: input.meetingId,
-      title,
-      owner_id: input.ownerId,
-      due_date: input.dueDate,
-      status: 'open',
-      source_task_id: input.sourceTaskId,
-    },
-    actor.id
-  );
+    await SheetRepo.insert(
+      'action_items',
+      {
+        meeting_id: input.meetingId,
+        title,
+        owner_id: input.ownerId,
+        due_date: input.dueDate,
+        status: 'open',
+        source_task_id: input.sourceTaskId,
+      },
+      actor.id
+    );
 
-  revalidate(input.meetingId);
+    revalidate(input.meetingId);
+  });
 }
 
 export async function setActionItemStatusAction(
@@ -90,30 +100,34 @@ export async function setActionItemStatusAction(
   itemId: string,
   status: string,
   rowVersion: number
-) {
-  const actor = await requireRole('member');
-  assertItemStatus(status);
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('member');
+    assertItemStatus(status);
 
-  await SheetRepo.update<ActionItemRecord>(
-    'action_items',
-    itemId,
-    { status },
-    rowVersion,
-    actor.id
-  );
+    await SheetRepo.update<ActionItemRecord>(
+      'action_items',
+      itemId,
+      { status },
+      rowVersion,
+      actor.id
+    );
 
-  revalidate(meetingId);
+    revalidate(meetingId);
+  });
 }
 
 export async function deleteActionItemAction(
   meetingId: string,
   itemId: string,
   rowVersion: number
-) {
-  // Removing someone else's assigned work is a manager call, not a member one.
-  const actor = await requireRole('manager');
-  await SheetRepo.delete('action_items', itemId, rowVersion, actor.id);
-  revalidate(meetingId);
+): Promise<ActionResult> {
+  return toResult(async () => {
+    // Removing someone else's assigned work is a manager call, not a member one.
+    const actor = await requireRole('manager');
+    await SheetRepo.delete('action_items', itemId, rowVersion, actor.id);
+    revalidate(meetingId);
+  });
 }
 
 /**
@@ -122,58 +136,60 @@ export async function deleteActionItemAction(
  * The whole list is rewritten rather than diffed: the order is only meaningful
  * as a sequence, and a partial update leaves two people holding the same slot.
  */
-export async function setAgendaAction(meetingId: string, userIds: string[]) {
-  const actor = await requireRole('manager');
-  if (!meetingId) throw new Error('ไม่พบรหัสการประชุม');
+export async function setAgendaAction(meetingId: string, userIds: string[]): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('manager');
+    requireMeetingId(meetingId);
 
-  const all = await SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees');
-  const mine = all.filter((a) => a.meeting_id === meetingId);
+    const all = await SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees');
+    const mine = all.filter((a) => a.meeting_id === meetingId);
 
-  const seen = new Set<string>();
-  const ordered = userIds.filter((id) => id && !seen.has(id) && seen.add(id));
+    const seen = new Set<string>();
+    const ordered = userIds.filter((id) => id && !seen.has(id) && seen.add(id));
 
-  for (const [index, userId] of ordered.entries()) {
-    const existing = mine.find((a) => a.user_id === userId);
-    const present_order = index + 1;
+    for (const [index, userId] of ordered.entries()) {
+      const existing = mine.find((a) => a.user_id === userId);
+      const present_order = index + 1;
 
-    if (existing) {
-      if (Number(existing.present_order) === present_order) continue;
-      await SheetRepo.update<MeetingAttendeeRecord>(
-        'meeting_attendees',
-        existing.id,
-        { present_order },
-        existing.row_version,
-        actor.id
-      );
-    } else {
-      await SheetRepo.insert(
-        'meeting_attendees',
-        {
-          meeting_id: meetingId,
-          user_id: userId,
-          attend_status: 'invited',
-          present_order,
-        },
-        actor.id
-      );
+      if (existing) {
+        if (Number(existing.present_order) === present_order) continue;
+        await SheetRepo.update<MeetingAttendeeRecord>(
+          'meeting_attendees',
+          existing.id,
+          { present_order },
+          existing.row_version,
+          actor.id
+        );
+      } else {
+        await SheetRepo.insert(
+          'meeting_attendees',
+          {
+            meeting_id: meetingId,
+            user_id: userId,
+            attend_status: 'invited',
+            present_order,
+          },
+          actor.id
+        );
+      }
     }
-  }
 
-  // Anyone dropped from the list loses their slot but keeps their row, so an
-  // attendance record taken earlier is not destroyed by an agenda edit.
-  for (const row of mine) {
-    if (!ordered.includes(row.user_id) && row.present_order !== '') {
-      await SheetRepo.update<MeetingAttendeeRecord>(
-        'meeting_attendees',
-        row.id,
-        { present_order: '' },
-        row.row_version,
-        actor.id
-      );
+    // Anyone dropped from the list loses their slot but keeps their row, so an
+    // attendance record taken earlier is not destroyed by an agenda edit.
+    for (const row of mine) {
+      if (!ordered.includes(row.user_id) && row.present_order !== '') {
+        await SheetRepo.update<MeetingAttendeeRecord>(
+          'meeting_attendees',
+          row.id,
+          { present_order: '' },
+          row.row_version,
+          actor.id
+        );
+      }
     }
-  }
 
-  revalidate(meetingId);
+    revalidate(meetingId);
+  });
 }
 
 export async function setAttendStatusAction(
@@ -181,20 +197,22 @@ export async function setAttendStatusAction(
   attendeeId: string,
   attendStatus: string,
   rowVersion: number
-) {
-  const actor = await requireSession();
-  const allowed = ['invited', 'present', 'absent', 'excused'];
-  if (!allowed.includes(attendStatus)) {
-    throw new Error(`สถานะการเข้าร่วมไม่ถูกต้อง: ${attendStatus}`);
-  }
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+    const allowed = ['invited', 'present', 'absent', 'excused'];
+    if (!allowed.includes(attendStatus)) {
+      throw new UserError('error.invalidValue', { value: attendStatus });
+    }
 
-  await SheetRepo.update<MeetingAttendeeRecord>(
-    'meeting_attendees',
-    attendeeId,
-    { attend_status: attendStatus },
-    rowVersion,
-    actor.id
-  );
+    await SheetRepo.update<MeetingAttendeeRecord>(
+      'meeting_attendees',
+      attendeeId,
+      { attend_status: attendStatus },
+      rowVersion,
+      actor.id
+    );
 
-  revalidate(meetingId);
+    revalidate(meetingId);
+  });
 }

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { closePollAction, confirmSlotAction, deletePollAction, voteAction } from '../actions';
 import { slotConflictsAction, type SlotBusy } from '../../../calendar-actions';
+import { usePrefs } from '@/lib/ui/prefs';
 
 type Choice = 'yes' | 'maybe' | 'no';
 
@@ -22,10 +23,10 @@ export type SlotView = {
   responders: { name: string; choice: Choice }[];
 };
 
-const CHOICE_LABEL: Record<Choice, string> = {
-  yes: 'ว่าง',
-  maybe: 'ได้แต่ไม่สะดวก',
-  no: 'ไม่ว่าง',
+const ANSWER_LABELS: Record<Choice, string> = {
+  yes: 'polls.status.yes',
+  maybe: 'polls.status.maybe',
+  no: 'polls.status.no',
 };
 
 const CHOICE_STYLE: Record<Choice, { on: string; off: string }> = {
@@ -80,6 +81,7 @@ export default function PollGrid({
   closed: boolean;
   alreadyConfirmed: boolean;
 }) {
+  const { t } = usePrefs();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
@@ -101,21 +103,21 @@ export default function PollGrid({
         );
         setConflicts(new Map(result.map((r) => [r.slotId, r])));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'อ่านปฏิทินไม่สำเร็จ');
+        setError(err instanceof Error ? err.message : t('polls.error.readCalendar'));
       } finally {
         setCheckingCalendars(false);
       }
     });
   };
 
-  const run = (work: () => Promise<void>) => {
+  const run = (work: () => Promise<any>) => {
     setError('');
     startTransition(async () => {
       try {
         await work();
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'ดำเนินการไม่สำเร็จ');
+        setError(err instanceof Error ? err.message : t('error.generic'));
       }
     });
   };
@@ -136,16 +138,16 @@ export default function PollGrid({
       {!closed && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-gray-600">
-            คุณตอบแล้ว{' '}
-            <span className="font-semibold text-gray-900 tabular-nums">{answered}</span> จาก{' '}
-            <span className="tabular-nums">{slots.length}</span> ช่วง
+            {t('polls.answeredCount')}{' '}
+            <span className="font-semibold text-gray-900 tabular-nums">{answered}</span> {t('polls.answeredFrom')}{' '}
+            <span className="tabular-nums">{slots.length}</span> {t('polls.answeredUnit')}
           </p>
           <button
             onClick={checkCalendars}
             disabled={isPending}
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            {checkingCalendars ? 'กำลังอ่านปฏิทิน...' : 'ตรวจจาก Google Calendar'}
+            {checkingCalendars ? t('polls.checking') : t('polls.checkCalendar')}
           </button>
         </div>
       )}
@@ -155,8 +157,8 @@ export default function PollGrid({
           {(() => {
             const checked = [...conflicts.values()][0]?.checked ?? 0;
             return checked === 0
-              ? 'ยังไม่มีใครเชื่อมปฏิทิน — ไปที่หน้าการตั้งค่าเพื่อเชื่อมบัญชี'
-              : `อ่านจากปฏิทินของ ${checked} คนที่เชื่อมไว้ คนที่ยังไม่เชื่อมจะไม่ปรากฏที่นี่`;
+              ? t('polls.noLinked')
+              : t('polls.linkedNote', { checked });
           })()}
         </p>
       )}
@@ -180,33 +182,33 @@ export default function PollGrid({
               </span>
 
               {slot.isRecommended && (
-                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
-                  แนะนำ
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded font-medium ml-2">
+                  {t('polls.recommended')}
                 </span>
               )}
               {!slot.isRecommended && slot.everyoneCanMake && (
-                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
-                  ทุกคนมาได้
+                <span className="text-xs font-medium text-green-700 ml-2">
+                  {t('polls.allAvailable')}
                 </span>
               )}
               {slot.no > 0 && (
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-50 text-red-700">
-                  มาไม่ได้ {slot.no} คน
+                  {t('polls.unavailableCount', { no: slot.no })}
                 </span>
               )}
             </div>
 
             {conflicts?.get(slot.id)?.busyNames.length ? (
               <p className="text-xs text-amber-800">
-                ปฏิทินชนกับ: {conflicts.get(slot.id)!.busyNames.join(', ')}
+                <span className="text-red-700">{t('polls.conflictWith', { names: conflicts.get(slot.id)!.busyNames.join(', ') })}</span>
               </p>
             ) : null}
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 tabular-nums">
-              <span>ว่าง {slot.yes}</span>
-              <span>ไม่สะดวก {slot.maybe}</span>
-              <span>ไม่ว่าง {slot.no}</span>
-              {slot.pending > 0 && <span>ยังไม่ตอบ {slot.pending}</span>}
+              <span>{t('polls.statusCount.yes', { yes: slot.yes })}</span>
+              <span>{t('polls.statusCount.maybe', { maybe: slot.maybe })}</span>
+              <span>{t('polls.statusCount.no', { no: slot.no })}</span>
+              {slot.pending > 0 && <span>{t('polls.statusCount.pending', { pending: slot.pending })}</span>}
             </div>
 
             {slot.responders.length > 0 && (
@@ -214,7 +216,7 @@ export default function PollGrid({
                 {slot.responders.map((r) => (
                   <span
                     key={r.name + r.choice}
-                    title={CHOICE_LABEL[r.choice]}
+                    title={t(ANSWER_LABELS[r.choice] as Parameters<typeof t>[0])}
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       r.choice === 'yes'
                         ? 'bg-green-50 text-green-700'
@@ -244,7 +246,7 @@ export default function PollGrid({
                         active ? style.on : style.off
                       }`}
                     >
-                      {CHOICE_LABEL[choice]}
+                      {t(ANSWER_LABELS[choice] as Parameters<typeof t>[0])}
                     </button>
                   );
                 })}
@@ -252,7 +254,7 @@ export default function PollGrid({
                 {canManage && !alreadyConfirmed && (
                   <button
                     onClick={() => {
-                      if (!confirm(`ยืนยันช่วง ${formatRange(slot.startAt, slot.endAt)} เป็นการประชุม?`))
+                      if (!confirm(t('polls.confirmSlot', { range: formatRange(slot.startAt, slot.endAt) })))
                         return;
                       run(async () => {
                         await confirmSlotAction(pollId, pollRowVersion, slot.id);
@@ -261,7 +263,7 @@ export default function PollGrid({
                     disabled={isPending}
                     className="ml-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
                   >
-                    ยืนยันช่วงนี้
+                    {t('polls.confirmThis')}
                   </button>
                 )}
               </div>
@@ -272,7 +274,7 @@ export default function PollGrid({
 
       {slots.length === 0 && (
         <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-400">
-          โพลนี้ไม่มีช่วงเวลา
+          {t('polls.noSlots')}
         </p>
       )}
 
@@ -285,11 +287,11 @@ export default function PollGrid({
             disabled={isPending}
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            {closed ? 'เปิดรับคำตอบอีกครั้ง' : 'ปิดรับคำตอบ'}
+            {closed ? t('polls.reopen') : t('polls.close')}
           </button>
           <button
             onClick={() => {
-              if (!confirm('ลบโพลนี้พร้อมคำตอบทั้งหมดถาวร?')) return;
+              if (!confirm(t('polls.confirmDelete'))) return;
               run(async () => {
                 await deletePollAction(pollId, pollRowVersion);
                 router.push('/meetings/polls');
@@ -298,7 +300,7 @@ export default function PollGrid({
             disabled={isPending}
             className="px-3 py-1.5 text-sm text-red-600 hover:underline disabled:opacity-50"
           >
-            ลบโพล
+            {t('polls.delete')}
           </button>
         </div>
       )}

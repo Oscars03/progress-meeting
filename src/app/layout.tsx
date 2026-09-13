@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans_Thai, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { PrefsProvider, THEME_BOOTSTRAP } from "@/lib/ui/prefs";
+import { getLocale, getT } from "@/lib/ui/server-i18n";
 
 /**
  * Geist was loaded here with subsets: ["latin"], which carries no Thai glyphs,
@@ -23,15 +24,20 @@ const mono = IBM_Plex_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Weekly Progress Meeting System",
-  description: "ระบบจัดการการประชุมความคืบหน้ารายสัปดาห์",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: "Weekly Progress Meeting System",
+    description: t("app.tagline"),
+  };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
+
   return (
     <html
-      lang="th"
+      lang={locale}
       data-theme="light"
       suppressHydrationWarning
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
@@ -41,7 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <PrefsProvider>{children}</PrefsProvider>
+        <PrefsProvider initialLocale={locale}>{children}</PrefsProvider>
       </body>
     </html>
   );

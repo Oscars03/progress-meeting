@@ -1,6 +1,7 @@
 import { getSheetsApi, getSpreadsheetId } from './sheet-client';
 import { SCHEMAS } from './schema';
 import { hashPassword } from '../password';
+import { UserError } from '../user-error';
 
 type SeedUser = { name: string; email: string; role: string };
 
@@ -25,10 +26,11 @@ function seedPassword(): string {
 }
 
 /** Raised when initDatabase() would rewrite headers over a sheet that already holds data. */
-export class DatabaseAlreadyInitializedError extends Error {
+export class DatabaseAlreadyInitializedError extends UserError {
   readonly populatedTabs: string[];
   constructor(populatedTabs: string[]) {
-    super(`ฐานข้อมูลมีข้อมูลอยู่แล้วใน: ${populatedTabs.join(', ')}`);
+    const tabs = populatedTabs.join(', ');
+    super('settings.dbAlreadyInitialized', { tabs }, `Database already holds data in: ${tabs}`);
     this.name = 'DatabaseAlreadyInitializedError';
     this.populatedTabs = populatedTabs;
   }

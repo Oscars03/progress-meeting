@@ -4,18 +4,19 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { hashPassword, validatePassword } from '@/lib/password';
 import { isSignupAllowed, looksLikeEmail, normalizeEmail } from '@/lib/signup-policy';
 import type { UserRecord } from '@/lib/db/schema';
+import type { ActionFailure } from '@/lib/action-result';
+import type { TranslationKey } from '@/lib/ui/i18n';
 
 /**
- * Message returned whenever a sign-up is accepted for review.
+ * Notice returned whenever a sign-up is accepted for review.
  *
- * The same text comes back for an address that is already registered. An
+ * The same notice comes back for an address that is already registered. An
  * attacker who could tell the two apart would have a way to test which
  * addresses hold accounts, and this action answers to anyone on the internet.
  */
-const PENDING_MESSAGE =
-  'ส่งคำขอสมัครแล้ว บัญชีจะใช้งานได้เมื่อผู้ดูแลระบบอนุมัติ';
+const PENDING: TranslationKey = 'register.pending';
 
-export type RegisterResult = { ok: true; message: string } | { ok: false; message: string };
+export type RegisterResult = { ok: true; notice: TranslationKey } | ActionFailure;
 
 /**
  * Self-registration for accounts that do not use Google.
@@ -35,29 +36,26 @@ export async function registerAction(input: {
   const password = input.password ?? '';
 
   if (!name) {
-    return { ok: false, message: 'กรุณากรอกชื่อ' };
+    return { ok: false, error: 'error.nameRequired' };
   }
   if (!looksLikeEmail(email)) {
-    return { ok: false, message: 'รูปแบบอีเมลไม่ถูกต้อง' };
+    return { ok: false, error: 'error.emailInvalid' };
   }
 
   const passwordError = validatePassword(password);
   if (passwordError) {
-    return { ok: false, message: passwordError };
+    return { ok: false, error: passwordError.key, vars: passwordError.vars };
   }
 
   if (!isSignupAllowed(email)) {
-    return {
-      ok: false,
-      message: 'อีเมลนี้ไม่อยู่ในโดเมนที่เปิดให้สมัคร กรุณาติดต่อผู้ดูแลระบบ',
-    };
+    return { ok: false, error: 'register.domainNotAllowed' };
   }
 
   try {
     const users = await SheetRepo.find<UserRecord>('users');
     if (users.some((u) => normalizeEmail(u.email) === email)) {
-      // Deliberately indistinguishable from success -- see PENDING_MESSAGE.
-      return { ok: true, message: PENDING_MESSAGE };
+      // Deliberately indistinguishable from success -- see PENDING.
+      return { ok: true, notice: PENDING };
     }
 
     await SheetRepo.insert(
@@ -74,9 +72,9 @@ export async function registerAction(input: {
       'self-signup'
     );
 
-    return { ok: true, message: PENDING_MESSAGE };
+    return { ok: true, notice: PENDING };
   } catch (e) {
     console.error('registerAction failed:', e);
-    return { ok: false, message: 'สมัครไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' };
+    return { ok: false, error: 'register.failed' };
   }
 }

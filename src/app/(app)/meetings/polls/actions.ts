@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession } from '@/lib/auth-guard';
 import { isChoice, type Choice } from '@/lib/poll-tally';
+import { UserError } from '@/lib/user-error';
+import { toResult } from '@/lib/action-result';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -12,7 +14,7 @@ import type {
 
 function assertChoice(value: string): asserts value is Choice {
   if (!isChoice(value)) {
-    throw new Error(`คำตอบไม่ถูกต้อง: ${value}`);
+    throw new UserError('polls.error.invalidAnswer', { value });
   }
 }
 
@@ -27,20 +29,21 @@ export async function createPollAction(input: {
   note: string;
   slots: { start: string; end: string }[];
 }) {
+  return toResult(async () => {
   const actor = await requireRole('manager');
 
   const title = input.title.trim();
-  if (!title) throw new Error('กรุณากรอกชื่อโพล');
+  if (!title) throw new UserError('polls.error.titleRequired');
 
   const slots = input.slots
     .map((s) => ({ start: s.start?.trim() ?? '', end: s.end?.trim() ?? '' }))
     .filter((s) => s.start && s.end);
 
-  if (slots.length === 0) throw new Error('ต้องเสนอช่วงเวลาอย่างน้อย 1 ช่วง');
+  if (slots.length === 0) throw new UserError('polls.error.minSlots');
 
   for (const s of slots) {
     if (Date.parse(s.end) <= Date.parse(s.start)) {
-      throw new Error('เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม');
+      throw new UserError('polls.error.invalidTime');
     }
   }
 
@@ -66,6 +69,7 @@ export async function createPollAction(input: {
 
   revalidate(poll.id);
   return { pollId: poll.id };
+  });
 }
 
 /**
@@ -74,7 +78,12 @@ export async function createPollAction(input: {
  * One vote per person per slot: answering again replaces the old answer rather
  * than adding a second, so the tally cannot count the same person twice.
  */
-export async function voteAction(pollId: string, slotId: string, choice: string) {
+export async function voteAction(
+  pollId: string,
+  slotId: string,
+  choice: string
+) {
+  return toResult(async () => {
   const actor = await requireSession();
   assertChoice(choice);
 
@@ -99,6 +108,7 @@ export async function voteAction(pollId: string, slotId: string, choice: string)
   }
 
   revalidate(pollId);
+  });
 }
 
 export async function closePollAction(
@@ -106,6 +116,7 @@ export async function closePollAction(
   rowVersion: number,
   status: 'open' | 'closed'
 ) {
+  return toResult(async () => {
   const actor = await requireRole('manager');
   await SheetRepo.update<AvailabilityPollRecord>(
     'availability_polls',
@@ -115,6 +126,7 @@ export async function closePollAction(
     actor.id
   );
   revalidate(pollId);
+  });
 }
 
 /**
@@ -128,6 +140,7 @@ export async function confirmSlotAction(
   rowVersion: number,
   slotId: string
 ) {
+  return toResult(async () => {
   const actor = await requireRole('manager');
 
   const [polls, slots] = await Promise.all([
@@ -136,11 +149,11 @@ export async function confirmSlotAction(
   ]);
 
   const poll = polls.find((p) => p.id === pollId);
-  if (!poll) throw new Error('ไม่พบโพลนี้');
-  if (poll.meeting_id) throw new Error('โพลนี้ถูกยืนยันเป็นการประชุมไปแล้ว');
+  if (!poll) throw new UserError('polls.error.notFound');
+  if (poll.meeting_id) throw new UserError('polls.error.alreadyConfirmed');
 
   const slot = slots.find((s) => s.id === slotId && s.poll_id === pollId);
-  if (!slot) throw new Error('ไม่พบช่วงเวลาที่เลือกในโพลนี้');
+  if (!slot) throw new UserError('polls.error.slotNotFound');
 
   const meeting = await SheetRepo.insert(
     'meetings',
@@ -168,9 +181,11 @@ export async function confirmSlotAction(
 
   revalidate(pollId);
   return { meetingId: meeting.id };
+  });
 }
 
 export async function deletePollAction(pollId: string, rowVersion: number) {
+  return toResult(async () => {
   const actor = await requireRole('manager');
 
   const [slots, votes] = await Promise.all([
@@ -192,4 +207,5 @@ export async function deletePollAction(pollId: string, rowVersion: number) {
   await SheetRepo.delete('availability_polls', pollId, rowVersion, actor.id);
 
   revalidate();
+  });
 }

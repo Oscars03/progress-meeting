@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const status = error instanceof AuthorizationError ? 403 : 500;
     return NextResponse.json(
-      { success: false, message: 'ต้องเข้าสู่ระบบด้วยสิทธิ์ผู้ดูแลระบบ' },
+      { success: false, message: 'Administrator sign-in required' },
       { status }
     );
   }
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const result = await initDatabase({ force });
     return NextResponse.json({
       success: true,
-      message: `ติดตั้งโครงสร้างฐานข้อมูลสำเร็จ (สร้าง/พบข้อมูลผู้ใช้ ${result.seededCount} รายการ)`,
+      message: `Database structure installed (${result.seededCount} seed users created)`,
       data: result,
     });
   } catch (error) {
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
     console.error('db-init failed:', error);
     return NextResponse.json(
-      { success: false, message: 'เกิดข้อผิดพลาดในการติดตั้งฐานข้อมูล' },
+      { success: false, message: 'Database installation failed' },
       { status: 500 }
     );
   }

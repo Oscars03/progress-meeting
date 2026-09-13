@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { UserError } from './user-error';
 
 const SALT_ROUNDS = 10;
 
@@ -28,9 +29,9 @@ export async function verifyPassword(plain: string, stored: unknown): Promise<bo
 /** Minimum policy applied wherever a password is set. */
 export const MIN_PASSWORD_LENGTH = 8;
 
-export function validatePassword(plain: string): string | null {
+export function validatePassword(plain: string): UserError | null {
   if (typeof plain !== 'string' || plain.length < MIN_PASSWORD_LENGTH) {
-    return `รหัสผ่านต้องมีความยาวอย่างน้อย ${MIN_PASSWORD_LENGTH} ตัวอักษร`;
+    return new UserError('error.passwordTooShort', { n: MIN_PASSWORD_LENGTH });
   }
   return null;
 }

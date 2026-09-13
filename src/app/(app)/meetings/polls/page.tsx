@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
+import { getT } from '@/lib/ui/server-i18n';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -11,7 +12,7 @@ import WeekAvailabilityGrid from './week-availability';
 import { weekAvailabilityAction } from '../../calendar-actions';
 
 export default async function PollsPage() {
-  const actor = await requireSession();
+  const [actor, t] = await Promise.all([requireSession(), getT()]);
 
   // The current week is read on the server so the grid arrives filled in,
   // rather than rendering empty and fetching from an effect.
@@ -46,17 +47,17 @@ export default async function PollsPage() {
   const closed = rows.filter((r) => r.poll.status === 'closed');
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">หาเวลาที่ตรงกัน</h2>
-          <p className="text-sm text-gray-500">
-            เสนอหลายช่วงเวลา ให้ทุกคนกดว่าสะดวกหรือไม่ แล้วยืนยันช่วงที่ดีที่สุดเป็นการประชุม
+          <h2 className="text-2xl font-bold text-gray-900">{t('polls.header')}</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {t('polls.headerDesc')}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/meetings" className="text-sm text-blue-600 hover:underline whitespace-nowrap">
-            ← ปฏิทิน
+          <Link href="/meetings" className="text-sm text-blue-600 hover:underline">
+            {t('polls.backToCalendar')}
           </Link>
           {canManage && <NewPollButton />}
         </div>
@@ -65,15 +66,19 @@ export default async function PollsPage() {
       <WeekAvailabilityGrid initial={availability} canManage={canManage} />
 
       {rows.length === 0 && (
-        <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-400">
-          ยังไม่มีโพล
-          {canManage ? ' — กด "สร้างโพลใหม่" เพื่อเสนอช่วงเวลา' : ' รอผู้จัดสร้างโพล'}
-        </p>
+        <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-100">
+          <p className="text-gray-500 mb-2">
+            {t('polls.empty')}
+            <span className="text-sm">
+              {canManage ? t('polls.emptyManager') : t('polls.emptyUser')}
+            </span>
+          </p>
+        </div>
       )}
 
       {open.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-600">เปิดให้ตอบ</h3>
+          <h3 className="text-sm font-semibold text-gray-600">{t('polls.openLabel')}</h3>
           <ul className="space-y-2">
             {open.map(({ poll, slotCount, responderCount, myRemaining }) => (
               <li key={poll.id}>
@@ -83,19 +88,19 @@ export default async function PollsPage() {
                 >
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                     {myRemaining > 0 ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800">
-                        คุณยังไม่ตอบ {myRemaining} ช่วง
+                      <span className="bg-amber-50 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium ml-auto">
+                        {t('polls.myRemaining', { count: myRemaining })}
                       </span>
                     ) : (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
-                        คุณตอบครบแล้ว
+                      <span className="bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full font-medium ml-auto">
+                        {t('polls.myDone')}
                       </span>
                     )}
                     <span className="font-semibold text-gray-900 flex-1 min-w-48">
                       {poll.title}
                     </span>
                     <span className="text-xs text-gray-500 tabular-nums">
-                      {slotCount} ช่วง · ตอบแล้ว {responderCount} คน
+                      {t('polls.stats', { slots: slotCount, responders: responderCount })}
                     </span>
                   </div>
                 </Link>
@@ -107,7 +112,7 @@ export default async function PollsPage() {
 
       {closed.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-600">ปิดแล้ว</h3>
+          <h3 className="text-sm font-semibold text-gray-600">{t('polls.closedLabel')}</h3>
           <ul className="space-y-2">
             {closed.map(({ poll, slotCount, responderCount }) => (
               <li key={poll.id}>
@@ -117,11 +122,11 @@ export default async function PollsPage() {
                 >
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
-                      {poll.meeting_id ? 'ยืนยันแล้ว' : 'ปิดแล้ว'}
+                      {poll.meeting_id ? t('polls.statusConfirmed') : t('polls.statusClosed')}
                     </span>
                     <span className="font-medium text-gray-700 flex-1 min-w-48">{poll.title}</span>
                     <span className="text-xs text-gray-400 tabular-nums">
-                      {slotCount} ช่วง · ตอบแล้ว {responderCount} คน
+                      {t('polls.stats', { slots: slotCount, responders: responderCount })}
                     </span>
                   </div>
                 </Link>

@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import type { calendar_v3 } from 'googleapis';
 import { getStoredToken, recordTokenError } from './tokens';
+import { UserError } from '../user-error';
 
 /**
  * Google Calendar access on behalf of a signed-in person.
@@ -12,9 +13,9 @@ import { getStoredToken, recordTokenError } from './tokens';
  * only they can authorise, so every call here runs as a specific user.
  */
 
-export class NotConnectedError extends Error {
+export class NotConnectedError extends UserError {
   constructor(userId: string) {
-    super(`ผู้ใช้ ${userId} ยังไม่ได้เชื่อมบัญชี Google Calendar`);
+    super('calendar.notConnected', undefined, `User ${userId} has not connected Google Calendar`);
     this.name = 'NotConnectedError';
   }
 }
@@ -82,6 +83,35 @@ export async function busyTimes(
   });
 }
 
+export type GoogleEvent = { id: string; title: string; start: string; end: string };
+
+/**
+ * Fetch the user's actual events with titles for their personal view.
+ */
+export async function myEvents(
+  userId: string,
+  timeMin: string,
+  timeMax: string
+): Promise<GoogleEvent[]> {
+  return asUser(userId, async (calendar) => {
+    const res = await calendar.events.list({
+      calendarId: PRIMARY,
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+    return (res.data.items || [])
+      .filter((e) => e.start?.dateTime || e.start?.date)
+      .map((e) => ({
+        id: e.id || Math.random().toString(),
+        title: e.summary || 'Busy',
+        start: (e.start?.dateTime || e.start?.date) as string,
+        end: (e.end?.dateTime || e.end?.date) as string,
+      }));
+  });
+}
+
 export type EventInput = {
   title: string;
   description?: string;
@@ -120,7 +150,7 @@ export async function createEvent(
     });
 
     const eventId = res.data.id;
-    if (!eventId) throw new Error('Google ไม่ได้คืนรหัสอีเวนต์');
+    if (!eventId) throw new Error('Google returned no event id');
     return { eventId, htmlLink: res.data.htmlLink ?? null };
   });
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireSession } from '@/lib/auth-guard';
+import { toResult, type ActionResult } from '@/lib/action-result';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { busyTimes, NotConnectedError } from '@/lib/google/calendar';
 import { pullMeeting, pushMeeting } from '@/lib/google/meeting-sync';
@@ -17,7 +18,7 @@ import {
   type Interval,
   type PersonAvailability,
 } from '@/lib/availability-grid';
-import type { MeetingAttendeeRecord, MeetingRecord, UserRecord } from '@/lib/db/schema';
+import type { MeetingAttendeeRecord, MeetingRecord, UserRecord, PersonalEventRecord } from '@/lib/db/schema';
 
 /** The hours the grid covers each day, in the lab's zone. */
 const DAY_FROM_HOUR = 8;
@@ -51,11 +52,12 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
   const windowStart = Date.parse(slotStart(weekStart, DAY_FROM_HOUR));
   const windowEnd = Date.parse(slotStart(addDays(weekStart, 6), DAY_TO_HOUR));
 
-  const [users, connected, meetings, attendees] = await Promise.all([
+  const [users, connected, meetings, attendees, personalEvents] = await Promise.all([
     SheetRepo.find<UserRecord>('users'),
     getConnectedUserIds(),
     SheetRepo.find<MeetingRecord>('meetings'),
     SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees'),
+    SheetRepo.find<PersonalEventRecord>('personal_events'),
   ]);
 
   const active = users.filter((u) => u.active === true);
@@ -81,6 +83,30 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     }
   }
 
+  // Add manual personal events to appBusy
+  for (const pe of personalEvents) {
+    const parseTime = (t: string) => {
+      if (t.includes('+') || t.endsWith('Z')) return Date.parse(t);
+      if (t.length === 16) return Date.parse(`${t}:00+07:00`);
+      return Date.parse(t);
+    };
+    const start = parseTime(pe.start_at);
+    const end = parseTime(pe.end_at);
+    console.log(`[DEBUG] PE: ${pe.title} start=${pe.start_at} end=${pe.end_at} parsedStart=${start} parsedEnd=${end} windowStart=${windowStart} windowEnd=${windowEnd}`);
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+      console.log(`[DEBUG] PE: ${pe.title} skipped because invalid or end<=start`);
+      continue;
+    }
+    if (end <= windowStart || start >= windowEnd) {
+      console.log(`[DEBUG] PE: ${pe.title} skipped because out of window`);
+      continue;
+    }
+    
+    const id = pe.user_id;
+    appBusy.set(id, [...(appBusy.get(id) ?? []), { start, end }]);
+    console.log(`[DEBUG] PE: ${pe.title} added to appBusy for user ${id}`);
+  }
+
   const timeMin = new Date(windowStart).toISOString();
   const timeMax = new Date(windowEnd).toISOString();
 
@@ -94,7 +120,11 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
   const people: PersonAvailability[] = active.map((u, i) => {
     const busy = [...(appBusy.get(u.id) ?? [])];
     const result = google[i];
-    let known = false;
+    
+    // User is "known" if they connected Google Calendar, OR if they added at least one manual event
+    // somewhere in the database (Option B).
+    const hasManualEvents = personalEvents.some(pe => pe.user_id === u.id);
+    let known = hasManualEvents;
 
     if (result.status === 'fulfilled' && result.value) {
       for (const b of result.value) {
@@ -136,10 +166,12 @@ export async function myCalendarStatusAction(): Promise<ConnectionStatus> {
   };
 }
 
-export async function disconnectCalendarAction(): Promise<void> {
-  const actor = await requireSession();
-  await disconnect(actor.id);
-  revalidatePath('/settings');
+export async function disconnectCalendarAction(): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+    await disconnect(actor.id);
+    revalidatePath('/settings');
+  });
 }
 
 export async function pushMeetingAction(meetingId: string) {
@@ -191,12 +223,15 @@ export async function slotConflictsAction(
   await requireSession();
   if (slots.length === 0) return [];
 
-  const [users, connected] = await Promise.all([
+  const [users, connected, personalEvents] = await Promise.all([
     SheetRepo.find<UserRecord>('users'),
     getConnectedUserIds(),
+    SheetRepo.find<PersonalEventRecord>('personal_events'),
   ]);
 
-  const candidates = users.filter((u) => u.active === true && connected.has(u.id));
+  const candidates = users.filter(
+    (u) => u.active === true && (connected.has(u.id) || personalEvents.some(pe => pe.user_id === u.id))
+  );
   const empty = slots.map((s) => ({ slotId: s.id, busyNames: [], checked: 0 }));
   if (candidates.length === 0) return empty;
 
@@ -213,16 +248,29 @@ export async function slotConflictsAction(
   // One freebusy call per person rather than per slot: the window covers every
   // slot, so a second call would ask the same question again.
   for (const user of candidates) {
-    try {
-      const busy = await busyTimes(user.id, timeMin, timeMax);
-      byName.set(user.name, busy);
-      checked++;
-    } catch (err) {
-      // One person's revoked grant must not blank out everybody else's answer.
-      if (!(err instanceof NotConnectedError)) {
-        console.error(`freebusy failed for ${user.id}:`, err);
+    let busy: { start: string; end: string }[] = [];
+    
+    // 1. Google Calendar busy times
+    if (connected.has(user.id)) {
+      try {
+        busy = await busyTimes(user.id, timeMin, timeMax);
+        checked++;
+      } catch (err) {
+        if (!(err instanceof NotConnectedError)) {
+          console.error(`freebusy failed for ${user.id}:`, err);
+        }
       }
+    } else {
+      // Manual schedule user
+      checked++;
     }
+
+    // 2. Personal manual events
+    const manualBusy = personalEvents
+      .filter((pe) => pe.user_id === user.id)
+      .map((pe) => ({ start: pe.start_at, end: pe.end_at }));
+
+    byName.set(user.name, [...busy, ...manualBusy]);
   }
 
   return slots.map((slot) => ({
