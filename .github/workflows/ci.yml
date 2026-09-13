@@ -1,11 +1,19 @@
 name: CI
 
+# One run per change. Every change reaches master through a pull request, so
+# the PR is where it is checked. Triggering on push as well ran the same code
+# twice -- once for the branch push, once for the PR -- and a push trigger on
+# master would add a third run after every merge.
+#
+# The trade-off: a commit pushed straight to master is not checked. That is
+# outside the workflow, and workflow_dispatch below runs the check by hand from
+# the Actions tab when master itself needs verifying.
 on:
-  push:
-    branches: ['**']
   pull_request:
+    branches: [master]
+  workflow_dispatch:
 
-# A newer push makes an in-flight run for the same branch irrelevant.
+# A newer push to the same PR makes an in-flight run for it irrelevant.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
