@@ -141,3 +141,18 @@ Consequences worth remembering:
 
 Inbound sync is manual. Google push notifications need a public HTTPS callback,
 which localhost does not have, so "two-way" here means a button.
+
+## Read the "Test Files" line, not just "Tests"
+
+A test file that fails to **load** reports zero tests, not failed tests. The
+summary then reads `Tests 57 passed` while `Test Files 1 failed` sits one line
+above it. That happened here: `auth.test.ts` stopped importing and six tests
+silently vanished, and it was reported as green because only the last lines of
+output were read. CI caught it.
+
+Vitest does not read tsconfig `paths`. The `@/` alias is declared again in
+`vitest.config.ts`; keep the two in step.
+
+When CI goes red, open the failing step's log before changing anything. The
+first fix attempted here was built on a guessed cause and changed the wrong
+thing.
