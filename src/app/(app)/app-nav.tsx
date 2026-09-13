@@ -20,12 +20,26 @@ export default function AppNav({ userName }: { userName: string }) {
 
   return (
     <nav className="w-full md:w-64 bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm shrink-0">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-blue-600">{t('app.title')}</h1>
-        <div className="flex items-center gap-1.5">
-          <LocaleSwitcher />
-          <ThemeToggle />
+      {/* Name gets the full width of the rail. Sharing the row with the
+          language and theme controls squeezed it into a truncated fragment. */}
+      <div className="flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
+        <img
+          src="/brand/irish-mark.svg"
+          alt="IRiSH Lab"
+          width={44}
+          height={44}
+          className="brand-logo shrink-0"
+        />
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold leading-tight text-gray-900">{t('app.name')}</h1>
+          {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
+          <p className="text-xs font-semibold tracking-[0.14em] text-blue-600">IRiSH Lab</p>
         </div>
+      </div>
+      <div className="flex items-center justify-end gap-1.5">
+        <LocaleSwitcher />
+        <ThemeToggle />
       </div>
 
       <div className="flex flex-col space-y-1 mt-4">

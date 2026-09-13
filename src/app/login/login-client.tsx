@@ -104,12 +104,31 @@ function LoginForm({
         <ThemeToggle />
       </div>
 
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {mode === 'login' ? t('login.title') : t('register.title')}
-        </h1>
-        <p className="text-sm text-gray-500">{t('login.subtitle')}</p>
+      {/* The system's name is the thing to recognise on this page, so it leads.
+          The mark stands alone rather than the full lab lockup, whose own small
+          subtitle would compete with the name and be unreadable at this size. */}
+      <div className="text-center space-y-3">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
+        <img
+          src="/brand/irish-mark.svg"
+          alt="IRiSH Lab"
+          width={80}
+          height={80}
+          className="brand-logo mx-auto"
+        />
+        <div className="space-y-1">
+          {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
+          <p className="text-xs font-semibold tracking-[0.18em] text-gray-500">IRiSH Lab</p>
+          <h1 className="text-3xl font-bold leading-tight text-gray-900 text-balance">
+            {t('app.name')}
+          </h1>
+          <p className="text-sm text-gray-500 text-balance">{t('app.tagline')}</p>
+        </div>
       </div>
+
+      <h2 className="pt-5 border-t border-gray-100 text-lg font-semibold text-gray-900">
+        {mode === 'login' ? t('login.title') : t('register.title')}
+      </h2>
 
       {error && (
         <div className="p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">

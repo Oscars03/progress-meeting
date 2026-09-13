@@ -13,6 +13,8 @@ export type Locale = (typeof LOCALES)[number];
 export const DICT = {
   th: {
     'app.title': 'Weekly Progress',
+    'app.name': 'Weekly Progress Meeting',
+    'app.tagline': 'ระบบจัดการการประชุมความคืบหน้ารายสัปดาห์',
     'nav.dashboard': 'ภาพรวม',
     'nav.tasks': 'งาน',
     'nav.meetings': 'ปฏิทิน',
@@ -25,7 +27,6 @@ export const DICT = {
     'locale.label': 'ภาษา',
 
     'login.title': 'เข้าสู่ระบบ',
-    'login.subtitle': 'Weekly Progress Meeting System',
     'login.email': 'อีเมล',
     'login.password': 'รหัสผ่าน',
     'login.submit': 'เข้าสู่ระบบ',
@@ -53,6 +54,8 @@ export const DICT = {
   },
   en: {
     'app.title': 'Weekly Progress',
+    'app.name': 'Weekly Progress Meeting',
+    'app.tagline': 'Plan meetings, report progress, follow up',
     'nav.dashboard': 'Dashboard',
     'nav.tasks': 'Tasks',
     'nav.meetings': 'Calendar',
@@ -65,7 +68,6 @@ export const DICT = {
     'locale.label': 'Language',
 
     'login.title': 'Sign in',
-    'login.subtitle': 'Weekly Progress Meeting System',
     'login.email': 'Email',
     'login.password': 'Password',
     'login.submit': 'Sign in',

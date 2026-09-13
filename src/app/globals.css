@@ -119,3 +119,8 @@ body {
 }
 :root[data-theme='dark'] input::placeholder,
 :root[data-theme='dark'] textarea::placeholder { color: #6b6b73; }
+
+/* The IRiSH Lab mark ships black on a transparent ground. Its white variant
+   embeds a solid black square, which reads as a box on the dark surface, so
+   dark mode inverts the black file instead of swapping to the white one. */
+:root[data-theme='dark'] .brand-logo { filter: invert(1); }
