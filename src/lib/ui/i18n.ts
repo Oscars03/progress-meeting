@@ -21,6 +21,8 @@ export const DICT = {
     'nav.report': 'รายงาน',
     'nav.settings': 'การตั้งค่า',
     'nav.signOut': 'ออกจากระบบ',
+    'nav.collapse': 'ยุบแถบเมนู',
+    'nav.expand': 'ขยายแถบเมนู',
 
     'theme.toLight': 'เปลี่ยนเป็นโหมดสว่าง',
     'theme.toDark': 'เปลี่ยนเป็นโหมดมืด',
@@ -62,6 +64,8 @@ export const DICT = {
     'nav.report': 'Report',
     'nav.settings': 'Settings',
     'nav.signOut': 'Sign out',
+    'nav.collapse': 'Collapse sidebar',
+    'nav.expand': 'Expand sidebar',
 
     'theme.toLight': 'Switch to light mode',
     'theme.toDark': 'Switch to dark mode',

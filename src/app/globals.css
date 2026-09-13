@@ -124,3 +124,8 @@ body {
    embeds a solid black square, which reads as a box on the dark surface, so
    dark mode inverts the black file instead of swapping to the white one. */
 :root[data-theme='dark'] .brand-logo { filter: invert(1); }
+
+/* Sidebar collapse. The attribute lives on <html> and is set by the inline
+   bootstrap script before first paint, so the rail never renders wide and then
+   snaps narrow. Use as `md:collapsed:w-16`. */
+@custom-variant collapsed (&:where([data-sidebar="collapsed"], [data-sidebar="collapsed"] *));
