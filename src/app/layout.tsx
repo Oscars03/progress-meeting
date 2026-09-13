@@ -29,6 +29,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Weekly Progress Meeting System",
     description: t("app.tagline"),
+    verification: {
+      google: "hX2VgFZZotGCwREHS0SC6EAsTEMNAqyG7eZ3VHVJSuE",
+    },
   };
 }
 
