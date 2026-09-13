@@ -82,12 +82,13 @@ export default function WeekAvailabilityGrid({
     setAsking(true);
     startTransition(async () => {
       try {
-        const { pollId } = await createPollAction({
+        const result = await createPollAction({
           title: t('avail.pollTitle', { when }),
           note: '',
           slots: [{ start: cell.start, end: cell.end }],
         });
-        router.push(`/meetings/polls/${pollId}`);
+        if (!result.ok) throw new Error(t(result.error as Parameters<typeof t>[0]));
+        router.push(`/meetings/polls/${result.pollId}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : t('avail.failed'));
         setAsking(false);

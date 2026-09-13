@@ -7,6 +7,8 @@ import {
   deleteActionItemAction,
   setActionItemStatusAction,
 } from './actions';
+import { usePrefs } from '@/lib/ui/prefs';
+import type { ActionResult } from '@/lib/action-result';
 
 export type Item = {
   id: string;
@@ -21,9 +23,9 @@ export type Item = {
 type Person = { id: string; name: string };
 
 const STATUS_LABEL: Record<string, string> = {
-  open: 'ค้างอยู่',
-  done: 'เสร็จแล้ว',
-  dropped: 'ยกเลิก',
+  open: 'items.status.open',
+  done: 'items.status.done',
+  dropped: 'items.status.dropped',
 };
 
 export default function ActionItems({
@@ -50,22 +52,27 @@ export default function ActionItems({
 
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? '—';
   const taskTitleOf = (id: string) => openTasks.find((t) => t.id === id)?.title;
+  const { t } = usePrefs();
 
-  const run = (work: () => Promise<void>) => {
+  const run = (work: () => Promise<ActionResult | void>) => {
     setError('');
     startTransition(async () => {
       try {
-        await work();
+        const res = await work();
+        if (res && !res.ok) {
+          setError(t(res.error, res.vars));
+          return;
+        }
         router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'ดำเนินการไม่สำเร็จ');
+      } catch {
+        setError(t('error.generic'));
       }
     });
   };
 
   const add = () => {
     if (!title.trim()) {
-      setError('กรุณากรอกหัวข้องาน');
+      setError(t('items.titleRequired'));
       return;
     }
     run(async () => {
@@ -79,9 +86,9 @@ export default function ActionItems({
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">งานที่มอบหมายในที่ประชุม</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t('items.title')}</h3>
         <p className="text-sm text-gray-500">
-          ผูกกับงานเดิมที่ค้างอยู่ได้ เพื่อให้เห็นว่าเรื่องเดียวกันถูกพูดถึงมาแล้วกี่ครั้ง
+          {t('items.subtitle')}
         </p>
       </div>
 
@@ -109,7 +116,7 @@ export default function ActionItems({
                         : 'bg-amber-50 text-amber-800'
                   }`}
                 >
-                  {STATUS_LABEL[item.status] ?? item.status}
+                  {t(STATUS_LABEL[item.status] as Parameters<typeof t>[0] ?? item.status)}
                 </span>
 
                 <span className="font-medium text-gray-900 flex-1 min-w-48">{item.title}</span>
@@ -122,9 +129,9 @@ export default function ActionItems({
                 {item.source_task_id && (
                   <span
                     className="text-xs text-blue-600"
-                    title={linked ?? 'งานที่อ้างถึงถูกปิดหรือถูกลบไปแล้ว'}
+                    title={linked ?? t('items.linkedGone')}
                   >
-                    ↳ {linked ?? 'งานเดิม'}
+                    ↳ {linked ?? t('items.linkedFallback')}
                   </span>
                 )}
 
@@ -139,7 +146,7 @@ export default function ActionItems({
                       disabled={isPending}
                       className="text-xs text-green-700 hover:underline disabled:opacity-50"
                     >
-                      ทำเสร็จ
+                      {t('items.markDone')}
                     </button>
                   ) : (
                     <button
@@ -151,19 +158,19 @@ export default function ActionItems({
                       disabled={isPending}
                       className="text-xs text-gray-500 hover:underline disabled:opacity-50"
                     >
-                      กลับเป็นค้าง
+                      {t('items.reopen')}
                     </button>
                   )}
                   {canDelete && (
                     <button
                       onClick={() => {
-                        if (!confirm(`ลบ "${item.title}" ถาวร?`)) return;
+                        if (!confirm(t('items.confirmDelete', { title: item.title }))) return;
                         run(() => deleteActionItemAction(meetingId, item.id, item.row_version));
                       }}
                       disabled={isPending}
                       className="text-xs text-red-600 hover:underline disabled:opacity-50"
                     >
-                      ลบ
+                      {t('agenda.remove')}
                     </button>
                   )}
                 </div>
@@ -172,27 +179,27 @@ export default function ActionItems({
           })}
         </ul>
       ) : (
-        <p className="text-sm text-gray-400">ยังไม่มีงานที่มอบหมายในการประชุมนี้</p>
+        <p className="text-sm text-gray-400">{t('items.empty')}</p>
       )}
 
       <div className="pt-3 border-t border-gray-100 grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="ai-title">
-            หัวข้องาน
+            {t('items.field')}
           </label>
           <input
             id="ai-title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="เช่น แก้บทที่ 3 ตามที่อาจารย์แนะนำ"
+            placeholder={t('items.placeholder')}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
           />
         </div>
 
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="ai-owner">
-            ผู้รับผิดชอบ
+            {t('items.owner')}
           </label>
           <select
             id="ai-owner"
@@ -200,7 +207,7 @@ export default function ActionItems({
             onChange={(e) => setOwnerId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
           >
-            <option value="">— ไม่ระบุ —</option>
+            <option value="">{t('agenda.pickPerson')}</option>
             {people.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -211,7 +218,7 @@ export default function ActionItems({
 
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="ai-due">
-            กำหนดส่ง
+            {t('meetings.end')}
           </label>
           <input
             id="ai-due"
@@ -224,7 +231,7 @@ export default function ActionItems({
 
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="ai-source">
-            ต่อเนื่องจากงานเดิม (ถ้ามี)
+            {t('items.source')}
           </label>
           <select
             id="ai-source"
@@ -232,7 +239,7 @@ export default function ActionItems({
             onChange={(e) => setSourceTaskId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
           >
-            <option value="">— งานใหม่ ไม่ต่อจากอะไร —</option>
+            <option value="">{t('items.sourceNone')}</option>
             {openTasks.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.title}
@@ -247,7 +254,7 @@ export default function ActionItems({
             disabled={isPending}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
           >
-            {isPending ? 'กำลังเพิ่ม...' : '+ เพิ่มงานที่มอบหมาย'}
+            {isPending ? t('items.adding') : t('items.add')}
           </button>
         </div>
       </div>

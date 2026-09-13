@@ -22,6 +22,7 @@ export const SCHEMAS = {
   // locates rows by column A being `id`, so a tab without them cannot be
   // read or written correctly.
   meta: [...COMMON_COLUMNS, 'key', 'value'],
+  personal_events: [...COMMON_COLUMNS, 'user_id', 'title', 'start_at', 'end_at'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -152,6 +153,13 @@ export type AvailabilityVoteRecord = BaseRecord & {
   user_id: string;
   /** yes | no | maybe */
   choice: string;
+};
+
+export type PersonalEventRecord = BaseRecord & {
+  user_id: string;
+  title: string;
+  start_at: string;
+  end_at: string;
 };
 
 /** Every table has the common columns, so this is the floor for any row. */

@@ -3,8 +3,10 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createTask } from './actions';
+import { usePrefs } from '@/lib/ui/prefs';
 
 export default function NewTaskButton() {
+  const { t } = usePrefs();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -29,12 +31,16 @@ export default function NewTaskButton() {
 
     startTransition(async () => {
       try {
-        await createTask({ title, details, due_date: dueDate, priority });
+        const res = await createTask({ title, details, due_date: dueDate, priority });
+        if (!res.ok) {
+          setError(t(res.error, res.vars));
+          return;
+        }
         reset();
         setOpen(false);
         router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'สร้างงานไม่สำเร็จ');
+      } catch {
+        setError(t('error.generic'));
       }
     });
   };
@@ -45,13 +51,13 @@ export default function NewTaskButton() {
         onClick={() => setOpen(true)}
         className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
       >
-        + สร้างงานใหม่
+        {t('tasks.new')}
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">สร้างงานใหม่</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('tasks.newTitle')}</h3>
 
             {error && (
               <div
@@ -65,7 +71,7 @@ export default function NewTaskButton() {
             <form onSubmit={handleSubmit} className="space-y-3 text-sm">
               <div>
                 <label className="block text-gray-600 mb-1" htmlFor="task-title">
-                  ชื่องาน
+                  {t('tasks.name')}
                 </label>
                 <input
                   id="task-title"
@@ -74,13 +80,13 @@ export default function NewTaskButton() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md"
-                  placeholder="เช่น สรุปผลการทดลอง Nav2"
+                  placeholder={t('tasks.namePlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-gray-600 mb-1" htmlFor="task-details">
-                  รายละเอียด
+                  {t('tasks.details')}
                 </label>
                 <textarea
                   id="task-details"
@@ -94,7 +100,7 @@ export default function NewTaskButton() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-600 mb-1" htmlFor="task-due">
-                    กำหนดส่ง
+                    {t('tasks.due')}
                   </label>
                   <input
                     id="task-due"
@@ -106,7 +112,7 @@ export default function NewTaskButton() {
                 </div>
                 <div>
                   <label className="block text-gray-600 mb-1" htmlFor="task-priority">
-                    ความสำคัญ
+                    {t('tasks.priority')}
                   </label>
                   <select
                     id="task-priority"
@@ -114,9 +120,9 @@ export default function NewTaskButton() {
                     onChange={(e) => setPriority(e.target.value)}
                     className="w-full px-3 py-2 border rounded-md"
                   >
-                    <option value="low">ต่ำ</option>
-                    <option value="medium">ปานกลาง</option>
-                    <option value="high">สูง</option>
+                    <option value="low">{t('tasks.priority.low')}</option>
+                    <option value="medium">{t('tasks.priority.medium')}</option>
+                    <option value="high">{t('tasks.priority.high')}</option>
                   </select>
                 </div>
               </div>
@@ -130,14 +136,14 @@ export default function NewTaskButton() {
                   }}
                   className="px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
                 >
-                  ยกเลิก
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
                   className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isPending ? 'กำลังบันทึก...' : 'บันทึกงาน'}
+                  {isPending ? t('common.saving') : t('tasks.saveTask')}
                 </button>
               </div>
             </form>

@@ -126,9 +126,9 @@ export async function migrateSchema(
   if (plan.conflicts.length > 0) {
     const first = plan.conflicts[0];
     throw new Error(
-      `หัวตารางไม่ตรงกับ schema: ตาราง "${first.tab}" คอลัมน์ที่ ${first.position + 1} ` +
-        `พบ "${first.found}" แต่ควรเป็น "${first.expected}" ` +
-        `(พบทั้งหมด ${plan.conflicts.length} จุด) — ต้องแก้ในชีตด้วยมือก่อน ไม่มีการเขียนใดๆ เกิดขึ้น`
+      `Header row does not match the schema: table "${first.tab}" column ${first.position + 1} ` +
+        `is "${first.found}" but should be "${first.expected}" ` +
+        `(${plan.conflicts.length} mismatch(es) in total). Fix the sheet by hand first; nothing was written.`
     );
   }
 

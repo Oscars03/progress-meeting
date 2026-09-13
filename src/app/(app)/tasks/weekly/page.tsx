@@ -4,6 +4,7 @@ import { requireSession } from '@/lib/auth-guard';
 import { recentWeekKeys, weekKey, weeksAgo, weekStartDate } from '@/lib/week';
 import type { TaskRecord, TaskUpdateRecord, UserRecord } from '@/lib/db/schema';
 import WeeklyBoard, { type TaskRow } from './weekly-board';
+import { getT } from '@/lib/ui/server-i18n';
 
 /** Tasks the signed-in person is on: owner or listed assignee. */
 function assigneeIds(task: TaskRecord): string[] {
@@ -19,10 +20,11 @@ export default async function WeeklyPage() {
   const actor = await requireSession();
   const thisWeek = weekKey();
 
-  const [tasks, updates, users] = await Promise.all([
+  const [tasks, updates, users, t] = await Promise.all([
     SheetRepo.find<TaskRecord>('tasks'),
     SheetRepo.find<TaskUpdateRecord>('task_updates'),
     SheetRepo.find<UserRecord>('users'),
+    getT(),
   ]);
 
   const nameById = new Map(users.map((u) => [u.id, u.name] as const));
@@ -72,17 +74,16 @@ export default async function WeeklyPage() {
     <div className="space-y-6 max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">รายงานรายสัปดาห์</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t('weekly.title')}</h2>
           <p className="text-sm text-gray-500">
-            สัปดาห์ {thisWeek} · เริ่ม {weekStartDate(thisWeek)} — กรอกก่อนประชุม
-            เพื่อไม่ต้องไล่ถามกันในห้อง
+            {t('weekly.subtitle', { week: thisWeek, start: weekStartDate(thisWeek) ?? '' })}
           </p>
         </div>
         <Link
           href="/tasks"
           className="text-sm text-blue-600 hover:underline whitespace-nowrap"
         >
-          ← กระดานงาน
+          {t('weekly.backToBoard')}
         </Link>
       </div>
 

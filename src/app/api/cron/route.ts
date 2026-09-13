@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       {
         error: 'Not implemented',
         action,
-        message: `งาน "${action}" ยังไม่ได้พัฒนา — ดู README หัวข้อ Roadmap`,
+        message: `Job "${action}" is not built yet; see the Roadmap section of the README`,
       },
       { status: 501 }
     );

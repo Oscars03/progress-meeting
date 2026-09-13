@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
+import { getT } from '@/lib/ui/server-i18n';
 import { tallySlot, rankSlots, bestSlot, type Choice } from '@/lib/poll-tally';
 import type {
   AvailabilityPollRecord,
@@ -13,7 +14,7 @@ import PollGrid, { type SlotView } from './poll-grid';
 
 export default async function PollDetailPage(props: PageProps<'/meetings/polls/[id]'>) {
   const { id } = await props.params;
-  const actor = await requireSession();
+  const [actor, t] = await Promise.all([requireSession(), getT()]);
 
   const [polls, slots, votes, users] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
@@ -61,7 +62,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     isRecommended: recommended?.slotId === slot.id,
     myChoice: byUser.get(actor.id) ?? null,
     responders: [...byUser.entries()].map(([userId, choice]) => ({
-      name: nameById.get(userId) ?? 'ผู้ใช้ที่ถูกลบแล้ว',
+      name: nameById.get(userId) ?? t('agenda.deletedUser'),
       choice,
     })),
   }));
@@ -73,29 +74,29 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     <div className="space-y-6 max-w-4xl">
       <div className="space-y-1">
         <Link href="/meetings/polls" className="text-sm text-blue-600 hover:underline">
-          ← กลับไปรายการโพล
+          {t('polls.backToList')}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-2xl font-bold text-gray-900">{poll.title}</h2>
           {closed && (
             <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
-              {poll.meeting_id ? 'ยืนยันแล้ว' : 'ปิดรับคำตอบ'}
+              {poll.meeting_id ? t('polls.statusConfirmed') : poll.status === 'closed' ? t('polls.statusClosedResponse') : t('polls.openLabel')}
             </span>
           )}
         </div>
         {poll.note && <p className="text-sm text-gray-500">{poll.note}</p>}
         <p className="text-sm text-gray-500">
-          ผู้ใช้ที่ใช้งานอยู่ {activeUsers.length} คน
+          {t('polls.activeUsers', { count: activeUsers.length })}
         </p>
       </div>
 
       {poll.meeting_id && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-900">
-          ยืนยันเป็นการประชุมแล้ว —{' '}
-          <Link href={`/meetings/${poll.meeting_id}`} className="font-medium underline">
-            เปิดหน้าการประชุม
+        <p className="text-sm font-medium text-green-700 bg-green-50 px-4 py-3 rounded-lg border border-green-200">
+          {t('polls.confirmedMsg')}
+          <Link href={`/meetings/${poll.meeting_id}`} className="underline hover:text-green-900">
+            {t('polls.openMeeting')}
           </Link>
-        </div>
+        </p>
       )}
 
       <PollGrid

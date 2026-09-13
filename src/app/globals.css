@@ -24,6 +24,17 @@ body {
   line-height: 1.65;
 }
 
+/* FullCalendar custom styles */
+.fc-event-title {
+  white-space: normal !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
+}
+
+.fc-event-title-container {
+  overflow: visible !important;
+}
+
 /* ==========================================================================
    Dark theme
    --------------------------------------------------------------------------
@@ -41,6 +52,7 @@ body {
 :root[data-theme='dark'] {
   --background: #121212;
   --foreground: #ededed;
+  color-scheme: dark;
 }
 
 :root[data-theme='dark'] body {

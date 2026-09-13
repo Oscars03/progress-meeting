@@ -1,18 +1,28 @@
 'use client';
 
 import { createContext, useCallback, useContext, useSyncExternalStore } from 'react';
-import { isLocale, translate, type Locale, type TranslationKey } from './i18n';
+import { useRouter } from 'next/navigation';
+import {
+  isLocale,
+  LOCALE_COOKIE,
+  translate,
+  type Locale,
+  type TranslationKey,
+  type TranslationVars,
+} from './i18n';
 
 export type Theme = 'light' | 'dark';
 export type Sidebar = 'expanded' | 'collapsed';
 
 const THEME_KEY = 'wpm.theme';
-const LOCALE_KEY = 'wpm.locale';
+const LEGACY_LOCALE_KEY = 'wpm.locale';
 const SIDEBAR_KEY = 'wpm.sidebar';
+const ONE_YEAR = 60 * 60 * 24 * 365;
 
 /**
- * Theme, locale and sidebar state live outside React -- in localStorage, and
- * on <html> where the inline bootstrap script puts them before first paint.
+ * Theme and sidebar state live outside React -- in localStorage, and on <html>
+ * where the inline bootstrap script puts them before first paint. The locale
+ * lives in a cookie so the server can render in it, and on <html lang>.
  * useSyncExternalStore is how React subscribes to that: getServerSnapshot
  * supplies the value the server rendered, and React swaps in the client value
  * after hydration without a mismatch. Reading it in an effect instead would
@@ -28,7 +38,7 @@ function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   // Keep two tabs of the same app in step.
   const onStorage = (e: StorageEvent) => {
-    if (e.key === THEME_KEY || e.key === LOCALE_KEY) listener();
+    if (e.key === THEME_KEY) listener();
   };
   window.addEventListener('storage', onStorage);
   return () => {
@@ -62,9 +72,10 @@ function getThemeSnapshot(): Theme {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
+/** <html lang> is rendered from the cookie, so it is the page's own answer. */
 function getLocaleSnapshot(): Locale {
-  const stored = readStorage(LOCALE_KEY);
-  return isLocale(stored) ? stored : 'th';
+  const lang = document.documentElement.lang;
+  return isLocale(lang) ? lang : 'th';
 }
 
 /**
@@ -76,7 +87,6 @@ function getSidebarSnapshot(): Sidebar {
 }
 
 const serverTheme = (): Theme => 'light';
-const serverLocale = (): Locale => 'th';
 const serverSidebar = (): Sidebar => 'expanded';
 
 type Prefs = {
@@ -86,14 +96,21 @@ type Prefs = {
   setTheme: (t: Theme) => void;
   setLocale: (l: Locale) => void;
   setSidebar: (s: Sidebar) => void;
-  t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
+  t: (key: TranslationKey, vars?: TranslationVars) => string;
 };
 
 const PrefsContext = createContext<Prefs | null>(null);
 
-export function PrefsProvider({ children }: { children: React.ReactNode }) {
+export function PrefsProvider({
+  initialLocale,
+  children,
+}: {
+  initialLocale: Locale;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
   const theme = useSyncExternalStore(subscribe, getThemeSnapshot, serverTheme);
-  const locale = useSyncExternalStore(subscribe, getLocaleSnapshot, serverLocale);
+  const locale = useSyncExternalStore(subscribe, getLocaleSnapshot, () => initialLocale);
   const sidebar = useSyncExternalStore(subscribe, getSidebarSnapshot, serverSidebar);
 
   const setTheme = useCallback((next: Theme) => {
@@ -102,11 +119,16 @@ export function PrefsProvider({ children }: { children: React.ReactNode }) {
     emit();
   }, []);
 
-  const setLocale = useCallback((next: Locale) => {
-    writeStorage(LOCALE_KEY, next);
-    document.documentElement.lang = next;
-    emit();
-  }, []);
+  const setLocale = useCallback(
+    (next: Locale) => {
+      document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
+      document.documentElement.lang = next;
+      emit();
+      // Client components switch at once; this re-renders the server ones.
+      router.refresh();
+    },
+    [router]
+  );
 
   const setSidebar = useCallback((next: Sidebar) => {
     writeStorage(SIDEBAR_KEY, next);
@@ -119,8 +141,7 @@ export function PrefsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: TranslationKey, vars?: Record<string, string | number>) =>
-      translate(locale, key, vars),
+    (key: TranslationKey, vars?: TranslationVars) => translate(locale, key, vars),
     [locale]
   );
 
@@ -143,12 +164,19 @@ export function usePrefs(): Prefs {
  * Applied before first paint so the page never flashes the wrong theme, or a
  * wide sidebar that then snaps narrow. Kept as a string because it has to run
  * inline, ahead of React.
+ *
+ * It also carries over a language chosen before the locale moved to a cookie:
+ * the server has already rendered in Thai by then, so it sets the cookie and
+ * reloads once -- only if the cookie actually stuck, or blocked cookies would
+ * reload forever.
  */
 export const THEME_BOOTSTRAP = `(function(){try{
 var t=localStorage.getItem('${THEME_KEY}');
 if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}
 document.documentElement.dataset.theme=t;
-var l=localStorage.getItem('${LOCALE_KEY}');
-if(l==='th'||l==='en'){document.documentElement.lang=l;}
 if(localStorage.getItem('${SIDEBAR_KEY}')==='collapsed'){document.documentElement.dataset.sidebar='collapsed';}
+var l=localStorage.getItem('${LEGACY_LOCALE_KEY}');
+if(l){localStorage.removeItem('${LEGACY_LOCALE_KEY}');
+if(l==='en'&&document.cookie.indexOf('${LOCALE_COOKIE}=')===-1){document.cookie='${LOCALE_COOKIE}=en; path=/; max-age=${ONE_YEAR}; samesite=lax';
+if(document.cookie.indexOf('${LOCALE_COOKIE}=en')!==-1){location.reload();}}}
 }catch(e){document.documentElement.dataset.theme='light';}})();`;

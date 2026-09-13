@@ -7,6 +7,14 @@ import { registerAction } from './actions';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { usePrefs } from '@/lib/ui/prefs';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
+import type { TranslationKey } from '@/lib/ui/i18n';
+
+/** NextAuth's ?error= codes, including the ones our signIn callback returns. */
+const SIGNIN_ERRORS: Record<string, TranslationKey> = {
+  AccessDenied: 'login.accessDenied',
+  PendingApproval: 'login.pendingApproval',
+  AccountInactive: 'login.accountInactive',
+};
 
 function LoginForm({
   googleEnabled,
@@ -20,16 +28,15 @@ function LoginForm({
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
-  const SIGNIN_ERRORS: Record<string, string> = {
-    AccessDenied: 'อีเมลนี้ไม่ได้รับอนุญาตให้เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
-    PendingApproval: 'สร้างบัญชีแล้ว รอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน',
-    AccountInactive: 'บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
-  };
   const urlError = searchParams.get('error');
+  // Kept as a key, not text, so it follows a language switch on this page.
+  const urlErrorKey: TranslationKey | null = urlError
+    ? (SIGNIN_ERRORS[urlError] ?? 'login.signInFailed')
+    : null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(urlError ? (SIGNIN_ERRORS[urlError] ?? 'เข้าสู่ระบบไม่สำเร็จ') : '');
+  const [error, setError] = useState(urlErrorKey ? t(urlErrorKey) : '');
   const [loading, setLoading] = useState(false);
   const signupEnabled = signupDomains.length > 0;
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -57,12 +64,12 @@ function LoginForm({
         password: regPassword,
       });
       if (res.ok) {
-        setNotice(res.message);
+        setNotice(t(res.notice));
         setRegName('');
         setRegEmail('');
         setRegPassword('');
       } else {
-        setError(res.message);
+        setError(t(res.error, res.vars));
       }
     } catch {
       setError(t('register.failed'));
@@ -290,16 +297,14 @@ function LoginForm({
       {process.env.NEXT_PUBLIC_SHOW_DEV_TOOLS === 'true' && (
         <div className="pt-4 border-t border-gray-100 text-xs text-gray-500 space-y-2">
           <p className="font-semibold text-gray-700">
-            โหมดพัฒนา — บัญชีทดสอบใช้รหัสผ่านจาก <code>SEED_PASSWORD</code>
+            {t('login.devTitle')} <code>SEED_PASSWORD</code>
           </p>
           <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100 space-y-1">
-            <p>• ผู้ดูแลระบบ: <code className="text-blue-600 font-mono">admin@test.com</code></p>
-            <p>• อาจารย์: <code className="text-blue-600 font-mono">prof1@test.com</code></p>
-            <p>• นักศึกษา: <code className="text-blue-600 font-mono">student1@test.com</code></p>
+            <p>• {t('login.devAdmin')}: <code className="text-blue-600 font-mono">admin@test.com</code></p>
+            <p>• {t('login.devManager')}: <code className="text-blue-600 font-mono">prof1@test.com</code></p>
+            <p>• {t('login.devStudent')}: <code className="text-blue-600 font-mono">student1@test.com</code></p>
           </div>
-          <p className="text-gray-400">
-            การติดตั้งฐานข้อมูลย้ายไปอยู่ในหน้า “การตั้งค่า” และต้องใช้สิทธิ์ผู้ดูแลระบบ
-          </p>
+          <p className="text-gray-400">{t('login.devInitMoved')}</p>
         </div>
       )}
     </div>
@@ -313,8 +318,9 @@ export default function LoginClient({
   googleEnabled: boolean;
   signupDomains: string[];
 }) {
+  const { t } = usePrefs();
   return (
-    <Suspense fallback={<div className="text-gray-500 text-sm">กำลังโหลด...</div>}>
+    <Suspense fallback={<div className="text-gray-500 text-sm">{t('common.loading')}</div>}>
       <LoginForm googleEnabled={googleEnabled} signupDomains={signupDomains} />
     </Suspense>
   );

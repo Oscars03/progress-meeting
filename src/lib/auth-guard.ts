@@ -1,5 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from './auth';
+import { UserError } from './user-error';
+import type { TranslationKey, TranslationVars } from './ui/i18n';
 
 export type Role = 'admin' | 'manager' | 'member' | 'viewer';
 
@@ -18,9 +20,9 @@ export type SessionUser = {
   role: Role;
 };
 
-export class AuthorizationError extends Error {
-  constructor(message = 'ไม่มีสิทธิ์ดำเนินการนี้') {
-    super(message);
+export class AuthorizationError extends UserError {
+  constructor(key: TranslationKey = 'error.forbidden', vars?: TranslationVars) {
+    super(key, vars);
     this.name = 'AuthorizationError';
   }
 }
@@ -35,7 +37,7 @@ export async function requireSession(): Promise<SessionUser> {
   const user = session?.user;
 
   if (!user?.id) {
-    throw new AuthorizationError('กรุณาเข้าสู่ระบบก่อน');
+    throw new AuthorizationError('error.signInRequired');
   }
 
   // An unrecognised role is treated as the least privileged, never as a pass.
@@ -55,9 +57,7 @@ export async function requireRole(minimum: Role): Promise<SessionUser> {
   const user = await requireSession();
 
   if (RANK[user.role] < RANK[minimum]) {
-    throw new AuthorizationError(
-      `ต้องมีสิทธิ์ระดับ ${minimum} ขึ้นไปจึงจะดำเนินการนี้ได้ (สิทธิ์ปัจจุบัน: ${user.role})`
-    );
+    throw new AuthorizationError('error.roleRequired', { role: minimum, current: user.role });
   }
 
   return user;

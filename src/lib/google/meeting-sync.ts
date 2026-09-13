@@ -9,6 +9,7 @@ import {
   type EventInput,
 } from './calendar';
 import { getStoredToken } from './tokens';
+import type { TranslationKey } from '../ui/i18n';
 
 /**
  * Keeping a meeting row and a Google Calendar event in step.
@@ -22,7 +23,15 @@ import { getStoredToken } from './tokens';
 
 export type SyncOutcome =
   | { ok: true; eventId: string; action: 'created' | 'updated' | 'deleted' }
-  | { ok: false; reason: 'not-connected' | 'not-linked' | 'error'; message: string };
+  | {
+      ok: false;
+      reason: 'not-connected' | 'not-linked' | 'error';
+      /** A message key; the page translates it for the reader. */
+      error: TranslationKey;
+    };
+
+/** Meeting fields a pull can change, named for the page to translate. */
+export type SyncField = 'title' | 'start' | 'end' | 'location' | 'status';
 
 /** Emails to invite: everyone active, minus blanks and duplicates. */
 async function attendeeEmails(excludeUserId?: string): Promise<string[]> {
@@ -49,8 +58,10 @@ function eventInputFrom(meeting: MeetingRecord, emails: string[]): EventInput {
   };
 }
 
-function describe(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+/** Google's own error text stays in the server log; the page gets a key. */
+function failed(err: unknown): TranslationKey {
+  console.error('calendar sync failed:', err);
+  return 'sync.failed';
 }
 
 /**
@@ -67,7 +78,7 @@ export async function pushMeeting(
 ): Promise<SyncOutcome> {
   const meetings = await SheetRepo.find<MeetingRecord>('meetings');
   const meeting = meetings.find((m) => m.id === meetingId);
-  if (!meeting) return { ok: false, reason: 'error', message: 'ไม่พบการประชุมนี้' };
+  if (!meeting) return { ok: false, reason: 'error', error: 'error.notFound' };
 
   const owner = meeting.google_calendar_owner_id || organiserUserId;
 
@@ -75,10 +86,7 @@ export async function pushMeeting(
     return {
       ok: false,
       reason: 'not-connected',
-      message:
-        owner === organiserUserId
-          ? 'คุณยังไม่ได้เชื่อมบัญชี Google Calendar'
-          : 'เจ้าของอีเวนต์เดิมยังไม่ได้เชื่อมบัญชี Google Calendar',
+      error: owner === organiserUserId ? 'calendar.notConnected' : 'calendar.ownerNotConnected',
     };
   }
 
@@ -112,9 +120,9 @@ export async function pushMeeting(
     return { ok: true, eventId, action: 'created' };
   } catch (err) {
     if (err instanceof NotConnectedError) {
-      return { ok: false, reason: 'not-connected', message: err.message };
+      return { ok: false, reason: 'not-connected', error: err.key };
     }
-    return { ok: false, reason: 'error', message: describe(err) };
+    return { ok: false, reason: 'error', error: failed(err) };
   }
 }
 
@@ -129,13 +137,13 @@ export async function pushMeeting(
 export async function pullMeeting(
   meetingId: string,
   actorUserId: string
-): Promise<SyncOutcome & { changed?: string[] }> {
+): Promise<SyncOutcome & { changed?: SyncField[] }> {
   const meetings = await SheetRepo.find<MeetingRecord>('meetings');
   const meeting = meetings.find((m) => m.id === meetingId);
-  if (!meeting) return { ok: false, reason: 'error', message: 'ไม่พบการประชุมนี้' };
+  if (!meeting) return { ok: false, reason: 'error', error: 'error.notFound' };
 
   if (!meeting.google_event_id || !meeting.google_calendar_owner_id) {
-    return { ok: false, reason: 'not-linked', message: 'การประชุมนี้ยังไม่ได้ผูกกับ Google Calendar' };
+    return { ok: false, reason: 'not-linked', error: 'sync.notLinked' };
   }
 
   try {
@@ -158,27 +166,27 @@ export async function pullMeeting(
     }
 
     const patch: Record<string, string> = {};
-    const changed: string[] = [];
+    const changed: SyncField[] = [];
 
     if (remote.title && remote.title !== meeting.title) {
       patch.title = remote.title;
-      changed.push('หัวข้อ');
+      changed.push('title');
     }
     if (remote.startAt && new Date(remote.startAt).toISOString() !== meeting.start_at) {
       patch.start_at = new Date(remote.startAt).toISOString();
-      changed.push('เวลาเริ่ม');
+      changed.push('start');
     }
     if (remote.endAt && new Date(remote.endAt).toISOString() !== meeting.end_at) {
       patch.end_at = new Date(remote.endAt).toISOString();
-      changed.push('เวลาสิ้นสุด');
+      changed.push('end');
     }
     if (remote.location !== meeting.location) {
       patch.location = remote.location;
-      changed.push('สถานที่');
+      changed.push('location');
     }
     if (remote.cancelled && meeting.status !== 'cancelled') {
       patch.status = 'cancelled';
-      changed.push('สถานะ');
+      changed.push('status');
     }
 
     patch.google_synced_at = new Date().toISOString();
@@ -194,9 +202,9 @@ export async function pullMeeting(
     return { ok: true, eventId: meeting.google_event_id, action: 'updated', changed };
   } catch (err) {
     if (err instanceof NotConnectedError) {
-      return { ok: false, reason: 'not-connected', message: err.message };
+      return { ok: false, reason: 'not-connected', error: err.key };
     }
-    return { ok: false, reason: 'error', message: describe(err) };
+    return { ok: false, reason: 'error', error: failed(err) };
   }
 }
 
@@ -206,7 +214,7 @@ export async function removeMeetingEvent(
   actorUserId: string
 ): Promise<SyncOutcome> {
   if (!meeting.google_event_id || !meeting.google_calendar_owner_id) {
-    return { ok: false, reason: 'not-linked', message: 'ไม่มีอีเวนต์ให้ลบ' };
+    return { ok: false, reason: 'not-linked', error: 'sync.noEvent' };
   }
   try {
     await deleteEvent(meeting.google_calendar_owner_id, meeting.google_event_id);
@@ -220,8 +228,8 @@ export async function removeMeetingEvent(
     return { ok: true, eventId: meeting.google_event_id, action: 'deleted' };
   } catch (err) {
     if (err instanceof NotConnectedError) {
-      return { ok: false, reason: 'not-connected', message: err.message };
+      return { ok: false, reason: 'not-connected', error: err.key };
     }
-    return { ok: false, reason: 'error', message: describe(err) };
+    return { ok: false, reason: 'error', error: failed(err) };
   }
 }

@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveWeeklyUpdateAction } from '../update-actions';
+import { usePrefs } from '@/lib/ui/prefs';
+import type { TranslationKey, TranslationVars } from '@/lib/ui/i18n';
 
 export type TaskRow = {
   id: string;
@@ -26,12 +28,11 @@ export type TaskRow = {
 
 type Draft = { progressPct: number; summary: string; risks: string; nextPlan: string };
 
-function staleLabel(row: TaskRow): { text: string; tone: string } {
-  if (row.current) return { text: 'รายงานแล้ว', tone: 'bg-green-50 text-green-700' };
-  if (row.staleWeeks === null)
-    return { text: 'ไม่เคยรายงาน', tone: 'bg-red-50 text-red-700' };
-  if (row.staleWeeks <= 1) return { text: 'ค้าง 1 สัปดาห์', tone: 'bg-amber-50 text-amber-800' };
-  return { text: `เงียบ ${row.staleWeeks} สัปดาห์`, tone: 'bg-red-50 text-red-700' };
+function staleLabel(row: TaskRow): { key: TranslationKey; vars?: TranslationVars; tone: string } {
+  if (row.current) return { key: 'weekly.reported', tone: 'bg-green-50 text-green-700' };
+  if (row.staleWeeks === null) return { key: 'weekly.never', tone: 'bg-red-50 text-red-700' };
+  if (row.staleWeeks <= 1) return { key: 'weekly.stale1', tone: 'bg-amber-50 text-amber-800' };
+  return { key: 'weekly.staleN', vars: { n: row.staleWeeks }, tone: 'bg-red-50 text-red-700' };
 }
 
 export default function WeeklyBoard({
@@ -43,6 +44,7 @@ export default function WeeklyBoard({
   weekKey: string;
   historyKeys: string[];
 }) {
+  const { t } = usePrefs();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
@@ -67,13 +69,13 @@ export default function WeeklyBoard({
   const save = (row: TaskRow) => {
     if (!draft) return;
     if (!draft.summary.trim()) {
-      setMessage({ type: 'error', text: 'กรุณากรอกสรุปความคืบหน้า' });
+      setMessage({ type: 'error', text: t('weekly.summaryRequired') });
       return;
     }
     setMessage(null);
     startTransition(async () => {
       try {
-        await saveWeeklyUpdateAction({
+        const res = await saveWeeklyUpdateAction({
           taskId: row.id,
           progressPct: draft.progressPct,
           summary: draft.summary,
@@ -81,15 +83,16 @@ export default function WeeklyBoard({
           nextPlan: draft.nextPlan,
           weekKey,
         });
+        if (!res.ok) {
+          setMessage({ type: 'error', text: t(res.error, res.vars) });
+          return;
+        }
         setOpenId(null);
         setDraft(null);
-        setMessage({ type: 'ok', text: `บันทึกรายงานของ "${row.title}" แล้ว` });
+        setMessage({ type: 'ok', text: t('weekly.savedFor', { title: row.title }) });
         router.refresh();
-      } catch (err) {
-        setMessage({
-          type: 'error',
-          text: err instanceof Error ? err.message : 'บันทึกไม่สำเร็จ',
-        });
+      } catch {
+        setMessage({ type: 'error', text: t('error.generic') });
       }
     });
   };
@@ -101,13 +104,14 @@ export default function WeeklyBoard({
           {visible.length === 0 ? (
             // "All reported" over an empty list reads as an achievement when in
             // fact there was nothing to report.
-            <span className="text-gray-400">ไม่มีงานในมุมมองนี้</span>
+            <span className="text-gray-400">{t('weekly.emptyView')}</span>
           ) : pending === 0 ? (
-            <span className="text-green-700 font-medium">รายงานครบทุกงานแล้ว</span>
+            <span className="text-green-700 font-medium">{t('weekly.allReported')}</span>
           ) : (
             <>
-              ยังไม่รายงานสัปดาห์นี้{' '}
-              <span className="font-semibold text-gray-900 tabular-nums">{pending}</span> งาน
+              {t('weekly.pendingLabel')}{' '}
+              <span className="font-semibold text-gray-900 tabular-nums">{pending}</span>{' '}
+              {t('weekly.pendingUnit')}
             </>
           )}
         </div>
@@ -118,7 +122,7 @@ export default function WeeklyBoard({
             onChange={(e) => setOnlyMine(e.target.checked)}
             className="rounded border-gray-300"
           />
-          เฉพาะงานของฉัน
+          {t('weekly.onlyMine')}
         </label>
       </div>
 
@@ -137,9 +141,7 @@ export default function WeeklyBoard({
 
       {visible.length === 0 ? (
         <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-400">
-          {onlyMine
-            ? 'ไม่มีงานที่คุณรับผิดชอบอยู่ — ลองเอาตัวกรองออกเพื่อดูงานทั้งหมด'
-            : 'ยังไม่มีงานที่ค้างอยู่'}
+          {onlyMine ? t('weekly.noneMine') : t('weekly.noneOpen')}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -154,7 +156,7 @@ export default function WeeklyBoard({
               >
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stale.tone}`}>
-                    {stale.text}
+                    {t(stale.key, stale.vars)}
                   </span>
                   <h3 className="font-semibold text-gray-900 flex-1 min-w-48">{row.title}</h3>
                   <span className="text-xs text-gray-500">{row.ownerName}</span>
@@ -164,14 +166,14 @@ export default function WeeklyBoard({
                         row.overdue ? 'text-red-600 font-medium' : 'text-gray-500'
                       }`}
                     >
-                      ส่ง {row.dueDate}
+                      {t('weekly.dueOn', { date: row.dueDate })}
                     </span>
                   )}
                   <button
                     onClick={() => (editing ? setOpenId(null) : startEdit(row))}
                     className="text-sm text-blue-600 hover:underline ml-auto"
                   >
-                    {editing ? 'ปิด' : row.current ? 'แก้รายงาน' : 'กรอกรายงาน'}
+                    {editing ? t('weekly.close') : row.current ? t('weekly.edit') : t('weekly.fill')}
                   </button>
                 </div>
 
@@ -185,11 +187,13 @@ export default function WeeklyBoard({
                   <span className="text-xs text-gray-500 tabular-nums w-10 text-right">
                     {row.progressPct}%
                   </span>
-                  <div className="flex items-center gap-1" title="6 สัปดาห์ล่าสุด ใหม่อยู่ซ้าย">
+                  <div className="flex items-center gap-1" title={t('weekly.historyTitle')}>
                     {row.history.map((h) => (
                       <span
                         key={h.key}
-                        aria-label={`${h.key}: ${h.reported ? 'รายงานแล้ว' : 'ไม่มีรายงาน'}`}
+                        aria-label={t(h.reported ? 'weekly.historyReported' : 'weekly.historyMissing', {
+                          week: h.key,
+                        })}
                         className={`w-2 h-4 rounded-sm ${
                           h.reported ? 'bg-blue-600' : 'bg-gray-200'
                         }`}
@@ -201,18 +205,18 @@ export default function WeeklyBoard({
                 {row.current && !editing && (
                   <dl className="text-sm space-y-1 pt-2 border-t border-gray-100">
                     <div className="flex gap-2">
-                      <dt className="text-gray-500 shrink-0">ทำไป:</dt>
+                      <dt className="text-gray-500 shrink-0">{t('weekly.doneLabel')}</dt>
                       <dd className="text-gray-900">{row.current.summary}</dd>
                     </div>
                     {row.current.risks && (
                       <div className="flex gap-2">
-                        <dt className="text-gray-500 shrink-0">ติดปัญหา:</dt>
+                        <dt className="text-gray-500 shrink-0">{t('weekly.blockedLabel')}</dt>
                         <dd className="text-amber-800">{row.current.risks}</dd>
                       </div>
                     )}
                     {row.current.nextPlan && (
                       <div className="flex gap-2">
-                        <dt className="text-gray-500 shrink-0">สัปดาห์หน้า:</dt>
+                        <dt className="text-gray-500 shrink-0">{t('weekly.nextWeekLabel')}</dt>
                         <dd className="text-gray-900">{row.current.nextPlan}</dd>
                       </div>
                     )}
@@ -226,7 +230,7 @@ export default function WeeklyBoard({
                         className="block text-xs font-medium text-gray-600 mb-1"
                         htmlFor={`pct-${row.id}`}
                       >
-                        ความคืบหน้า {draft.progressPct}%
+                        {t('weekly.progress', { pct: draft.progressPct })}
                       </label>
                       <input
                         id={`pct-${row.id}`}
@@ -247,7 +251,7 @@ export default function WeeklyBoard({
                         className="block text-xs font-medium text-gray-600 mb-1"
                         htmlFor={`sum-${row.id}`}
                       >
-                        สัปดาห์นี้ทำอะไรไป
+                        {t('weekly.summaryField')}
                       </label>
                       <textarea
                         id={`sum-${row.id}`}
@@ -263,14 +267,14 @@ export default function WeeklyBoard({
                         className="block text-xs font-medium text-gray-600 mb-1"
                         htmlFor={`risk-${row.id}`}
                       >
-                        ติดปัญหาอะไร (ถ้ามี)
+                        {t('weekly.risksField')}
                       </label>
                       <textarea
                         id={`risk-${row.id}`}
                         rows={2}
                         value={draft.risks}
                         onChange={(e) => setDraft({ ...draft, risks: e.target.value })}
-                        placeholder="เรื่องที่ต้องขอความช่วยเหลือในที่ประชุม"
+                        placeholder={t('weekly.risksPlaceholder')}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
                       />
                     </div>
@@ -280,7 +284,7 @@ export default function WeeklyBoard({
                         className="block text-xs font-medium text-gray-600 mb-1"
                         htmlFor={`next-${row.id}`}
                       >
-                        สัปดาห์หน้าจะทำอะไร
+                        {t('weekly.nextField')}
                       </label>
                       <textarea
                         id={`next-${row.id}`}
@@ -297,11 +301,9 @@ export default function WeeklyBoard({
                         disabled={isPending}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
                       >
-                        {isPending ? 'กำลังบันทึก...' : 'บันทึกรายงาน'}
+                        {isPending ? t('common.saving') : t('weekly.save')}
                       </button>
-                      <span className="text-xs text-gray-500">
-                        หนึ่งงานมีรายงานหนึ่งฉบับต่อสัปดาห์ — บันทึกซ้ำคือแก้ฉบับเดิม
-                      </span>
+                      <span className="text-xs text-gray-500">{t('weekly.oneReport')}</span>
                     </div>
                   </div>
                 )}
@@ -312,8 +314,7 @@ export default function WeeklyBoard({
       )}
 
       <p className="text-xs text-gray-400">
-        แถบเล็ก 6 ช่องคือ 6 สัปดาห์ล่าสุด ({historyKeys[historyKeys.length - 1]} ถึง{' '}
-        {historyKeys[0]}) ช่องทึบคือสัปดาห์ที่มีรายงาน
+        {t('weekly.legend', { from: historyKeys[historyKeys.length - 1], to: historyKeys[0] })}
       </p>
     </div>
   );

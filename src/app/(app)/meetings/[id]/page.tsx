@@ -14,10 +14,11 @@ import MinutesEditor from './minutes-editor';
 import ActionItems from './action-items';
 import Agenda from './agenda';
 import CalendarSync from './calendar-sync';
+import { getT } from '@/lib/ui/server-i18n';
 
 export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]'>) {
   const { id } = await props.params;
-  const actor = await requireSession();
+  const [actor, t] = await Promise.all([requireSession(), getT()]);
 
   const meetings = await SheetRepo.find<MeetingRecord>('meetings');
   const meeting = meetings.find((m) => m.id === id);
@@ -55,11 +56,13 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
     <div className="space-y-6 max-w-4xl">
       <div className="space-y-1">
         <Link href="/meetings" className="text-sm text-blue-600 hover:underline">
-          ← กลับไปปฏิทิน
+          {t('polls.backToCalendar')}
         </Link>
         <h2 className="text-2xl font-bold text-gray-900">{meeting.title}</h2>
         <p className="text-sm text-gray-500">
-          {when || 'ยังไม่ระบุเวลา'}
+          <span className="text-sm text-gray-500 tabular-nums">
+            {when || t('meeting.noTime')}
+          </span>
           {meeting.location ? ` · ${meeting.location}` : ''}
         </p>
       </div>
@@ -81,7 +84,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
         meetingId={id}
         linked={Boolean(meeting.google_event_id)}
         syncedAt={meeting.google_synced_at ?? ''}
-        ownerName={calendarOwner?.name ?? 'ผู้สร้างอีเวนต์'}
+        ownerName={calendarOwner?.name ?? t('meeting.eventCreator')}
       />
 
       <MinutesEditor

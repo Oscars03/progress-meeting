@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { setAgendaAction, setAttendStatusAction } from './actions';
+import { usePrefs } from '@/lib/ui/prefs';
+import type { ActionResult } from '@/lib/action-result';
 
 type Person = { id: string; name: string };
 
@@ -15,10 +17,10 @@ export type Attendee = {
 };
 
 const ATTEND_LABEL: Record<string, string> = {
-  invited: 'เชิญแล้ว',
-  present: 'มา',
-  absent: 'ไม่มา',
-  excused: 'ลา',
+  invited: 'agenda.attend.invited',
+  present: 'agenda.attend.present',
+  absent: 'agenda.attend.absent',
+  excused: 'agenda.attend.excused',
 };
 
 const ATTEND_CYCLE = ['invited', 'present', 'absent', 'excused'];
@@ -46,18 +48,23 @@ export default function Agenda({
     order.length !== attendees.length ||
     order.some((id, i) => attendees[i]?.user_id !== id);
 
-  const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? 'ผู้ใช้ที่ถูกลบแล้ว';
+  const { t } = usePrefs();
+  const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? t('agenda.deletedUser');
   const attendeeOf = (userId: string) => attendees.find((a) => a.user_id === userId);
   const notYetInAgenda = people.filter((p) => !order.includes(p.id));
 
-  const run = (work: () => Promise<void>) => {
+  const run = (work: () => Promise<ActionResult | void>) => {
     setError('');
     startTransition(async () => {
       try {
-        await work();
+        const res = await work();
+        if (res && !res.ok) {
+          setError(t(res.error, res.vars));
+          return;
+        }
         router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'ดำเนินการไม่สำเร็จ');
+      } catch {
+        setError(t('error.generic'));
       }
     });
   };
@@ -82,8 +89,8 @@ export default function Agenda({
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">วาระการนำเสนอ</h3>
-          <p className="text-sm text-gray-500">เรียงลำดับว่าใครนำเสนอก่อนหลัง</p>
+          <h3 className="text-lg font-semibold text-gray-900">{t('agenda.title')}</h3>
+          <p className="text-sm text-gray-500">{t('agenda.subtitle')}</p>
         </div>
         {dirty && canManage && (
           <button
@@ -91,7 +98,7 @@ export default function Agenda({
             disabled={isPending}
             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
           >
-            {isPending ? 'กำลังบันทึก...' : 'บันทึกลำดับ'}
+            {isPending ? t('common.saving') : t('agenda.saveOrder')}
           </button>
         )}
       </div>
@@ -122,7 +129,7 @@ export default function Agenda({
                   <button
                     onClick={() => cycleAttend(userId)}
                     disabled={isPending}
-                    title="กดเพื่อเปลี่ยนสถานะการเข้าร่วม"
+                    title={t('agenda.cycleHint')}
                     className={`text-xs px-2 py-0.5 rounded-full font-medium transition disabled:opacity-50 ${
                       row.attend_status === 'present'
                         ? 'bg-green-50 text-green-700'
@@ -133,10 +140,10 @@ export default function Agenda({
                             : 'bg-gray-100 text-gray-600'
                     }`}
                   >
-                    {ATTEND_LABEL[row.attend_status] ?? row.attend_status}
+                    {t(ATTEND_LABEL[row.attend_status] as Parameters<typeof t>[0] ?? row.attend_status)}
                   </button>
                 ) : (
-                  <span className="text-xs text-gray-400">ยังไม่บันทึก</span>
+                  <span className="text-xs text-gray-400">{t('agenda.notRecorded')}</span>
                 )}
 
                 {canManage && (
@@ -144,7 +151,7 @@ export default function Agenda({
                     <button
                       onClick={() => move(index, -1)}
                       disabled={index === 0}
-                      aria-label={`เลื่อน ${nameOf(userId)} ขึ้น`}
+                      aria-label={t('agenda.moveUp', { name: nameOf(userId) })}
                       className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-30"
                     >
                       ↑
@@ -152,17 +159,17 @@ export default function Agenda({
                     <button
                       onClick={() => move(index, 1)}
                       disabled={index === order.length - 1}
-                      aria-label={`เลื่อน ${nameOf(userId)} ลง`}
+                      aria-label={t('agenda.moveDown', { name: nameOf(userId) })}
                       className="px-2 py-1 text-xs border border-gray-300 rounded text-gray-600 hover:bg-gray-100 disabled:opacity-30"
                     >
                       ↓
                     </button>
                     <button
                       onClick={() => setOrder(order.filter((id) => id !== userId))}
-                      aria-label={`เอา ${nameOf(userId)} ออกจากวาระ`}
+                      aria-label={t('agenda.removeLabel', { name: nameOf(userId) })}
                       className="px-2 py-1 text-xs text-red-600 hover:underline"
                     >
-                      เอาออก
+                      {t('agenda.remove')}
                     </button>
                   </div>
                 )}
@@ -171,14 +178,14 @@ export default function Agenda({
           })}
         </ol>
       ) : (
-        <p className="text-sm text-gray-400">ยังไม่ได้จัดลำดับการนำเสนอ</p>
+        <p className="text-sm text-gray-400">{t('agenda.empty')}</p>
       )}
 
       {canManage && notYetInAgenda.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 pt-3 border-t border-gray-100">
           <div className="flex-1 min-w-48">
             <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="agenda-add">
-              เพิ่มผู้นำเสนอ
+              {t('agenda.addPresenter')}
             </label>
             <select
               id="agenda-add"
@@ -186,7 +193,7 @@ export default function Agenda({
               onChange={(e) => setAdding(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
             >
-              <option value="">— เลือกคน —</option>
+              <option value="">{t('agenda.pickPerson')}</option>
               {notYetInAgenda.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -203,14 +210,14 @@ export default function Agenda({
             disabled={!adding}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            เพิ่มท้ายวาระ
+            {t('agenda.addToEnd')}
           </button>
         </div>
       )}
 
       {!canManage && (
         <p className="text-xs text-gray-400">
-          ต้องมีสิทธิ์ระดับ manager ขึ้นไปจึงจะจัดลำดับได้
+          {t('agenda.managerOnly')}
         </p>
       )}
     </section>

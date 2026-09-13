@@ -1,5 +1,6 @@
 import { getSheetsApi, getSpreadsheetId } from './sheet-client';
 import { writeQueue } from './write-queue';
+import { UserError } from '../user-error';
 import {
   SCHEMAS,
   assertHasCommonColumns,
@@ -9,16 +10,17 @@ import {
   type CellValue,
 } from './schema';
 
-export class ConflictError extends Error {
-  constructor(message: string) {
-    super(message);
+/** Someone else wrote the row since it was read. The detail is for logs. */
+export class ConflictError extends UserError {
+  constructor(detail: string) {
+    super('error.conflict', undefined, detail);
     this.name = 'ConflictError';
   }
 }
 
-export class NotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
+export class NotFoundError extends UserError {
+  constructor(detail: string) {
+    super('error.notFound', undefined, detail);
     this.name = 'NotFoundError';
   }
 }
@@ -225,7 +227,7 @@ export class SheetRepo {
 
     if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
       throw new ConflictError(
-        `ต้องระบุ row_version ที่อ่านมาก่อนแก้ไข (ได้รับ: ${String(expectedVersion)})`
+        `row_version read beforehand is required to update (got: ${String(expectedVersion)})`
       );
     }
 
@@ -234,25 +236,25 @@ export class SheetRepo {
       const spreadsheetId = getSpreadsheetId();
 
       const values = await this.getRawValues(tabName);
-      if (values.length <= 1) throw new NotFoundError(`ไม่พบข้อมูลในตาราง ${tabName}`);
+      if (values.length <= 1) throw new NotFoundError(`No rows in table ${tabName}`);
 
       const headers = values[0];
       const rowIndex = values.findIndex((r) => r[0] === id);
-      if (rowIndex === -1) throw new NotFoundError(`ไม่พบข้อมูล id ${id} ในตาราง ${tabName}`);
+      if (rowIndex === -1) throw new NotFoundError(`No row with id ${id} in table ${tabName}`);
 
       const currentRow = values[rowIndex];
       const versionIdx = headers.indexOf('row_version');
       if (versionIdx === -1) {
-        throw new Error(`ตาราง ${tabName} ไม่มีคอลัมน์ row_version`);
+        throw new Error(`Table ${tabName} has no row_version column`);
       }
 
       const currentVersion = Number.parseInt(currentRow[versionIdx], 10);
       if (Number.isNaN(currentVersion)) {
-        throw new ConflictError(`row_version ของแถวนี้ไม่ถูกต้อง (${currentRow[versionIdx]})`);
+        throw new ConflictError(`Invalid row_version on this row (${currentRow[versionIdx]})`);
       }
       if (expectedVersion !== currentVersion) {
         throw new ConflictError(
-          `ข้อมูลถูกแก้ไขโดยผู้อื่นไปแล้ว (คาดว่า ${expectedVersion} แต่ปัจจุบันคือ ${currentVersion}) กรุณาโหลดใหม่`
+          `Row changed by someone else (expected version ${expectedVersion}, now ${currentVersion})`
         );
       }
 
@@ -326,7 +328,7 @@ export class SheetRepo {
 
     if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
       throw new ConflictError(
-        `ต้องระบุ row_version ที่อ่านมาก่อนลบ (ได้รับ: ${String(expectedVersion)})`
+        `row_version read beforehand is required to delete (got: ${String(expectedVersion)})`
       );
     }
 
@@ -335,25 +337,25 @@ export class SheetRepo {
       const spreadsheetId = getSpreadsheetId();
 
       const values = await this.getRawValues(tabName);
-      if (values.length <= 1) throw new NotFoundError(`ไม่พบข้อมูลในตาราง ${tabName}`);
+      if (values.length <= 1) throw new NotFoundError(`No rows in table ${tabName}`);
 
       const headers = values[0];
       const rowIndex = values.findIndex((r) => r[0] === id);
-      if (rowIndex === -1) throw new NotFoundError(`ไม่พบข้อมูล id ${id} ในตาราง ${tabName}`);
+      if (rowIndex === -1) throw new NotFoundError(`No row with id ${id} in table ${tabName}`);
 
       const currentRow = values[rowIndex];
       const versionIdx = headers.indexOf('row_version');
       if (versionIdx === -1) {
-        throw new Error(`ตาราง ${tabName} ไม่มีคอลัมน์ row_version`);
+        throw new Error(`Table ${tabName} has no row_version column`);
       }
 
       const currentVersion = Number.parseInt(currentRow[versionIdx], 10);
       if (Number.isNaN(currentVersion)) {
-        throw new ConflictError(`row_version ของแถวนี้ไม่ถูกต้อง (${currentRow[versionIdx]})`);
+        throw new ConflictError(`Invalid row_version on this row (${currentRow[versionIdx]})`);
       }
       if (expectedVersion !== currentVersion) {
         throw new ConflictError(
-          `ข้อมูลถูกแก้ไขโดยผู้อื่นไปแล้ว (คาดว่า ${expectedVersion} แต่ปัจจุบันคือ ${currentVersion}) กรุณาโหลดใหม่`
+          `Row changed by someone else (expected version ${expectedVersion}, now ${currentVersion})`
         );
       }
 

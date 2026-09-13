@@ -95,7 +95,7 @@ export async function updateUserPasswordAction(
   const actor = await requireRole('admin');
 
   const problem = validatePassword(newPassword);
-  if (problem) throw new Error(problem);
+  if (problem) throw problem;
 
   await SheetRepo.update<UserRecord>(
     'users',
@@ -130,7 +130,7 @@ export async function addUserAction(formData: {
   }
 
   const problem = validatePassword(formData.password);
-  if (problem) throw new Error(problem);
+  if (problem) throw problem;
 
   const existing = await SheetRepo.find<UserRecord>('users');
   if (existing.some((u) => normalizeEmail(u.email) === email)) {
