@@ -9,7 +9,9 @@ export default function LoginPage() {
   const signupDomains = allowedSignupDomains();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    // dvh, not screen: on phones 100vh includes the collapsing browser toolbar,
+    // which pushes the bottom of the card below the fold.
+    <div className="min-h-dvh flex items-center justify-center bg-gray-50 p-4">
       <LoginClient googleEnabled={googleEnabled} signupDomains={signupDomains} />
     </div>
   );

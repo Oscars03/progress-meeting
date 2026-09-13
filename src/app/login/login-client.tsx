@@ -98,35 +98,37 @@ function LoginForm({
   };
 
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
-      <div className="flex items-center justify-end gap-1.5">
+    // Sized to fit one screen without scrolling: the switchers sit in the
+    // card's corner instead of taking a row, and vertical rhythm is 16px.
+    <div className="relative w-full max-w-md bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-4">
+      <div className="absolute top-4 right-4 flex items-center gap-1.5">
         <LocaleSwitcher />
         <ThemeToggle />
       </div>
 
-      {/* The system's name is the thing to recognise on this page, so it leads.
-          The mark stands alone rather than the full lab lockup, whose own small
-          subtitle would compete with the name and be unreadable at this size. */}
-      <div className="text-center space-y-3">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
+      {/* The lab's text lockup carries the lab name; the system name sits
+          beneath it as the headline. pt-9 clears the corner switchers: the
+          220px lockup reaches under them horizontally, so it has to start below
+          their 40px-tall box. The SVG's transparent margin hides a collision
+          by eye, so measure the boxes rather than trusting a screenshot. */}
+      <div className="text-center space-y-2 pt-9">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a vector logo gains nothing from next/image optimisation */}
         <img
-          src="/brand/irish-mark.svg"
-          alt="IRiSH Lab"
-          width={80}
-          height={80}
+          src="/brand/irish-logo-text.svg"
+          alt="IRiSH — Intelligent Robot and Industrial System Hub"
+          width={220}
+          height={110}
           className="brand-logo mx-auto"
         />
-        <div className="space-y-1">
-          {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
-          <p className="text-xs font-semibold tracking-[0.18em] text-gray-500">IRiSH Lab</p>
-          <h1 className="text-3xl font-bold leading-tight text-gray-900 text-balance">
+        <div className="space-y-0.5">
+          <h1 className="text-2xl font-bold leading-tight text-gray-900 text-balance">
             {t('app.name')}
           </h1>
           <p className="text-sm text-gray-500 text-balance">{t('app.tagline')}</p>
         </div>
       </div>
 
-      <h2 className="pt-5 border-t border-gray-100 text-lg font-semibold text-gray-900">
+      <h2 className="pt-4 border-t border-gray-100 text-center text-lg font-semibold text-gray-900">
         {mode === 'login' ? t('login.title') : t('register.title')}
       </h2>
 
@@ -143,7 +145,7 @@ function LoginForm({
       )}
 
       {mode === 'login' && (
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {t('login.email')}
@@ -183,7 +185,7 @@ function LoginForm({
       )}
 
       {mode === 'register' && (
-      <form onSubmit={handleRegister} className="space-y-4">
+      <form onSubmit={handleRegister} className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="reg-name">
             {t('register.name')}
