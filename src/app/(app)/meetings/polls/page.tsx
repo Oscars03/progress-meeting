@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requireSession, hasManagerRights } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import type {
   AvailabilityPollRecord,
@@ -23,7 +23,7 @@ export default async function PollsPage() {
     weekAvailabilityAction(),
   ]);
 
-  const canManage = actor.role === 'admin' || actor.role === 'manager';
+  const canManage = hasManagerRights(actor.role);
 
   const rows = polls
     .map((poll) => {

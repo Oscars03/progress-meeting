@@ -35,6 +35,34 @@ body {
   overflow: visible !important;
 }
 
+/* On a phone the toolbar's three groups do not fit on one line: the view
+   buttons wrap under the title and collide with it. Stack the groups instead,
+   and shrink the type so a month name plus year still fits a 360px screen. */
+@media (max-width: 640px) {
+  .fc .fc-toolbar.fc-header-toolbar {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 1.05rem;
+  }
+
+  .fc .fc-button {
+    padding: 0.3em 0.55em;
+    font-size: 0.8rem;
+  }
+
+  /* The time gutter eats a quarter of a narrow screen at its default width. */
+  .fc .fc-timegrid-slot-label-cushion,
+  .fc .fc-timegrid-axis-cushion {
+    font-size: 0.7rem;
+    padding: 0 2px;
+  }
+}
+
 /* ==========================================================================
    Dark theme
    --------------------------------------------------------------------------

@@ -8,7 +8,7 @@ import { requireRole, canAssignRole, type Role } from '@/lib/auth-guard';
 import { hashPassword, validatePassword, verifyPassword, isHashed } from '@/lib/password';
 import type { UserRecord } from '@/lib/db/schema';
 
-const ASSIGNABLE_ROLES: Role[] = ['admin', 'manager', 'member', 'viewer'];
+const ASSIGNABLE_ROLES: Role[] = ['admin', 'professor', 'student'];
 
 /** What the client is allowed to see about a user. Never includes the password. */
 export type SafeUser = {

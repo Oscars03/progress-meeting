@@ -1,18 +1,18 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requireSession, hasManagerRights } from '@/lib/auth-guard';
 import type {
   ActionItemRecord,
-  MeetingAttendeeRecord,
   MeetingRecord,
   MinutesRecord,
   TaskRecord,
   UserRecord,
 } from '@/lib/db/schema';
+import { rotationMembers, suggestNextHost } from '@/lib/rotation';
+import HostPicker from '../../dashboard/host-picker';
 import MinutesEditor from './minutes-editor';
 import ActionItems from './action-items';
-import Agenda from './agenda';
 import CalendarSync from './calendar-sync';
 import { getT } from '@/lib/ui/server-i18n';
 
@@ -24,11 +24,10 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const meeting = meetings.find((m) => m.id === id);
   if (!meeting) notFound();
 
-  const [users, allMinutes, allItems, allAttendees, tasks] = await Promise.all([
+  const [users, allMinutes, allItems, tasks] = await Promise.all([
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MinutesRecord>('minutes'),
     SheetRepo.find<ActionItemRecord>('action_items'),
-    SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees'),
     SheetRepo.find<TaskRecord>('tasks'),
   ]);
 
@@ -39,16 +38,15 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const minutes = allMinutes.find((m) => m.meeting_id === id) ?? null;
   const items = allItems.filter((i) => i.meeting_id === id);
 
-  const attendees = allAttendees
-    .filter((a) => a.meeting_id === id && a.present_order !== '' && a.present_order !== undefined)
-    .sort((a, b) => Number(a.present_order) - Number(b.present_order));
-
   // Only unfinished tasks are worth linking a follow-up to.
   const openTasks = tasks
     .filter((t) => t.status !== 'done')
     .map((t) => ({ id: t.id, title: t.title }));
 
-  const canManage = actor.role === 'admin' || actor.role === 'manager';
+  const canManage = hasManagerRights(actor.role);
+  const students = rotationMembers(users);
+  const hostName = meeting.host_id ? (users.find((u) => u.id === meeting.host_id)?.name ?? '') : '';
+  const suggestedHost = hostName ? null : suggestNextHost(users, meetings);
   const calendarOwner = users.find((u) => u.id === meeting.google_calendar_owner_id);
   const when = [meeting.start_at, meeting.end_at].filter(Boolean).join(' — ');
 
@@ -67,18 +65,39 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
         </p>
       </div>
 
-      <Agenda
-        meetingId={id}
-        people={people}
-        attendees={attendees.map((a) => ({
-          id: a.id,
-          user_id: a.user_id,
-          attend_status: a.attend_status,
-          present_order: Number(a.present_order),
-          row_version: a.row_version,
-        }))}
-        canManage={canManage}
-      />
+      <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <h3 className="text-lg font-semibold text-gray-900">{t('rotation.title')}</h3>
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              meeting.host_id ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
+            }`}
+          >
+            {meeting.host_id ? t('rotation.confirmed') : t('rotation.suggested')}
+          </span>
+        </div>
+
+        <p className="text-sm text-gray-500">{t('rotation.duty')}</p>
+
+        {students.length === 0 ? (
+          <p className="text-sm text-gray-500">{t('rotation.noStudents')}</p>
+        ) : (
+          <>
+            <p className="text-base font-semibold text-gray-900">
+              {hostName || suggestedHost?.name}
+            </p>
+            {canManage && (
+              <HostPicker
+                meetingId={id}
+                rowVersion={meeting.row_version}
+                students={students.map((s) => ({ id: s.id, name: s.name }))}
+                hostId={meeting.host_id ?? ''}
+                suggestedId={suggestedHost?.id ?? ''}
+              />
+            )}
+          </>
+        )}
+      </section>
 
       <CalendarSync
         meetingId={id}

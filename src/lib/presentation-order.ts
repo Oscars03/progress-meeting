@@ -1,0 +1,77 @@
+/**
+ * The running order for a week's meeting, built from the topics people entered.
+ *
+ * The suggestion is "whoever brought the most goes first": someone with three
+ * things to show needs the most time, and the meeting is least likely to run
+ * out of it while they are still waiting. Ties go to whoever wrote theirs down
+ * first, so the order is stable and never depends on who happens to load the
+ * page.
+ *
+ * A suggestion is only ever a starting point. Once anyone sets an explicit
+ * position the stored order wins outright -- otherwise a person's carefully
+ * arranged agenda would silently rearrange itself when someone added a topic.
+ */
+
+import type { TopicRecord } from './db/schema';
+
+function position(topic: TopicRecord): number {
+  const n = Number(topic.present_order);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function byCreatedAt(a: TopicRecord, b: TopicRecord): number {
+  return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
+}
+
+/** Topics for one ISO week, dropped ones excluded. */
+export function topicsForWeek(topics: TopicRecord[], weekKey: string): TopicRecord[] {
+  return topics.filter((topic) => topic.week_key === weekKey && topic.status !== 'dropped');
+}
+
+/**
+ * Most topics first, ties to the earliest submission. Within one person their
+ * own topics stay in the order they wrote them.
+ */
+export function suggestTopicOrder(topics: TopicRecord[]): TopicRecord[] {
+  const byOwner = new Map<string, TopicRecord[]>();
+
+  for (const topic of [...topics].sort(byCreatedAt)) {
+    const mine = byOwner.get(topic.owner_id);
+    if (mine) mine.push(topic);
+    else byOwner.set(topic.owner_id, [topic]);
+  }
+
+  return [...byOwner.values()]
+    .sort((a, b) => (b.length !== a.length ? b.length - a.length : byCreatedAt(a[0], b[0])))
+    .flat();
+}
+
+/**
+ * The order to actually show: the stored one when someone has arranged it,
+ * otherwise the suggestion. Topics with no stored position follow the ones that
+ * have, in suggested order, so a newly added topic joins the end rather than
+ * jumping the queue.
+ */
+export function effectiveTopicOrder(topics: TopicRecord[]): {
+  ordered: TopicRecord[];
+  custom: boolean;
+} {
+  const placed = topics.filter((topic) => position(topic) > 0);
+  if (placed.length === 0) {
+    return { ordered: suggestTopicOrder(topics), custom: false };
+  }
+
+  const unplaced = suggestTopicOrder(topics.filter((topic) => position(topic) === 0));
+  const sorted = [...placed].sort((a, b) => position(a) - position(b));
+
+  return { ordered: [...sorted, ...unplaced], custom: true };
+}
+
+/** How many topics each person brought, for showing beside their name. */
+export function topicCounts(topics: TopicRecord[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const topic of topics) {
+    counts.set(topic.owner_id, (counts.get(topic.owner_id) ?? 0) + 1);
+  }
+  return counts;
+}

@@ -64,7 +64,7 @@ export default function NewMeetingButton() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[90dvh]">
             <h3 className="text-lg font-semibold text-gray-900">{t('meetings.newTitle')}</h3>
 
             {error && (
@@ -92,7 +92,7 @@ export default function NewMeetingButton() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-600 mb-1" htmlFor="m-start">
                     {t('meetings.start')}

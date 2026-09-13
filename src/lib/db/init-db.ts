@@ -7,13 +7,13 @@ type SeedUser = { name: string; email: string; role: string };
 
 const SEED_USERS: SeedUser[] = [
   { name: 'ผู้ดูแลระบบ (Admin)', email: 'admin@test.com', role: 'admin' },
-  { name: 'อาจารย์สมชาย', email: 'prof1@test.com', role: 'manager' },
-  { name: 'อาจารย์สมศรี', email: 'prof2@test.com', role: 'manager' },
-  { name: 'นักศึกษา ก (Lead)', email: 'student1@test.com', role: 'manager' },
-  { name: 'นักศึกษา ข', email: 'student2@test.com', role: 'member' },
-  { name: 'นักศึกษา ค', email: 'student3@test.com', role: 'member' },
-  { name: 'นักศึกษา ง', email: 'student4@test.com', role: 'member' },
-  { name: 'นักศึกษา จ', email: 'student5@test.com', role: 'member' },
+  { name: 'อาจารย์สมชาย', email: 'prof1@test.com', role: 'professor' },
+  { name: 'อาจารย์สมศรี', email: 'prof2@test.com', role: 'professor' },
+  { name: 'นักศึกษา ก (Lead)', email: 'student1@test.com', role: 'student' },
+  { name: 'นักศึกษา ข', email: 'student2@test.com', role: 'student' },
+  { name: 'นักศึกษา ค', email: 'student3@test.com', role: 'student' },
+  { name: 'นักศึกษา ง', email: 'student4@test.com', role: 'student' },
+  { name: 'นักศึกษา จ', email: 'student5@test.com', role: 'student' },
 ];
 
 /**

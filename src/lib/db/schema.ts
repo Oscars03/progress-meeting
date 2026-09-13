@@ -3,7 +3,7 @@ export const COMMON_COLUMNS = ['id', 'created_at', 'updated_at', 'row_version', 
 export const SCHEMAS = {
   users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active'],
   teams: [...COMMON_COLUMNS, 'name'],
-  meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at'],
+  meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at', 'host_id'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
   tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links'],
   task_updates: [...COMMON_COLUMNS, 'task_id', 'week_key', 'progress_pct', 'summary', 'risks', 'next_plan', 'updated_by'],
@@ -23,6 +23,7 @@ export const SCHEMAS = {
   // read or written correctly.
   meta: [...COMMON_COLUMNS, 'key', 'value'],
   personal_events: [...COMMON_COLUMNS, 'user_id', 'title', 'start_at', 'end_at'],
+  topics: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'week_key', 'meeting_id', 'present_order', 'status'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -79,6 +80,12 @@ export type MeetingRecord = BaseRecord & {
   /** Whose calendar holds the event -- the account that created it. */
   google_calendar_owner_id: string;
   google_synced_at: string;
+  /**
+   * The student responsible for this week's meeting -- preparing it and writing
+   * the summary. Empty until someone confirms the rotation's suggestion, which
+   * is what makes "suggested" and "confirmed" distinguishable.
+   */
+  host_id: string;
 };
 
 /**
@@ -177,3 +184,23 @@ export function assertHasCommonColumns(tabName: TableName): void {
     }
   }
 }
+
+/**
+ * Something a person intends to present in a given week.
+ *
+ * Anyone may add their own; the week's running order is built from these. The
+ * topic belongs to a week rather than to a meeting, so it can be written down
+ * before anything has been scheduled -- meeting_id is filled in once there is
+ * a meeting to attach it to.
+ */
+export type TopicRecord = BaseRecord & {
+  title: string;
+  details: string;
+  owner_id: string;
+  /** ISO week, e.g. 2026-W38 -- see lib/week.ts. */
+  week_key: string;
+  meeting_id: string;
+  /** Position in the running order, 1-based. Empty while the order is only suggested. */
+  present_order: number | string;
+  status: string;
+};

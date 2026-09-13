@@ -41,7 +41,7 @@ export async function saveMinutesAction(
   rowVersion: number | null
 ): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('member');
+    const actor = await requireRole('student');
     requireMeetingId(meetingId);
 
     if (existingId && rowVersion !== null) {
@@ -72,7 +72,7 @@ export async function addActionItemAction(input: {
   sourceTaskId: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('member');
+    const actor = await requireRole('student');
 
     const title = input.title.trim();
     if (!title) throw new UserError('items.titleRequired');
@@ -102,7 +102,7 @@ export async function setActionItemStatusAction(
   rowVersion: number
 ): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('member');
+    const actor = await requireRole('student');
     assertItemStatus(status);
 
     await SheetRepo.update<ActionItemRecord>(
@@ -124,7 +124,7 @@ export async function deleteActionItemAction(
 ): Promise<ActionResult> {
   return toResult(async () => {
     // Removing someone else's assigned work is a manager call, not a member one.
-    const actor = await requireRole('manager');
+    const actor = await requireRole('professor');
     await SheetRepo.delete('action_items', itemId, rowVersion, actor.id);
     revalidate(meetingId);
   });
@@ -138,7 +138,7 @@ export async function deleteActionItemAction(
  */
 export async function setAgendaAction(meetingId: string, userIds: string[]): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('manager');
+    const actor = await requireRole('professor');
     requireMeetingId(meetingId);
 
     const all = await SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees');

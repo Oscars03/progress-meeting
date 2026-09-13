@@ -3,14 +3,20 @@ import { authOptions } from './auth';
 import { UserError } from './user-error';
 import type { TranslationKey, TranslationVars } from './ui/i18n';
 
-export type Role = 'admin' | 'manager' | 'member' | 'viewer';
+export type Role = 'admin' | 'professor' | 'student';
 
-/** Highest privilege first. A role satisfies any requirement at or below its rank. */
+/**
+ * Highest privilege first. A role satisfies any requirement at or below its rank.
+ *
+ * Three roles, because there are three kinds of people here: the person who
+ * runs the system, the advisors, and the students who report to them. An
+ * unrecognised role in the sheet falls to `student`, the floor -- see
+ * requireSession.
+ */
 const RANK: Record<Role, number> = {
-  admin: 4,
-  manager: 3,
-  member: 2,
-  viewer: 1,
+  admin: 3,
+  professor: 2,
+  student: 1,
 };
 
 export type SessionUser = {
@@ -41,7 +47,7 @@ export async function requireSession(): Promise<SessionUser> {
   }
 
   // An unrecognised role is treated as the least privileged, never as a pass.
-  const role: Role = isRole(user.role) ? user.role : 'viewer';
+  const role: Role = isRole(user.role) ? user.role : 'student';
 
   return { id: user.id, name: user.name, email: user.email, role };
 }
@@ -61,6 +67,17 @@ export async function requireRole(minimum: Role): Promise<SessionUser> {
   }
 
   return user;
+}
+
+/**
+ * Whether a role carries manager-level abilities -- ordering the agenda,
+ * closing a poll, confirming the week's lead, removing other people's rows.
+ *
+ * Pages asked for the roles by name in four places, which silently excluded
+ * any role added later. Ask this instead.
+ */
+export function hasManagerRights(role: Role): boolean {
+  return RANK[role] >= RANK.professor;
 }
 
 export function canAssignRole(actor: SessionUser, target: Role): boolean {

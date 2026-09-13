@@ -1,18 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
 
-type IconName = 'dashboard' | 'tasks' | 'meetings' | 'report' | 'settings';
+type IconName = 'dashboard' | 'tasks' | 'meetings' | 'presentations' | 'report' | 'settings';
 
+/**
+ * Tasks and Report are not part of the current workflow, so they are off the
+ * menu. The pages still exist and still work if their URL is opened directly --
+ * this hides them rather than deleting work that may come back.
+ */
 const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
   { href: '/dashboard', key: 'nav.dashboard', icon: 'dashboard' },
-  { href: '/tasks', key: 'nav.tasks', icon: 'tasks' },
   { href: '/meetings', key: 'nav.meetings', icon: 'meetings' },
-  { href: '/report', key: 'nav.report', icon: 'report' },
+  { href: '/presentations', key: 'nav.presentations', icon: 'presentations' },
   { href: '/settings', key: 'nav.settings', icon: 'settings' },
 ];
 
@@ -61,6 +66,8 @@ function NavIcon({ name }: { name: IconName }) {
           <path d="M16 3v4M8 3v4M3 10h18" />
         </Icon>
       );
+    case 'presentations':
+      return <Icon d="M4 6h6M4 12h10M4 18h7M17 5l3 3-3 3" />;
     case 'report':
       return <Icon d="M3 20h18M7 16V9M12 16V5M17 16v-4" />;
     case 'settings':
@@ -97,113 +104,168 @@ export default function AppNav({ userName }: { userName: string }) {
   const collapsed = sidebar === 'collapsed';
   const toggleLabel = collapsed ? t('nav.expand') : t('nav.collapse');
   const [nameLine1, nameLine2] = splitName(t('app.name'));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
-    // md:w-max: the expanded rail is exactly as wide as its widest content --
-    // today the header -- with no fixed width to leave slack beside short
-    // menu labels. Collapsed overrides it with a fixed 64px rail.
-    <nav className="w-full md:w-max md:collapsed:w-16 bg-white border-r border-gray-200 p-4 md:collapsed:px-3 flex flex-col gap-4 shadow-sm shrink-0 transition-[width] duration-200 motion-reduce:transition-none">
-      {/* Expanded: the mark is exactly as tall as the two lines of the name.
-          It inherits text-lg from the grid, so h-[2lh] is two of the name's
-          line heights -- equal by construction, not by a pixel value. */}
-      <div className="grid grid-cols-[auto_auto] items-center gap-x-2 text-lg md:collapsed:hidden">
+    <>
+      {/* Mobile Top Header */}
+      <div className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0 z-30">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/irish-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width={32}
+            height={32}
+            className="brand-logo w-8 h-8"
+          />
+          <h1 className="font-bold text-gray-900 truncate max-w-[200px]">
+            {t('app.name')}
+          </h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-md"
+          aria-label={t('nav.expand')}
+        >
+          <Icon d="M4 6h16M4 12h16M4 18h16" />
+        </button>
+      </div>
+
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
+          onClick={closeMobileMenu}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* md:w-max: the expanded rail is exactly as wide as its widest content --
+          today the header -- with no fixed width to leave slack beside short
+          menu labels. Collapsed overrides it with a fixed 64px rail. */}
+      <nav className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-300 motion-reduce:transition-none md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        {/* Mobile close button */}
+        <div className="md:hidden absolute top-4 right-4">
+          <button
+            type="button"
+            onClick={closeMobileMenu}
+            className="p-2 text-gray-500 hover:bg-gray-100 rounded-md"
+            aria-label={t('nav.collapse')}
+          >
+            <Icon d="M6 18L18 6M6 6l12 12" />
+          </button>
+        </div>
+
+        {/* Expanded: the mark is exactly as tall as the two lines of the name.
+            It inherits text-lg from the grid, so h-[2lh] is two of the name's
+            line heights -- equal by construction, not by a pixel value. */}
+        {/* pr-9 below md keeps the two-line name clear of the close button,
+            which is positioned over this row. */}
+        <div className="grid grid-cols-[auto_auto] items-center gap-x-2 text-lg pr-9 md:pr-0 md:collapsed:hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
+          <img
+            src="/brand/irish-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width={56}
+            height={56}
+            className="brand-logo h-[2lh] w-auto"
+          />
+          <h1 className="font-bold text-gray-900 whitespace-nowrap">
+            {nameLine1}
+            {nameLine2 && (
+              <>
+                <br />
+                {nameLine2}
+              </>
+            )}
+          </h1>
+          {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
+          <p className="col-start-2 text-xs font-semibold tracking-[0.14em] text-blue-600">
+            IRiSH Lab
+          </p>
+        </div>
+
+        {/* Collapsed: a 40px rail has room for the mark alone. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
         <img
           src="/brand/irish-mark.svg"
-          alt=""
-          aria-hidden="true"
-          width={56}
-          height={56}
-          className="brand-logo h-[2lh] w-auto"
+          alt="IRiSH Lab"
+          width={40}
+          height={40}
+          className="brand-logo hidden md:collapsed:block mx-auto"
         />
-        <h1 className="font-bold text-gray-900 whitespace-nowrap">
-          {nameLine1}
-          {nameLine2 && (
-            <>
-              <br />
-              {nameLine2}
-            </>
-          )}
-        </h1>
-        {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
-        <p className="col-start-2 text-xs font-semibold tracking-[0.14em] text-blue-600">
-          IRiSH Lab
-        </p>
-      </div>
 
-      {/* Collapsed: a 40px rail has room for the mark alone. */}
-      {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
-      <img
-        src="/brand/irish-mark.svg"
-        alt="IRiSH Lab"
-        width={40}
-        height={40}
-        className="brand-logo hidden md:collapsed:block mx-auto"
-      />
-
-      {/* Controls row. The collapse toggle lives up here, in the same 32px
-          frame as the theme toggle. justify-end below md: the toggle is hidden
-          there, and justify-between would leave the remaining controls stranded
-          on the left. When collapsed the row stacks to fit the 40px rail. */}
-      <div className="flex items-center justify-end md:justify-between gap-1.5 md:collapsed:flex-col md:collapsed:justify-center md:collapsed:gap-2">
-        <button
-          type="button"
-          onClick={() => setSidebar(collapsed ? 'expanded' : 'collapsed')}
-          aria-expanded={!collapsed}
-          aria-label={toggleLabel}
-          title={toggleLabel}
-          className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition"
-        >
-          <Icon
-            className="h-4 w-4"
-            d={collapsed ? 'M13 17l5-5-5-5M6 17l5-5-5-5' : 'M11 17l-5-5 5-5M18 17l-5-5 5-5'}
-          />
-        </button>
-        <div className="flex items-center gap-1.5 md:collapsed:flex-col md:collapsed:gap-2">
-          {/* The language switch is wider than the collapsed rail; expand to change it. */}
-          <LocaleSwitcher className="md:collapsed:hidden" />
-          <ThemeToggle />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1 mt-2">
-        {LINKS.map(({ href, key, icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/');
-          return (
-            <Link
-              key={href}
-              href={href}
-              title={t(key)}
-              aria-current={active ? 'page' : undefined}
-              className={`flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md font-medium transition ${
-                active ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <NavIcon name={icon} />
-              {/* sr-only rather than hidden, so the link keeps its name when collapsed. */}
-              <span className="whitespace-nowrap md:collapsed:sr-only">{t(key)}</span>
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-200">
-        <div className="md:collapsed:hidden">
-          {/* w-0 min-w-full: contributes nothing to the rail's max-content
-              width, then fills whatever width the rail settles on. A long
-              user name truncates instead of widening the sidebar. */}
-          <p className="w-0 min-w-full text-sm text-gray-500 truncate">{userName}</p>
+        {/* Controls row. The collapse toggle lives up here, in the same 32px
+            frame as the theme toggle. justify-end below md: the toggle is hidden
+            there, and justify-between would leave the remaining controls stranded
+            on the left. When collapsed the row stacks to fit the 40px rail. */}
+        <div className="flex items-center justify-end md:justify-between gap-1.5 md:collapsed:flex-col md:collapsed:justify-center md:collapsed:gap-2">
+          <button
+            type="button"
+            onClick={() => setSidebar(collapsed ? 'expanded' : 'collapsed')}
+            aria-expanded={!collapsed}
+            aria-label={toggleLabel}
+            title={toggleLabel}
+            className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition"
+          >
+            <Icon
+              className="h-4 w-4"
+              d={collapsed ? 'M13 17l5-5-5-5M6 17l5-5-5-5' : 'M11 17l-5-5 5-5M18 17l-5-5 5-5'}
+            />
+          </button>
+          <div className="flex items-center gap-1.5 md:collapsed:flex-col md:collapsed:gap-2">
+            {/* The language switch is wider than the collapsed rail; expand to change it. */}
+            <LocaleSwitcher className="md:collapsed:hidden" />
+            <ThemeToggle />
+          </div>
         </div>
 
-        <Link
-          href="/api/auth/signout"
-          title={t('nav.signOut')}
-          className="flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-sm text-red-500 hover:bg-gray-100"
-        >
-          <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-          <span className="whitespace-nowrap md:collapsed:sr-only">{t('nav.signOut')}</span>
-        </Link>
-      </div>
-    </nav>
+        <div className="flex flex-col gap-1 mt-2">
+          {LINKS.map(({ href, key, icon }) => {
+            const active = pathname === href || pathname.startsWith(href + '/');
+            return (
+              <Link
+                key={href}
+                href={href}
+                title={t(key)}
+                aria-current={active ? 'page' : undefined}
+                onClick={closeMobileMenu}
+                className={`flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md font-medium transition ${
+                  active ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <NavIcon name={icon} />
+                {/* sr-only rather than hidden, so the link keeps its name when collapsed. */}
+                <span className="whitespace-nowrap md:collapsed:sr-only">{t(key)}</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-200">
+          <div className="md:collapsed:hidden">
+            {/* w-0 min-w-full: contributes nothing to the rail's max-content
+                width, then fills whatever width the rail settles on. A long
+                user name truncates instead of widening the sidebar. */}
+            <p className="w-0 min-w-full text-sm text-gray-500 truncate">{userName}</p>
+          </div>
+
+          <Link
+            href="/api/auth/signout"
+            title={t('nav.signOut')}
+            onClick={closeMobileMenu}
+            className="flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-sm text-red-500 hover:bg-gray-100"
+          >
+            <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            <span className="whitespace-nowrap md:collapsed:sr-only">{t('nav.signOut')}</span>
+          </Link>
+        </div>
+      </nav>
+    </>
   );
 }

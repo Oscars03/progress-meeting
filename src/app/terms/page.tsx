@@ -18,14 +18,14 @@ export default async function TermsOfService() {
       </header>
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white p-8 sm:p-12 rounded-lg shadow-sm border border-gray-100 prose max-w-none text-gray-700">
+        <div className="bg-white p-5 sm:p-12 rounded-lg shadow-sm border border-gray-100 prose max-w-none text-gray-700">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Terms of Service</h1>
           <p className="mb-6">Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
             <p className="mb-4">
-              By accessing and using the Weekly Progress Meeting System (&quot;the Application&quot;), you accept and agree to be bound by the terms and provision of this agreement.
+              By accessing and using IRiSH Progress Meeting (&quot;the Application&quot;), you accept and agree to be bound by the terms and provision of this agreement.
             </p>
           </section>
 
