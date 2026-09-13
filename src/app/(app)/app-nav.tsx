@@ -16,12 +16,20 @@ const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
   { href: '/settings', key: 'nav.settings', icon: 'settings' },
 ];
 
-function Icon({ d, children }: { d?: string; children?: React.ReactNode }) {
+function Icon({
+  d,
+  children,
+  className = 'h-5 w-5',
+}: {
+  d?: string;
+  children?: React.ReactNode;
+  className?: string;
+}) {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      className="h-5 w-5 shrink-0"
+      className={`${className} shrink-0`}
       fill="none"
       stroke="currentColor"
       strokeWidth={2}
@@ -81,35 +89,65 @@ export default function AppNav({ userName }: { userName: string }) {
   const toggleLabel = collapsed ? t('nav.expand') : t('nav.collapse');
 
   return (
-    <nav className="w-full md:w-64 md:collapsed:w-16 bg-white border-r border-gray-200 p-4 md:collapsed:px-3 flex flex-col gap-4 shadow-sm shrink-0 transition-[width] duration-200 motion-reduce:transition-none">
-      <div className="space-y-2">
-        {/* Expanded: the lab's text lockup carries the lab name. */}
-        {/* eslint-disable-next-line @next/next/no-img-element -- a vector logo gains nothing from next/image optimisation */}
-        <img
-          src="/brand/irish-logo-text.svg"
-          alt="IRiSH — Intelligent Robot and Industrial System Hub"
-          width={200}
-          height={100}
-          className="brand-logo md:collapsed:hidden"
-        />
-        {/* Collapsed: a 40px rail has room for the mark alone. */}
+    // w-72 when expanded: the mark, a gap and the system name share one row,
+    // and at 18px the name alone is ~213px -- more than the 223px a w-64 rail
+    // leaves once the mark sits beside it.
+    <nav className="w-full md:w-72 md:collapsed:w-16 bg-white border-r border-gray-200 p-4 md:collapsed:px-3 flex flex-col gap-4 shadow-sm shrink-0 transition-[width] duration-200 motion-reduce:transition-none">
+      {/* Expanded: the mark is exactly as tall as the name's line. Both inherit
+          text-lg from the grid, so h-[1lh] on the image resolves to the same
+          line height the h1 uses -- equal by construction, not by a magic number. */}
+      <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 text-lg md:collapsed:hidden">
         {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
         <img
           src="/brand/irish-mark.svg"
-          alt="IRiSH Lab"
-          width={40}
-          height={40}
-          className="brand-logo hidden md:collapsed:block mx-auto"
+          alt=""
+          aria-hidden="true"
+          width={28}
+          height={28}
+          className="brand-logo h-[1lh] w-auto"
         />
-        <h1 className="text-lg font-bold leading-tight text-gray-900 md:collapsed:hidden">
-          {t('app.name')}
-        </h1>
+        <h1 className="font-bold text-gray-900 whitespace-nowrap">{t('app.name')}</h1>
+        {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
+        <p className="col-start-2 text-xs font-semibold tracking-[0.14em] text-blue-600">
+          IRiSH Lab
+        </p>
       </div>
 
-      <div className="flex items-center justify-end gap-1.5 md:collapsed:justify-center">
-        {/* The language switch is wider than the collapsed rail; expand to change it. */}
-        <LocaleSwitcher className="md:collapsed:hidden" />
-        <ThemeToggle />
+      {/* Collapsed: a 40px rail has room for the mark alone. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
+      <img
+        src="/brand/irish-mark.svg"
+        alt="IRiSH Lab"
+        width={40}
+        height={40}
+        className="brand-logo hidden md:collapsed:block mx-auto"
+      />
+
+      {/* Controls row. The collapse toggle lives up here, not at the foot of
+          the rail, where it sat under the Next dev badge and was the last thing
+          anyone looked at. It uses the same 32px frame as the theme toggle.
+          justify-end below md: the toggle is hidden there, and justify-between
+          would leave the remaining controls stranded on the left. When
+          collapsed the row stacks vertically to fit the 40px rail. */}
+      <div className="flex items-center justify-end md:justify-between gap-1.5 md:collapsed:flex-col md:collapsed:justify-center md:collapsed:gap-2">
+        <button
+          type="button"
+          onClick={() => setSidebar(collapsed ? 'expanded' : 'collapsed')}
+          aria-expanded={!collapsed}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition"
+        >
+          <Icon
+            className="h-4 w-4"
+            d={collapsed ? 'M13 17l5-5-5-5M6 17l5-5-5-5' : 'M11 17l-5-5 5-5M18 17l-5-5 5-5'}
+          />
+        </button>
+        <div className="flex items-center gap-1.5 md:collapsed:flex-col md:collapsed:gap-2">
+          {/* The language switch is wider than the collapsed rail; expand to change it. */}
+          <LocaleSwitcher className="md:collapsed:hidden" />
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="flex flex-col gap-1 mt-2">
@@ -146,18 +184,6 @@ export default function AppNav({ userName }: { userName: string }) {
           <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
           <span className="md:collapsed:sr-only">{t('nav.signOut')}</span>
         </Link>
-
-        <button
-          type="button"
-          onClick={() => setSidebar(collapsed ? 'expanded' : 'collapsed')}
-          aria-expanded={!collapsed}
-          aria-label={toggleLabel}
-          title={toggleLabel}
-          className="hidden md:flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-sm text-gray-500 hover:bg-gray-100"
-        >
-          <Icon d={collapsed ? 'M13 17l5-5-5-5M6 17l5-5-5-5' : 'M11 17l-5-5 5-5M18 17l-5-5 5-5'} />
-          <span className="md:collapsed:sr-only">{toggleLabel}</span>
-        </button>
       </div>
     </nav>
   );

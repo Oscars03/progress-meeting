@@ -24,8 +24,8 @@ System Hub **ไฟล์รูปทั้งหมดในโฟลเดอ�
 
 | ใช้ที่ | ไฟล์ในเว็บ | มาจาก |
 |---|---|---|
-| หน้าเข้าสู่ระบบ และแถบเมนูตอนขยาย | `public/brand/irish-logo-text.svg` | `SVG/Logo_Text_B.svg` |
-| แถบเมนูตอนยุบ | `public/brand/irish-mark.svg` | `SVG/Logo_Square_B.svg` |
+| หน้าเข้าสู่ระบบ | `public/brand/irish-logo-text.svg` | `SVG/Logo_Text_B.svg` |
+| แถบเมนู (ทั้งตอนขยายและยุบ) | `public/brand/irish-mark.svg` | `SVG/Logo_Square_B.svg` |
 | ไอคอนแท็บเบราว์เซอร์ | `src/app/icon.svg` | `SVG/Logo_Square_B.svg` + กฎสลับสีตามธีม |
 
 ถ้าแล็บเปลี่ยนโลโก้ ให้คัดลอกไฟล์ใหม่ทับไฟล์ใน `public/brand/` ด้วย
