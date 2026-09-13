@@ -30,7 +30,7 @@ export async function createPollAction(input: {
   slots: { start: string; end: string }[];
 }) {
   return toResult(async () => {
-  const actor = await requireRole('manager');
+  const actor = await requireRole('professor');
 
   const title = input.title.trim();
   if (!title) throw new UserError('polls.error.titleRequired');
@@ -117,7 +117,7 @@ export async function closePollAction(
   status: 'open' | 'closed'
 ) {
   return toResult(async () => {
-  const actor = await requireRole('manager');
+  const actor = await requireRole('professor');
   await SheetRepo.update<AvailabilityPollRecord>(
     'availability_polls',
     pollId,
@@ -141,7 +141,7 @@ export async function confirmSlotAction(
   slotId: string
 ) {
   return toResult(async () => {
-  const actor = await requireRole('manager');
+  const actor = await requireRole('professor');
 
   const [polls, slots] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
@@ -186,7 +186,7 @@ export async function confirmSlotAction(
 
 export async function deletePollAction(pollId: string, rowVersion: number) {
   return toResult(async () => {
-  const actor = await requireRole('manager');
+  const actor = await requireRole('professor');
 
   const [slots, votes] = await Promise.all([
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),

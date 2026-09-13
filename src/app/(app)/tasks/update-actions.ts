@@ -44,7 +44,7 @@ async function saveWeeklyUpdate(input: {
   nextPlan: string;
   weekKey?: string;
 }) {
-  const actor = await requireRole('member');
+  const actor = await requireRole('student');
 
   const taskId = input.taskId;
   if (!taskId) throw new UserError('error.notFound');

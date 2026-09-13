@@ -24,10 +24,9 @@ export type SafeUser = {
 type Message = { type: 'success' | 'error'; text: string };
 
 const ROLES = [
-  { value: 'member', label: 'สมาชิก (Member)' },
-  { value: 'manager', label: 'ผู้จัดการ/อาจารย์ (Manager)' },
+  { value: 'student', label: 'นักศึกษา (Student)' },
+  { value: 'professor', label: 'อาจารย์ (Professor)' },
   { value: 'admin', label: 'ผู้ดูแลระบบ (Admin)' },
-  { value: 'viewer', label: 'ผู้เข้าชม (Viewer)' },
 ];
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -66,7 +65,7 @@ export default function UserManager({
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newRole, setNewRole] = useState('member');
+  const [newRole, setNewRole] = useState('student');
 
   const run = (work: () => Promise<void>) => {
     setMessage(null);
@@ -191,7 +190,7 @@ export default function UserManager({
       setNewName('');
       setNewEmail('');
       setNewUserPassword('');
-      setNewRole('member');
+      setNewRole('student');
     });
   };
 
@@ -476,7 +475,7 @@ export default function UserManager({
                         className={`px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 ${
                           u.role === 'admin'
                             ? 'bg-purple-100 text-purple-700'
-                            : u.role === 'manager'
+                            : u.role === 'professor'
                               ? 'bg-amber-100 text-amber-700'
                               : 'bg-blue-100 text-blue-700'
                         }`}

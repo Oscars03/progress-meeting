@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requireSession, hasManagerRights } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { tallySlot, rankSlots, bestSlot, type Choice } from '@/lib/poll-tally';
 import type {
@@ -67,7 +67,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     })),
   }));
 
-  const canManage = actor.role === 'admin' || actor.role === 'manager';
+  const canManage = hasManagerRights(actor.role);
   const closed = poll.status === 'closed';
 
   return (

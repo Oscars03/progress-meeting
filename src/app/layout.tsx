@@ -27,7 +27,7 @@ const mono = IBM_Plex_Mono({
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
-    title: "Weekly Progress Meeting System",
+    title: "IRiSH Progress Meeting",
     description: t("app.tagline"),
     verification: {
       google: "hX2VgFZZotGCwREHS0SC6EAsTEMNAqyG7eZ3VHVJSuE",

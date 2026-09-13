@@ -6,7 +6,7 @@ import { SheetRepo } from './sheet-repo';
  * Bump whenever SCHEMAS changes. Stored in the `meta` tab so a sheet can say
  * which shape it is on, rather than being inferred every time.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 5;
 
 const VERSION_KEY = 'schema_version';
 

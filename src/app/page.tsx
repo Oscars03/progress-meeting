@@ -11,21 +11,21 @@ export default async function Home() {
   
   return (
     <div className="min-h-dvh bg-gray-50 flex flex-col relative">
-      {/* Top Left Logo */}
-      <div className="absolute top-6 left-6 z-10">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/irish-mark.png"
-          alt="IRiSH Logo"
-          className="brand-logo w-20 h-20 sm:w-24 sm:h-24 object-contain"
-        />
-      </div>
-
-      {/* Top Right Controls */}
-      <div className="absolute top-6 right-6 z-10 flex items-center gap-1.5">
-        <LocaleSwitcher />
-        <ThemeToggle />
-      </div>
+      {/* Header */}
+      <header className="w-full p-6 flex justify-between items-start z-10">
+        <div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/irish-mark.png"
+            alt="IRiSH Logo"
+            className="brand-logo w-20 h-20 sm:w-24 sm:h-24 object-contain"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <LocaleSwitcher />
+          <ThemeToggle />
+        </div>
+      </header>
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-16">
         {/* Left Side: Brand & Description */}
@@ -89,9 +89,14 @@ export default async function Home() {
       </main>
 
       <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-center space-x-6 text-sm text-gray-500">
-          <Link href="/privacy" className="hover:text-gray-900">Privacy Policy</Link>
-          <Link href="/terms" className="hover:text-gray-900">Terms of Service</Link>
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-2 text-sm text-gray-500">
+          <p className="text-center">
+            © {new Date().getFullYear()} IRiSH Lab, Suranaree University of Technology
+          </p>
+          <div className="flex justify-center space-x-6">
+            <Link href="/privacy" className="hover:text-gray-900">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-gray-900">Terms of Service</Link>
+          </div>
         </div>
       </footer>
     </div>

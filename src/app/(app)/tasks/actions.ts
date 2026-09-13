@@ -20,7 +20,7 @@ export async function updateTaskStatus(
   rowVersion: number
 ): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('member');
+    const actor = await requireRole('student');
     assertStatus(newStatus);
 
     await SheetRepo.update<TaskRecord>(
@@ -44,7 +44,7 @@ export async function createTask(data: {
   status?: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('member');
+    const actor = await requireRole('student');
 
     const title = data.title?.trim();
     if (!title) throw new UserError('tasks.titleRequired');

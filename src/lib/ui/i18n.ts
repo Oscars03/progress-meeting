@@ -13,6 +13,7 @@ import { tasks } from './messages/tasks';
 import { meetings } from './messages/meetings';
 import { polls } from './messages/polls';
 import { settings } from './messages/settings';
+import { presentations } from './messages/presentations';
 
 export const LOCALES = ['th', 'en'] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -21,8 +22,8 @@ export type Locale = (typeof LOCALES)[number];
 export const LOCALE_COOKIE = 'wpm.locale';
 
 export const DICT = {
-  th: { ...common.th, ...avail.th, ...tasks.th, ...meetings.th, ...polls.th, ...settings.th },
-  en: { ...common.en, ...avail.en, ...tasks.en, ...meetings.en, ...polls.en, ...settings.en },
+  th: { ...common.th, ...avail.th, ...tasks.th, ...meetings.th, ...polls.th, ...settings.th, ...presentations.th },
+  en: { ...common.en, ...avail.en, ...tasks.en, ...meetings.en, ...polls.en, ...settings.en, ...presentations.en },
 };
 
 export type TranslationKey = keyof (typeof DICT)['th'];

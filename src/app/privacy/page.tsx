@@ -18,14 +18,14 @@ export default async function PrivacyPolicy() {
       </header>
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white p-8 sm:p-12 rounded-lg shadow-sm border border-gray-100 prose max-w-none text-gray-700">
+        <div className="bg-white p-5 sm:p-12 rounded-lg shadow-sm border border-gray-100 prose max-w-none text-gray-700">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
           <p className="mb-6">Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Information We Collect</h2>
             <p className="mb-4">
-              When you use the Weekly Progress Meeting System, we may collect the following types of information:
+              When you use IRiSH Progress Meeting, we may collect the following types of information:
             </p>
             <ul className="list-disc pl-6 mb-4 space-y-2">
               <li><strong>Account Information:</strong> Your name, email address, and profile picture (retrieved via Google OAuth).</li>
@@ -48,7 +48,7 @@ export default async function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. Google API Services User Data Policy Compliance</h2>
             <p className="mb-4">
-              The Weekly Progress Meeting System&apos;s use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google API Services User Data Policy</a>, including the Limited Use requirements.
+              IRiSH Progress Meeting&apos;s use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google API Services User Data Policy</a>, including the Limited Use requirements.
             </p>
             <p className="mb-4">
               Specifically:

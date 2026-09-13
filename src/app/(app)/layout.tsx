@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="h-screen flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
       <AppNav userName={session.user?.name ?? ''} />
 
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
         {children}
       </main>
     </div>

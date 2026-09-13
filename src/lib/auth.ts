@@ -102,7 +102,7 @@ export const authOptions: NextAuthOptions = {
             name: user.name || email,
             email,
             password_hash: '',
-            role: 'member',
+            role: 'student',
             team_id: '',
             line_id: '',
             active: false,

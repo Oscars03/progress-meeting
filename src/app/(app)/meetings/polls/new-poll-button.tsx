@@ -84,7 +84,7 @@ export default function NewPollButton() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-auto bg-black/40">
-      <div className="w-full max-w-lg my-8 p-6 bg-white rounded-xl shadow-lg border border-gray-100 space-y-4">
+      <div className="w-full max-w-lg my-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg border border-gray-100 space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">{t('polls.createTitle')}</h3>
 
         {error && (

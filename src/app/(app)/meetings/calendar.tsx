@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useSyncExternalStore, useTransition } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import { useRouter } from 'next/navigation';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -14,6 +14,29 @@ import type { EventInput, DateSelectArg, EventClickArg } from '@fullcalendar/cor
 import type { MappedMeeting, MappedPersonalEvent } from './page';
 
 
+
+/**
+ * Seven day columns do not fit a phone: each is ~35px, which breaks event
+ * titles to one character per line. Below this width the calendar opens on a
+ * single day instead. Subscribed to with useSyncExternalStore rather than an
+ * effect, for the reason given in lib/ui/prefs.tsx.
+ */
+const PHONE_QUERY = '(max-width: 640px)';
+
+function subscribeToPhone(listener: () => void): () => void {
+  const query = window.matchMedia(PHONE_QUERY);
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+
+function getPhoneSnapshot(): boolean {
+  return window.matchMedia(PHONE_QUERY).matches;
+}
+
+/** The server has no viewport; the desktop week view is what it renders. */
+function getServerPhoneSnapshot(): boolean {
+  return false;
+}
 
 type GoogleEvent = {
   id: string;
@@ -46,6 +69,7 @@ export default function CalendarView({
   const router = useRouter();
   const { locale, t } = usePrefs();
   const [showOthers, setShowOthers] = useState(true);
+  const isPhone = useSyncExternalStore(subscribeToPhone, getPhoneSnapshot, getServerPhoneSnapshot);
 
   // Modals state
   const [isPending, startTransition] = useTransition();
@@ -235,12 +259,15 @@ export default function CalendarView({
         </label>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-[700px]">
+      <div className="bg-white p-2 sm:p-6 rounded-xl shadow-sm border border-gray-100 h-[75dvh] min-h-[420px] sm:h-[700px]">
+        {/* initialView is read once per mount, so the key remounts the calendar
+            when the viewport crosses the phone breakpoint. */}
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           locales={[thLocale, enGbLocale]}
           locale={locale === 'th' ? 'th' : 'en-gb'}
-          initialView="timeGridWeek"
+          key={isPhone ? 'phone' : 'wide'}
+          initialView={isPhone ? 'timeGridDay' : 'timeGridWeek'}
           slotMinTime="08:00:00"
           slotMaxTime="23:00:00"
           views={{
@@ -251,7 +278,7 @@ export default function CalendarView({
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: isPhone ? 'timeGridDay,timeGridWeek,dayGridMonth' : 'dayGridMonth,timeGridWeek,timeGridDay'
           }}
           events={allEvents}
           height="100%"
@@ -265,7 +292,7 @@ export default function CalendarView({
       {/* Create Modal */}
       {createModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90dvh]">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <h3 className="font-semibold text-gray-900">{t('settings.addBusyBlock')}</h3>
               <button 
@@ -303,7 +330,7 @@ export default function CalendarView({
                   <label className="block text-gray-700 font-medium mb-1">
                     {t('meetings.start')}
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="date"
                       required
@@ -329,7 +356,7 @@ export default function CalendarView({
                   <label className="block text-gray-700 font-medium mb-1">
                     {t('meetings.end')}
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="date"
                       required
@@ -377,7 +404,7 @@ export default function CalendarView({
       {/* Delete Modal */}
       {deleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">ลบเวลาไม่ว่าง</h3>
               <p className="text-sm text-gray-600 mb-6">
@@ -413,7 +440,7 @@ export default function CalendarView({
       {/* Detail Modal */}
       {detailModalOpen && selectedEventInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">รายละเอียดกิจกรรม</h3>
               

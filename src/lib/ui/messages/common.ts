@@ -4,7 +4,7 @@ import { defineMessages } from './define';
 export const common = defineMessages({
   th: {
     'app.title': 'Weekly Progress',
-    'app.name': 'การประชุมความคืบหน้ารายสัปดาห์',
+    'app.name': 'IRiSH Progress Meeting',
     'app.tagline': 'ระบบจัดการการประชุมความคืบหน้ารายสัปดาห์',
     'landing.meetings.title': 'ปฏิทิน',
     'landing.meetings.desc': 'วางแผนและกำหนดการประชุมติดตามความคืบหน้ารายสัปดาห์กับทีม เชื่อมต่อกับ Google Calendar อย่างราบรื่น',
@@ -37,9 +37,8 @@ export const common = defineMessages({
     'common.sheetAdminOnly': 'ลิงก์ไปยังชีตต้นทางแสดงเฉพาะผู้ดูแลระบบเท่านั้น',
 
     'role.admin': 'ผู้ดูแลระบบ',
-    'role.manager': 'ผู้จัดการ/อาจารย์',
-    'role.member': 'สมาชิก',
-    'role.viewer': 'ผู้เข้าชม',
+    'role.professor': 'อาจารย์',
+    'role.student': 'นักศึกษา',
 
     'error.generic': 'ดำเนินการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
     'error.signInRequired': 'กรุณาเข้าสู่ระบบก่อน',
@@ -91,6 +90,26 @@ export const common = defineMessages({
     'dashboard.open': 'งานที่ยังไม่เสร็จ',
     'dashboard.overdue': 'งานที่เกินกำหนด',
 
+    'dashboard.nextMeeting': 'การประชุมครั้งถัดไป',
+    'dashboard.notScheduled': 'ยังไม่ได้นัดหมาย',
+    'dashboard.notScheduledHint': 'ยังไม่มีการประชุมที่นัดไว้ล่วงหน้า',
+    'dashboard.scheduleNow': 'นัดหมายการประชุม',
+    'dashboard.openMeeting': 'เปิดรายละเอียด',
+    'dashboard.thisWeek': 'การประชุมสัปดาห์นี้',
+    'dashboard.noMeetingsThisWeek': 'สัปดาห์นี้ยังไม่มีการประชุม',
+    'dashboard.addEvent': 'เพิ่มกำหนดการ',
+
+    'rotation.title': 'ผู้รับผิดชอบประจำสัปดาห์',
+    'rotation.duty': 'เตรียมการประชุมและสรุปผลของสัปดาห์นี้',
+    'rotation.confirmed': 'ยืนยันแล้ว',
+    'rotation.suggested': 'ระบบเสนอ',
+    'rotation.suggestedHint': 'ยังไม่ได้ยืนยัน — เวียนตามลำดับนักศึกษา',
+    'rotation.confirm': 'ยืนยันผู้รับผิดชอบ',
+    'rotation.change': 'เปลี่ยน',
+    'rotation.noStudents': 'ยังไม่มีนักศึกษาในรายชื่อเวียน',
+    'rotation.needMeeting': 'ต้องมีการประชุมก่อนจึงจะกำหนดผู้รับผิดชอบได้',
+    'rotation.notEligible': 'เลือกได้เฉพาะนักศึกษาที่อยู่ในลำดับเวียนเท่านั้น',
+
     'report.title': 'รายงาน',
     'report.weeklyTitle': 'รายงานสรุปรายสัปดาห์',
     'report.body':
@@ -99,7 +118,7 @@ export const common = defineMessages({
   },
   en: {
     'app.title': 'Weekly Progress',
-    'app.name': 'Weekly Progress Meeting',
+    'app.name': 'IRiSH Progress Meeting',
     'app.tagline': 'Plan meetings, report progress, follow up',
     'landing.meetings.title': 'Meetings',
     'landing.meetings.desc': 'Plan and schedule weekly progress meetings with your team, seamlessly synced with Google Calendar.',
@@ -132,9 +151,8 @@ export const common = defineMessages({
     'common.sheetAdminOnly': 'The link to the source sheet is shown to administrators only',
 
     'role.admin': 'Administrator',
-    'role.manager': 'Manager / advisor',
-    'role.member': 'Member',
-    'role.viewer': 'Viewer',
+    'role.professor': 'Professor',
+    'role.student': 'Student',
 
     'error.generic': 'Something went wrong. Please try again.',
     'error.signInRequired': 'Please sign in first',
@@ -185,6 +203,26 @@ export const common = defineMessages({
     'dashboard.total': 'All tasks',
     'dashboard.open': 'Open tasks',
     'dashboard.overdue': 'Overdue tasks',
+
+    'dashboard.nextMeeting': 'Next meeting',
+    'dashboard.notScheduled': 'Not scheduled yet',
+    'dashboard.notScheduledHint': 'No meeting has been booked ahead',
+    'dashboard.scheduleNow': 'Schedule a meeting',
+    'dashboard.openMeeting': 'Open details',
+    'dashboard.thisWeek': 'This week',
+    'dashboard.noMeetingsThisWeek': 'No meetings this week',
+    'dashboard.addEvent': 'Add event',
+
+    'rotation.title': "This week's lead",
+    'rotation.duty': "Prepares this week's meeting and writes the summary",
+    'rotation.confirmed': 'Confirmed',
+    'rotation.suggested': 'Suggested',
+    'rotation.suggestedHint': 'Not confirmed yet — next in the student rotation',
+    'rotation.confirm': 'Confirm lead',
+    'rotation.change': 'Change',
+    'rotation.noStudents': 'No students in the rotation yet',
+    'rotation.needMeeting': 'A meeting is needed before a lead can be set',
+    'rotation.notEligible': 'Only students in the rotation can be chosen',
 
     'report.title': 'Report',
     'report.weeklyTitle': 'Weekly summary report',
