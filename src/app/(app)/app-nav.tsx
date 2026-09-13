@@ -76,6 +76,15 @@ function NavIcon({ name }: { name: IconName }) {
 }
 
 /**
+ * The system name on two lines, breaking before its last word:
+ * "Weekly Progress" / "Meeting". A single-word name stays on one line.
+ */
+function splitName(name: string): [string, string | null] {
+  const cut = name.lastIndexOf(' ');
+  return cut === -1 ? [name, null] : [name.slice(0, cut), name.slice(cut + 1)];
+}
+
+/**
  * Collapse is driven by `data-sidebar` on <html>, not by React state, so the
  * width is right on the very first paint: the inline bootstrap script sets the
  * attribute before hydration, the same way the theme avoids a flash. The
@@ -87,27 +96,35 @@ export default function AppNav({ userName }: { userName: string }) {
   const pathname = usePathname();
   const collapsed = sidebar === 'collapsed';
   const toggleLabel = collapsed ? t('nav.expand') : t('nav.collapse');
+  const [nameLine1, nameLine2] = splitName(t('app.name'));
 
   return (
-    // w-76 (304px) when expanded. The row is mark + gap + name: a 44px mark,
-    // 8px, and the ~213px name at 18px come to ~265px, past the 256px of
-    // content a w-72 rail leaves.
-    <nav className="w-full md:w-76 md:collapsed:w-16 bg-white border-r border-gray-200 p-4 md:collapsed:px-3 flex flex-col gap-4 shadow-sm shrink-0 transition-[width] duration-200 motion-reduce:transition-none">
-      {/* Expanded: the mark spans both lines -- the name and "IRiSH Lab" --
-          and is exactly as tall as the two together. It inherits text-lg from
-          the grid, so 1lh is the name's line height; 1rem is text-xs's line
-          height, which the lab label uses. Equal by construction. */}
-      <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 text-lg md:collapsed:hidden">
+    // md:w-max: the expanded rail is exactly as wide as its widest content --
+    // today the header -- with no fixed width to leave slack beside short
+    // menu labels. Collapsed overrides it with a fixed 64px rail.
+    <nav className="w-full md:w-max md:collapsed:w-16 bg-white border-r border-gray-200 p-4 md:collapsed:px-3 flex flex-col gap-4 shadow-sm shrink-0 transition-[width] duration-200 motion-reduce:transition-none">
+      {/* Expanded: the mark is exactly as tall as the two lines of the name.
+          It inherits text-lg from the grid, so h-[2lh] is two of the name's
+          line heights -- equal by construction, not by a pixel value. */}
+      <div className="grid grid-cols-[auto_auto] items-center gap-x-2 text-lg md:collapsed:hidden">
         {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
         <img
           src="/brand/irish-mark.svg"
           alt=""
           aria-hidden="true"
-          width={44}
-          height={44}
-          className="brand-logo row-span-2 h-[calc(1lh+1rem)] w-auto"
+          width={56}
+          height={56}
+          className="brand-logo h-[2lh] w-auto"
         />
-        <h1 className="font-bold text-gray-900 whitespace-nowrap">{t('app.name')}</h1>
+        <h1 className="font-bold text-gray-900 whitespace-nowrap">
+          {nameLine1}
+          {nameLine2 && (
+            <>
+              <br />
+              {nameLine2}
+            </>
+          )}
+        </h1>
         {/* No `uppercase`: it turns the lab's own "IRiSH" into "IRISH". */}
         <p className="col-start-2 text-xs font-semibold tracking-[0.14em] text-blue-600">
           IRiSH Lab
@@ -124,12 +141,10 @@ export default function AppNav({ userName }: { userName: string }) {
         className="brand-logo hidden md:collapsed:block mx-auto"
       />
 
-      {/* Controls row. The collapse toggle lives up here, not at the foot of
-          the rail, where it sat under the Next dev badge and was the last thing
-          anyone looked at. It uses the same 32px frame as the theme toggle.
-          justify-end below md: the toggle is hidden there, and justify-between
-          would leave the remaining controls stranded on the left. When
-          collapsed the row stacks vertically to fit the 40px rail. */}
+      {/* Controls row. The collapse toggle lives up here, in the same 32px
+          frame as the theme toggle. justify-end below md: the toggle is hidden
+          there, and justify-between would leave the remaining controls stranded
+          on the left. When collapsed the row stacks to fit the 40px rail. */}
       <div className="flex items-center justify-end md:justify-between gap-1.5 md:collapsed:flex-col md:collapsed:justify-center md:collapsed:gap-2">
         <button
           type="button"
@@ -166,7 +181,7 @@ export default function AppNav({ userName }: { userName: string }) {
             >
               <NavIcon name={icon} />
               {/* sr-only rather than hidden, so the link keeps its name when collapsed. */}
-              <span className="truncate md:collapsed:sr-only">{t(key)}</span>
+              <span className="whitespace-nowrap md:collapsed:sr-only">{t(key)}</span>
             </Link>
           );
         })}
@@ -174,7 +189,10 @@ export default function AppNav({ userName }: { userName: string }) {
 
       <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-200">
         <div className="md:collapsed:hidden">
-          <p className="text-sm text-gray-500 truncate">{userName}</p>
+          {/* w-0 min-w-full: contributes nothing to the rail's max-content
+              width, then fills whatever width the rail settles on. A long
+              user name truncates instead of widening the sidebar. */}
+          <p className="w-0 min-w-full text-sm text-gray-500 truncate">{userName}</p>
         </div>
 
         <Link
@@ -183,7 +201,7 @@ export default function AppNav({ userName }: { userName: string }) {
           className="flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-sm text-red-500 hover:bg-gray-100"
         >
           <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-          <span className="md:collapsed:sr-only">{t('nav.signOut')}</span>
+          <span className="whitespace-nowrap md:collapsed:sr-only">{t('nav.signOut')}</span>
         </Link>
       </div>
     </nav>
