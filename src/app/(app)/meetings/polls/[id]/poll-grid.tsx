@@ -110,7 +110,7 @@ export default function PollGrid({
     });
   };
 
-  const run = (work: () => Promise<any>) => {
+  const run = (work: () => Promise<unknown>) => {
     setError('');
     startTransition(async () => {
       try {

@@ -8,7 +8,7 @@ import ConnectGoogleButton from './connect-google-button';
 
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requireSession } from '@/lib/auth-guard';
-import { myEvents } from '@/lib/google/calendar';
+import { myEvents, type GoogleEvent } from '@/lib/google/calendar';
 import type { PersonalEventRecord, UserRecord } from '@/lib/db/schema';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
@@ -45,7 +45,7 @@ export default async function MeetingsPage() {
   const timeMax = new Date();
   timeMax.setDate(timeMax.getDate() + 30);
 
-  const allGoogleEvents: any[] = [];
+  const allGoogleEvents: (GoogleEvent & { owner_name?: string })[] = [];
   
   await Promise.all(
     Array.from(connectedUserIds).map(async (uId) => {
