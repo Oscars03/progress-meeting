@@ -6,7 +6,119 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { busyTimes, NotConnectedError } from '@/lib/google/calendar';
 import { pullMeeting, pushMeeting } from '@/lib/google/meeting-sync';
 import { disconnect, getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
-import type { UserRecord } from '@/lib/db/schema';
+import {
+  addDays,
+  buildWeekGrid,
+  isIsoDate,
+  labDate,
+  mondayOf,
+  slotStart,
+  type AvailabilityDay,
+  type Interval,
+  type PersonAvailability,
+} from '@/lib/availability-grid';
+import type { MeetingAttendeeRecord, MeetingRecord, UserRecord } from '@/lib/db/schema';
+
+/** The hours the grid covers each day, in the lab's zone. */
+const DAY_FROM_HOUR = 8;
+const DAY_TO_HOUR = 20;
+
+export type WeekAvailability = {
+  weekStart: string;
+  days: AvailabilityDay[];
+  activeCount: number;
+  /** Members who connected Google Calendar. */
+  connectedCount: number;
+  /** Of those, how many calendars were actually read this time. */
+  readCount: number;
+};
+
+/**
+ * Who is free, busy or unknown for every hour of a week.
+ *
+ * Two sources, both honest about what they cannot see:
+ * - Google Calendar free/busy for members who connected it. Reading it
+ *   successfully is the only thing that makes a person "known", because only
+ *   then does an empty hour mean free.
+ * - Meetings already in the app, for their owner and attendees. That can mark
+ *   someone busy even without Google, but never free -- the app does not know
+ *   the rest of their day.
+ */
+export async function weekAvailabilityAction(requestedWeek?: string): Promise<WeekAvailability> {
+  await requireSession();
+
+  const weekStart = mondayOf(isIsoDate(requestedWeek) ? requestedWeek : labDate(Date.now()));
+  const windowStart = Date.parse(slotStart(weekStart, DAY_FROM_HOUR));
+  const windowEnd = Date.parse(slotStart(addDays(weekStart, 6), DAY_TO_HOUR));
+
+  const [users, connected, meetings, attendees] = await Promise.all([
+    SheetRepo.find<UserRecord>('users'),
+    getConnectedUserIds(),
+    SheetRepo.find<MeetingRecord>('meetings'),
+    SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees'),
+  ]);
+
+  const active = users.filter((u) => u.active === true);
+
+  const appBusy = new Map<string, Interval[]>();
+  for (const meeting of meetings) {
+    if (meeting.status === 'cancelled') continue;
+    const start = Date.parse(meeting.start_at);
+    const end = Date.parse(meeting.end_at);
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) continue;
+    if (end <= windowStart || start >= windowEnd) continue;
+
+    const ids = new Set(
+      attendees
+        // Someone marked absent or excused for this meeting is not held by it.
+        .filter((a) => a.meeting_id === meeting.id && a.attend_status !== 'absent' && a.attend_status !== 'excused')
+        .map((a) => a.user_id)
+    );
+    if (meeting.owner_id) ids.add(meeting.owner_id);
+
+    for (const id of ids) {
+      appBusy.set(id, [...(appBusy.get(id) ?? []), { start, end }]);
+    }
+  }
+
+  const timeMin = new Date(windowStart).toISOString();
+  const timeMax = new Date(windowEnd).toISOString();
+
+  // One free/busy call per connected member, in parallel. A revoked grant for
+  // one person leaves them unknown rather than failing the whole grid.
+  const google = await Promise.allSettled(
+    active.map(async (u) => (connected.has(u.id) ? busyTimes(u.id, timeMin, timeMax) : null))
+  );
+
+  let readCount = 0;
+  const people: PersonAvailability[] = active.map((u, i) => {
+    const busy = [...(appBusy.get(u.id) ?? [])];
+    const result = google[i];
+    let known = false;
+
+    if (result.status === 'fulfilled' && result.value) {
+      for (const b of result.value) {
+        const start = Date.parse(b.start);
+        const end = Date.parse(b.end);
+        if (!Number.isNaN(start) && !Number.isNaN(end)) busy.push({ start, end });
+      }
+      known = true;
+      readCount++;
+    } else if (result.status === 'rejected' && !(result.reason instanceof NotConnectedError)) {
+      console.error(`freebusy failed for ${u.id}:`, result.reason);
+    }
+
+    return { id: u.id, name: u.name, known, busy };
+  });
+
+  return {
+    weekStart,
+    days: buildWeekGrid({ weekStart, fromHour: DAY_FROM_HOUR, toHour: DAY_TO_HOUR, people }),
+    activeCount: active.length,
+    connectedCount: active.filter((u) => connected.has(u.id)).length,
+    readCount,
+  };
+}
 
 export type ConnectionStatus = {
   connected: boolean;

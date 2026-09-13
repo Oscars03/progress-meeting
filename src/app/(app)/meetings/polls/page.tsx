@@ -7,14 +7,19 @@ import type {
   AvailabilityVoteRecord,
 } from '@/lib/db/schema';
 import NewPollButton from './new-poll-button';
+import WeekAvailabilityGrid from './week-availability';
+import { weekAvailabilityAction } from '../../calendar-actions';
 
 export default async function PollsPage() {
   const actor = await requireSession();
 
-  const [polls, slots, votes] = await Promise.all([
+  // The current week is read on the server so the grid arrives filled in,
+  // rather than rendering empty and fetching from an effect.
+  const [polls, slots, votes, availability] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
     SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
+    weekAvailabilityAction(),
   ]);
 
   const canManage = actor.role === 'admin' || actor.role === 'manager';
@@ -56,6 +61,8 @@ export default async function PollsPage() {
           {canManage && <NewPollButton />}
         </div>
       </div>
+
+      <WeekAvailabilityGrid initial={availability} canManage={canManage} />
 
       {rows.length === 0 && (
         <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-400">
