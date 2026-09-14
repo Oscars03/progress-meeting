@@ -189,6 +189,47 @@ body {
   --ev-edge: #94a3b8;
 }
 
+/* The chosen palette. A stored colour is a name -- `rose`, `sky` -- so each
+   theme renders it as it needs, rather than a light-theme hex frozen into the
+   spreadsheet. Keys come from lib/event-colors.ts; every one needs a pair here
+   and a pair in the dark block below. */
+.cal-c-rose {
+  --ev-bg: #fee2e2;
+  --ev-ink: #7f1d1d;
+  --ev-edge: #dc2626;
+}
+.cal-c-amber {
+  --ev-bg: #fef3c7;
+  --ev-ink: #78350f;
+  --ev-edge: #d97706;
+}
+.cal-c-emerald {
+  --ev-bg: #d1fae5;
+  --ev-ink: #065f46;
+  --ev-edge: #059669;
+}
+.cal-c-sky {
+  --ev-bg: #e0f2fe;
+  --ev-ink: #075985;
+  --ev-edge: #0284c7;
+}
+.cal-c-violet {
+  --ev-bg: #ede9fe;
+  --ev-ink: #5b21b6;
+  --ev-edge: #7c3aed;
+}
+.cal-c-slate {
+  --ev-bg: #e2e8f0;
+  --ev-ink: #334155;
+  --ev-edge: #64748b;
+}
+
+/* Somebody else's hours are shown faintly whatever colour they chose: it is
+   their calendar, and on a shared week it should not shout over your own. */
+.fc .fc-event.cal-ev-theirs {
+  opacity: 0.6;
+}
+
 /**
  * Somebody else's hours do not swallow the click.
  *
@@ -424,6 +465,39 @@ body {
   --ev-edge: #ef4444;
 }
 :root[data-theme='dark'] .cal-ev-google {
+  --ev-bg: #303036;
+  --ev-ink: #e8eaee;
+  --ev-edge: #94a3b8;
+}
+
+/* Same six, restated for a dark ground. Each pair clears 7:1 against its fill,
+   the bar the rest of this calendar is held to. */
+:root[data-theme='dark'] .cal-c-rose {
+  --ev-bg: #5a2424;
+  --ev-ink: #fee2e2;
+  --ev-edge: #f87171;
+}
+:root[data-theme='dark'] .cal-c-amber {
+  --ev-bg: #4a3410;
+  --ev-ink: #fef3c7;
+  --ev-edge: #f59e0b;
+}
+:root[data-theme='dark'] .cal-c-emerald {
+  --ev-bg: #113828;
+  --ev-ink: #d1fae5;
+  --ev-edge: #10b981;
+}
+:root[data-theme='dark'] .cal-c-sky {
+  --ev-bg: #12354d;
+  --ev-ink: #e0f2fe;
+  --ev-edge: #38bdf8;
+}
+:root[data-theme='dark'] .cal-c-violet {
+  --ev-bg: #33245c;
+  --ev-ink: #ede9fe;
+  --ev-edge: #a78bfa;
+}
+:root[data-theme='dark'] .cal-c-slate {
   --ev-bg: #303036;
   --ev-ink: #e8eaee;
   --ev-edge: #94a3b8;

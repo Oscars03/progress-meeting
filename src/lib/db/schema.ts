@@ -22,7 +22,7 @@ export const SCHEMAS = {
   // locates rows by column A being `id`, so a tab without them cannot be
   // read or written correctly.
   meta: [...COMMON_COLUMNS, 'key', 'value'],
-  personal_events: [...COMMON_COLUMNS, 'user_id', 'title', 'start_at', 'end_at'],
+  personal_events: [...COMMON_COLUMNS, 'user_id', 'title', 'start_at', 'end_at', 'color', 'category'],
   topics: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'week_key', 'meeting_id', 'present_order', 'status'],
   week_leads: [...COMMON_COLUMNS, 'week_key', 'user_id'],
   term_breaks: [...COMMON_COLUMNS, 'name', 'start_date', 'end_date'],
@@ -179,6 +179,10 @@ export type PersonalEventRecord = BaseRecord & {
   title: string;
   start_at: string;
   end_at: string;
+  /** A key from lib/event-colors.ts, or '' for the category's own colour. */
+  color: string;
+  /** A key from lib/event-colors.ts, or '' for none stated. */
+  category: string;
 };
 
 /** Every table has the common columns, so this is the floor for any row. */

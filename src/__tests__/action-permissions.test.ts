@@ -46,6 +46,7 @@ const { createTask, updateTaskStatus, updateTaskDetails } = await import('../app
 const { saveWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 const { updateMyNameAction } = await import('../app/(app)/settings/actions');
 const { setTopicOrder, clearTopicOrder } = await import('../app/(app)/presentations/actions');
+const { updatePersonalEventAction } = await import('../app/(app)/settings/schedule-actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
@@ -597,5 +598,87 @@ describe('arranging the running order', () => {
 
     expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+// Hours you blocked out could be created and deleted but never changed, so a
+// block that started an hour late had to be destroyed and retyped.
+describe('editing your own busy hours', () => {
+  beforeEach(() => {
+    tables['personal_events'] = [
+      {
+        id: 'pe1',
+        user_id: 'me',
+        title: 'Lab work',
+        start_at: `${MONDAY}T03:00:00.000Z`,
+        end_at: `${MONDAY}T04:00:00.000Z`,
+        color: '',
+        category: '',
+        row_version: 4,
+      },
+    ];
+  });
+
+  const fields = {
+    title: 'Lab work',
+    start_at: `${MONDAY}T11:00`,
+    end_at: `${MONDAY}T12:00`,
+    color: 'sky',
+    category: 'study',
+  };
+
+  it('lets the owner move them, storing the new span as an instant', async () => {
+    signedInAs('me');
+    const result = await updatePersonalEventAction('pe1', fields, 4);
+
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalledWith(
+      'personal_events',
+      'pe1',
+      // 11:00 in the lab is 04:00Z -- read as Thailand, not as the server.
+      expect.objectContaining({ start_at: `${MONDAY}T04:00:00.000Z`, color: 'sky', category: 'study' }),
+      4,
+      'me'
+    );
+  });
+
+  // Not even an admin: when a colleague said they were busy is not somebody
+  // else's to rewrite.
+  it('refuses anybody else, including an admin', async () => {
+    signedInAs('boss', 'admin');
+    const result = await updatePersonalEventAction('pe1', fields, 4);
+
+    expect(result).toMatchObject({ ok: false });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses an end that is not after the start', async () => {
+    signedInAs('me');
+    const result = await updatePersonalEventAction(
+      'pe1',
+      { ...fields, end_at: `${MONDAY}T11:00` },
+      4
+    );
+
+    expect(result).toMatchObject({ ok: false });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('stores an unrecognised colour as none rather than refusing the edit', async () => {
+    signedInAs('me');
+    const result = await updatePersonalEventAction(
+      'pe1',
+      { ...fields, color: 'chartreuse', category: 'nonsense' },
+      4
+    );
+
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalledWith(
+      'personal_events',
+      'pe1',
+      expect.objectContaining({ color: '', category: '' }),
+      4,
+      'me'
+    );
   });
 });
