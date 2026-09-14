@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BackLink from '@/lib/ui/back-link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
@@ -92,9 +93,9 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="space-y-1">
-        <Link href="/meetings/polls" className="text-sm text-blue-600 hover:underline">
+        <BackLink href="/meetings/polls" className="text-sm text-blue-600 hover:underline">
           {t('polls.backToList')}
-        </Link>
+        </BackLink>
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-2xl font-bold text-gray-900">{poll.title}</h2>
           {closed && (

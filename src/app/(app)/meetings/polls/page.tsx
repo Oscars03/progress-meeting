@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BackLink from '@/lib/ui/back-link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
@@ -62,9 +63,9 @@ export default async function PollsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/meetings" className="text-sm text-blue-600 hover:underline">
+          <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">
             {t('polls.backToCalendar')}
-          </Link>
+          </BackLink>
           {canManage && <NewPollButton />}
         </div>
       </div>

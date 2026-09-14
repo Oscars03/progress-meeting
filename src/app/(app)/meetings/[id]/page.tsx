@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import BackLink from '@/lib/ui/back-link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession, hasManagerRights } from '@/lib/auth-guard';
@@ -64,9 +64,9 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="space-y-1">
-        <Link href="/meetings" className="text-sm text-blue-600 hover:underline">
+        <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">
           {t('polls.backToCalendar')}
-        </Link>
+        </BackLink>
         <h2 className="text-2xl font-bold text-gray-900">{meeting.title}</h2>
         <p className="text-sm text-gray-500">
           <span className="text-sm text-gray-500 tabular-nums">
