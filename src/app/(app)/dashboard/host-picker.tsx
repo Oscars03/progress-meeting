@@ -2,27 +2,25 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { setMeetingHost } from '../meetings/actions';
+import { setWeekLead } from '../meetings/actions';
 import { usePrefs } from '@/lib/ui/prefs';
 
 export type RotationStudent = { id: string; name: string };
 
 /**
- * Confirms who runs a meeting.
+ * Confirms who is responsible for the week.
  *
  * The select starts on whoever is already confirmed, or on the rotation's
  * suggestion when nobody is -- so the common case is one press, and choosing
  * someone else is the same control rather than a second mode.
  */
 export default function HostPicker({
-  meetingId,
-  rowVersion,
+  weekKey,
   students,
   hostId,
   suggestedId,
 }: {
-  meetingId: string;
-  rowVersion: number;
+  weekKey: string;
   students: RotationStudent[];
   hostId: string;
   suggestedId: string;
@@ -40,7 +38,7 @@ export default function HostPicker({
     setError(null);
     startTransition(async () => {
       try {
-        const res = await setMeetingHost(meetingId, choice, rowVersion);
+        const res = await setWeekLead(weekKey, choice);
         if (res.ok) router.refresh();
         else setError(t(res.error, res.vars));
       } catch {

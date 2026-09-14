@@ -5,12 +5,17 @@
  * duty loops over the students. Professors sit outside the loop: they attend
  * every week, so taking a turn would mean never handing it on.
  *
- * Nothing here reads the sheet. The turn is *suggested* from the meetings that
- * already record a host, and only becomes real when someone confirms it and a
- * host_id is written -- so a suggestion never silently becomes a fact.
+ * The duty belongs to the **week**, not to a meeting. It is settled before
+ * anything is scheduled, and a week that never got a meeting still used up
+ * somebody's turn -- so `week_leads` is the record, and a meeting is not
+ * required for one to exist.
+ *
+ * Nothing here reads the sheet. The turn is *suggested* from the weeks already
+ * assigned, and only becomes real when someone confirms it, so a suggestion is
+ * never mistaken for a decision.
  */
 
-import type { MeetingRecord, UserRecord } from './db/schema';
+import type { MeetingRecord, UserRecord, WeekLeadRecord } from './db/schema';
 import { weekKey } from './week';
 
 /**
@@ -25,58 +30,79 @@ function isCancelled(meeting: MeetingRecord): boolean {
   return meeting.status === 'cancelled';
 }
 
-/** Active students, in the order they joined -- the order the duty loops in. */
+function orderOf(user: UserRecord): number {
+  const n = Number(user.rotation_order);
+  // Anyone never placed queues after everyone who was, rather than at the front.
+  return Number.isFinite(n) && n > 0 ? n : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Active students in the order the duty loops: the order an admin arranged in
+ * Settings, with anyone unplaced following in join order.
+ */
 export function rotationMembers(users: UserRecord[]): UserRecord[] {
   return users
     .filter((user) => user.active === true && !OUTSIDE_ROTATION.has(user.role))
-    .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
+    .sort((a, b) => {
+      const byOrder = orderOf(a) - orderOf(b);
+      if (byOrder !== 0) return byOrder;
+      return a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0;
+    });
 }
 
-/**
- * When each student last held the duty, by user id.
- *
- * A meeting still in the future counts: someone already booked for next week
- * has their turn, and suggesting them again would double-book them.
- */
-function lastHeldByUser(meetings: MeetingRecord[]): Map<string, string> {
-  const last = new Map<string, string>();
+/** The confirmed lead for one ISO week, or null while it is only suggested. */
+export function leadForWeek(leads: WeekLeadRecord[], key: string): WeekLeadRecord | null {
+  return leads.find((lead) => lead.week_key === key) ?? null;
+}
 
-  for (const meeting of meetings) {
-    if (!meeting.host_id || isCancelled(meeting)) continue;
-    const seen = last.get(meeting.host_id);
-    if (!seen || meeting.start_at > seen) last.set(meeting.host_id, meeting.start_at);
+/** Whether `userId` holds the duty for one ISO week. */
+export function isWeekLead(leads: WeekLeadRecord[], key: string, userId: string): boolean {
+  const lead = leadForWeek(leads, key);
+  return Boolean(lead && userId && lead.user_id === userId);
+}
+
+/** Every week `userId` holds, for a UI that has to judge several at once. */
+export function weeksLedBy(leads: WeekLeadRecord[], userId: string): string[] {
+  return userId ? leads.filter((lead) => lead.user_id === userId).map((lead) => lead.week_key) : [];
+}
+
+/** The most recently assigned week, or null when none has been. */
+function latestLead(leads: WeekLeadRecord[]): WeekLeadRecord | null {
+  let latest: WeekLeadRecord | null = null;
+
+  for (const lead of leads) {
+    if (!lead.user_id || !lead.week_key) continue;
+    // ISO week keys sort correctly as plain strings: 2026-W07 < 2026-W38.
+    if (!latest || lead.week_key > latest.week_key) latest = lead;
   }
 
-  return last;
+  return latest;
 }
 
 /**
- * The student whose turn it is: whoever has gone longest without one, and
- * anyone who has never held it before that. Null when there are no students.
+ * Whose turn it is: the next student after whoever held the most recent week,
+ * wrapping at the end of the list.
  *
- * Derived rather than stored, so someone joining or leaving changes the answer
- * without a pointer to migrate.
+ * The arranged order *is* the rotation, so this steps through it rather than
+ * asking who has waited longest. Someone who leaves the list simply drops out
+ * of it, and the step lands on whoever now occupies the following position.
+ * Null when there are no students.
  */
 export function suggestNextHost(
   users: UserRecord[],
-  meetings: MeetingRecord[],
+  leads: WeekLeadRecord[],
 ): UserRecord | null {
   const members = rotationMembers(users);
   if (members.length === 0) return null;
 
-  const last = lastHeldByUser(meetings);
+  const latest = latestLead(leads);
+  if (!latest) return members[0];
 
-  // Join order already sorts the never-held group; a stable sort keeps it.
-  return members
-    .slice()
-    .sort((a, b) => {
-      const aLast = last.get(a.id);
-      const bLast = last.get(b.id);
-      if (!aLast && !bLast) return 0;
-      if (!aLast) return -1;
-      if (!bLast) return 1;
-      return aLast < bLast ? -1 : aLast > bLast ? 1 : 0;
-    })[0];
+  const held = members.findIndex((member) => member.id === latest.user_id);
+  // A lead who has since left the rotation gives no position to step from.
+  if (held === -1) return members[0];
+
+  return members[(held + 1) % members.length];
 }
 
 /** Meetings in the ISO week containing `date`, earliest first, cancelled ones dropped. */

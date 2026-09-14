@@ -9,20 +9,25 @@ import ConnectGoogleButton from './connect-google-button';
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requireSession } from '@/lib/auth-guard';
 import { myEvents, type GoogleEvent } from '@/lib/google/calendar';
-import type { PersonalEventRecord, UserRecord } from '@/lib/db/schema';
+import type { PersonalEventRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { weeksLedBy } from '@/lib/rotation';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
 export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string };
 
 export default async function MeetingsPage() {
   const actor = await requireSession();
-  const [meetings, t, storedToken, allPersonalEvents, users] = await Promise.all([
+  const [meetings, t, storedToken, allPersonalEvents, users, leads] = await Promise.all([
     SheetRepo.find<MeetingRecord>('meetings'), 
     getT(),
     getStoredToken(actor.id).catch(() => null),
     SheetRepo.find<PersonalEventRecord>('personal_events').catch(() => []),
     SheetRepo.find<UserRecord>('users').catch(() => []),
+    SheetRepo.find<WeekLeadRecord>('week_leads').catch(() => []),
   ]);
+
+  // Scheduling is the lead's job, so the button belongs to whoever leads a week.
+  const canSchedule = actor.role === 'admin' || weeksLedBy(leads, actor.id).length > 0;
 
   const userMap = new Map(users.map(u => [u.id, u.name]));
 
@@ -92,7 +97,7 @@ export default async function MeetingsPage() {
           >
             {t('meetings.findTime')}
           </Link>
-          <NewMeetingButton />
+          {canSchedule && <NewMeetingButton />}
         </div>
       </div>
 

@@ -37,6 +37,7 @@ function user(overrides: Partial<UserRecord> = {}): UserRecord {
     team_id: '',
     line_id: '',
     active: true,
+    rotation_order: '',
     ...overrides,
   };
 }

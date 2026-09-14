@@ -21,6 +21,10 @@ export const common = defineMessages({
     'nav.collapse': 'ยุบแถบเมนู',
     'nav.expand': 'ขยายแถบเมนู',
 
+    'signout.title': 'ออกจากระบบ?',
+    'signout.body': 'คุณจะต้องเข้าสู่ระบบอีกครั้งเพื่อกลับมาใช้งาน',
+    'signout.working': 'กำลังออกจากระบบ...',
+
     'theme.toLight': 'เปลี่ยนเป็นโหมดสว่าง',
     'theme.toDark': 'เปลี่ยนเป็นโหมดมืด',
     'locale.label': 'ภาษา',
@@ -98,6 +102,10 @@ export const common = defineMessages({
     'dashboard.thisWeek': 'การประชุมสัปดาห์นี้',
     'dashboard.noMeetingsThisWeek': 'สัปดาห์นี้ยังไม่มีการประชุม',
     'dashboard.addEvent': 'เพิ่มกำหนดการ',
+    'dashboard.awaitingYou': 'รอคุณยืนยันเวลาประชุม',
+    'dashboard.awaitingHint': 'ผู้รับผิดชอบประจำสัปดาห์เสนอเวลามาแล้ว กรุณาตอบเพื่อยืนยัน',
+    'dashboard.awaitingSlots': 'ยังไม่ได้ตอบ {n} ช่วงเวลา',
+    'dashboard.answerNow': 'ตอบเลย',
 
     'rotation.title': 'ผู้รับผิดชอบประจำสัปดาห์',
     'rotation.duty': 'เตรียมการประชุมและสรุปผลของสัปดาห์นี้',
@@ -107,8 +115,11 @@ export const common = defineMessages({
     'rotation.confirm': 'ยืนยันผู้รับผิดชอบ',
     'rotation.change': 'เปลี่ยน',
     'rotation.noStudents': 'ยังไม่มีนักศึกษาในรายชื่อเวียน',
-    'rotation.needMeeting': 'ต้องมีการประชุมก่อนจึงจะกำหนดผู้รับผิดชอบได้',
     'rotation.notEligible': 'เลือกได้เฉพาะนักศึกษาที่อยู่ในลำดับเวียนเท่านั้น',
+
+    'rotationOrder.title': 'ลำดับการเวียนผู้รับผิดชอบ',
+    'rotationOrder.desc': 'ระบบจะเสนอคนถัดไปตามลำดับนี้ ผู้ที่ยังไม่ถูกจัดลำดับจะต่อท้ายตามลำดับที่เข้าร่วม',
+    'rotationOrder.save': 'บันทึกลำดับ',
 
     'report.title': 'รายงาน',
     'report.weeklyTitle': 'รายงานสรุปรายสัปดาห์',
@@ -134,6 +145,10 @@ export const common = defineMessages({
     'nav.signOut': 'Sign out',
     'nav.collapse': 'Collapse sidebar',
     'nav.expand': 'Expand sidebar',
+
+    'signout.title': 'Sign out?',
+    'signout.body': 'You will need to sign in again to come back.',
+    'signout.working': 'Signing out...',
 
     'theme.toLight': 'Switch to light mode',
     'theme.toDark': 'Switch to dark mode',
@@ -212,6 +227,10 @@ export const common = defineMessages({
     'dashboard.thisWeek': 'This week',
     'dashboard.noMeetingsThisWeek': 'No meetings this week',
     'dashboard.addEvent': 'Add event',
+    'dashboard.awaitingYou': 'Waiting for your answer',
+    'dashboard.awaitingHint': "This week's lead proposed a time. Answer to confirm it.",
+    'dashboard.awaitingSlots': '{n} time(s) left to answer',
+    'dashboard.answerNow': 'Answer now',
 
     'rotation.title': "This week's lead",
     'rotation.duty': "Prepares this week's meeting and writes the summary",
@@ -221,8 +240,11 @@ export const common = defineMessages({
     'rotation.confirm': 'Confirm lead',
     'rotation.change': 'Change',
     'rotation.noStudents': 'No students in the rotation yet',
-    'rotation.needMeeting': 'A meeting is needed before a lead can be set',
     'rotation.notEligible': 'Only students in the rotation can be chosen',
+
+    'rotationOrder.title': 'Rotation order',
+    'rotationOrder.desc': 'The next lead is suggested by stepping down this list. Anyone not placed follows in the order they joined.',
+    'rotationOrder.save': 'Save order',
 
     'report.title': 'Report',
     'report.weeklyTitle': 'Weekly summary report',

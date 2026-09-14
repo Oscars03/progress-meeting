@@ -8,8 +8,10 @@ import type {
   MinutesRecord,
   TaskRecord,
   UserRecord,
+  WeekLeadRecord,
 } from '@/lib/db/schema';
-import { rotationMembers, suggestNextHost } from '@/lib/rotation';
+import { leadForWeek, rotationMembers, suggestNextHost } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
 import HostPicker from '../../dashboard/host-picker';
 import MinutesEditor from './minutes-editor';
 import ActionItems from './action-items';
@@ -24,11 +26,12 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const meeting = meetings.find((m) => m.id === id);
   if (!meeting) notFound();
 
-  const [users, allMinutes, allItems, tasks] = await Promise.all([
+  const [users, allMinutes, allItems, tasks, leads] = await Promise.all([
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MinutesRecord>('minutes'),
     SheetRepo.find<ActionItemRecord>('action_items'),
     SheetRepo.find<TaskRecord>('tasks'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
   ]);
 
   const people = users
@@ -45,8 +48,12 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
 
   const canManage = hasManagerRights(actor.role);
   const students = rotationMembers(users);
-  const hostName = meeting.host_id ? (users.find((u) => u.id === meeting.host_id)?.name ?? '') : '';
-  const suggestedHost = hostName ? null : suggestNextHost(users, meetings);
+  // The duty is the week's, so this meeting shows whoever holds the week it
+  // falls in -- the same person the dashboard shows, by construction.
+  const meetingWeek = meeting.start_at ? weekKey(new Date(meeting.start_at)) : weekKey();
+  const lead = leadForWeek(leads, meetingWeek);
+  const hostName = lead ? (users.find((u) => u.id === lead.user_id)?.name ?? '') : '';
+  const suggestedHost = hostName ? null : suggestNextHost(users, leads);
   const calendarOwner = users.find((u) => u.id === meeting.google_calendar_owner_id);
   const when = [meeting.start_at, meeting.end_at].filter(Boolean).join(' — ');
 
@@ -70,10 +77,10 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
           <h3 className="text-lg font-semibold text-gray-900">{t('rotation.title')}</h3>
           <span
             className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              meeting.host_id ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
+              lead ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
             }`}
           >
-            {meeting.host_id ? t('rotation.confirmed') : t('rotation.suggested')}
+            {lead ? t('rotation.confirmed') : t('rotation.suggested')}
           </span>
         </div>
 
@@ -88,10 +95,9 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
             </p>
             {canManage && (
               <HostPicker
-                meetingId={id}
-                rowVersion={meeting.row_version}
+                weekKey={meetingWeek}
                 students={students.map((s) => ({ id: s.id, name: s.name }))}
-                hostId={meeting.host_id ?? ''}
+                hostId={lead?.user_id ?? ''}
                 suggestedId={suggestedHost?.id ?? ''}
               />
             )}

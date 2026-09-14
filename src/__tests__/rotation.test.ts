@@ -2,12 +2,19 @@ import { describe, it, expect } from 'vitest';
 import {
   rotationMembers,
   suggestNextHost,
+  leadForWeek,
   meetingsInWeek,
   nextMeeting,
 } from '../lib/rotation';
-import type { MeetingRecord, UserRecord } from '../lib/db/schema';
+import type { MeetingRecord, UserRecord, WeekLeadRecord } from '../lib/db/schema';
 
-function user(id: string, role: string, joined: string, active = true): UserRecord {
+function user(
+  id: string,
+  role: string,
+  joined: string,
+  active = true,
+  rotationOrder: number | string = '',
+): UserRecord {
   return {
     id,
     created_at: joined,
@@ -21,6 +28,7 @@ function user(id: string, role: string, joined: string, active = true): UserReco
     team_id: '',
     line_id: '',
     active,
+    rotation_order: rotationOrder,
   };
 }
 
@@ -44,6 +52,18 @@ function meeting(id: string, start: string, host = '', status = 'scheduled'): Me
     google_calendar_owner_id: '',
     google_synced_at: '',
     host_id: host,
+  };
+}
+
+function lead(week: string, userId: string): WeekLeadRecord {
+  return {
+    id: `${week}-${userId}`,
+    created_at: week,
+    updated_at: week,
+    row_version: 1,
+    created_by: 'seed',
+    week_key: week,
+    user_id: userId,
   };
 }
 
@@ -77,42 +97,63 @@ describe('rotationMembers', () => {
 });
 
 describe('suggestNextHost', () => {
-  it('suggests the first student when nobody has hosted', () => {
+  it('starts at the top of the list when nobody has held a week', () => {
     expect(suggestNextHost(students, [])?.id).toBe('stu1');
   });
 
-  it('prefers someone who has never hosted over the longest-ago host', () => {
-    const meetings = [meeting('m1', '2020-01-01T09:00:00.000Z', 'stu2')];
-    expect(suggestNextHost(students, meetings)?.id).toBe('stu1');
+  it('steps to the student after whoever held the most recent week', () => {
+    expect(suggestNextHost(students, [lead('2026-W10', 'stu1')])?.id).toBe('stu2');
   });
 
-  it('picks the student who hosted longest ago once everyone has had a turn', () => {
-    const meetings = [
-      meeting('m1', '2026-03-01T09:00:00.000Z', 'stu1'),
-      meeting('m2', '2026-02-01T09:00:00.000Z', 'stu2'),
-      meeting('m3', '2026-04-01T09:00:00.000Z', 'stu3'),
+  it('wraps around at the end of the list', () => {
+    expect(suggestNextHost(students, [lead('2026-W10', 'stu3')])?.id).toBe('stu1');
+  });
+
+  it('reads "most recent" by week key, not by row order', () => {
+    const leads = [lead('2026-W07', 'stu3'), lead('2026-W38', 'stu1'), lead('2026-W10', 'stu2')];
+    expect(suggestNextHost(students, leads)?.id).toBe('stu2');
+  });
+
+  it('follows the order an admin arranged, not the order people joined', () => {
+    // Joined stu1, stu2, stu3 -- arranged stu3, stu2, stu1.
+    const arranged = [
+      user('stu1', 'member', '2026-01-01', true, 3),
+      user('stu2', 'member', '2026-01-02', true, 2),
+      user('stu3', 'member', '2026-01-03', true, 1),
     ];
 
-    expect(suggestNextHost(students, meetings)?.id).toBe('stu2');
+    expect(rotationMembers(arranged).map((u) => u.id)).toEqual(['stu3', 'stu2', 'stu1']);
+    expect(suggestNextHost(arranged, [lead('2026-W10', 'stu3')])?.id).toBe('stu2');
   });
 
-  it('does not suggest someone already booked for a future meeting', () => {
-    const meetings = [
-      meeting('past', '2026-01-05T09:00:00.000Z', 'stu1'),
-      meeting('soon', '2099-01-01T09:00:00.000Z', 'stu2'),
-      meeting('old', '2026-01-04T09:00:00.000Z', 'stu3'),
+  it('queues a student nobody placed after the ones who were', () => {
+    const mixed = [
+      user('placed', 'member', '2026-01-09', true, 1),
+      user('newcomer', 'member', '2026-01-01'),
     ];
 
-    expect(suggestNextHost(students, meetings)?.id).toBe('stu3');
+    expect(rotationMembers(mixed).map((u) => u.id)).toEqual(['placed', 'newcomer']);
   });
 
-  it('ignores a cancelled meeting, so that turn still counts as untaken', () => {
-    const meetings = [meeting('m1', '2026-03-01T09:00:00.000Z', 'stu1', 'cancelled')];
-    expect(suggestNextHost(students, meetings)?.id).toBe('stu1');
+  it('starts over when the last lead has left the rotation', () => {
+    expect(suggestNextHost(students, [lead('2026-W10', 'graduated')])?.id).toBe('stu1');
+  });
+
+  it('needs no meeting for a week to count as taken', () => {
+    // The whole point of storing the duty on the week: no meetings exist here.
+    expect(suggestNextHost(students, [lead('2026-W38', 'stu1')])?.id).toBe('stu2');
   });
 
   it('returns null when there are no students', () => {
     expect(suggestNextHost([user('prof', 'professor', '2026-01-01')], [])).toBeNull();
+  });
+});
+
+describe('leadForWeek', () => {
+  it('finds the lead for the asked-for week only', () => {
+    const leads = [lead('2026-W37', 'stu1'), lead('2026-W38', 'stu2')];
+    expect(leadForWeek(leads, '2026-W38')?.user_id).toBe('stu2');
+    expect(leadForWeek(leads, '2026-W39')).toBeNull();
   });
 });
 

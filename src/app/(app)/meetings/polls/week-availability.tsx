@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { addDays, type AvailabilityCell, type CellStatus } from '@/lib/availability-grid';
+import { weekKey } from '@/lib/week';
 import { weekAvailabilityAction, type WeekAvailability } from '../../calendar-actions';
 import { createPollAction } from './actions';
 
@@ -27,10 +28,13 @@ const hh = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 
 export default function WeekAvailabilityGrid({
   initial,
-  canManage,
+  leadWeeks,
+  isAdmin,
 }: {
   initial: WeekAvailability;
-  canManage: boolean;
+  /** ISO weeks this person holds the duty for -- the weeks they may ask about. */
+  leadWeeks: string[];
+  isAdmin: boolean;
 }) {
   const { t, locale } = usePrefs();
   const router = useRouter();
@@ -71,6 +75,11 @@ export default function WeekAvailabilityGrid({
       }
     });
   };
+
+  // Judged per cell, not once for the page: the grid walks between weeks, and
+  // the duty belongs to whichever week the chosen hour falls in.
+  const canAsk = (cell: AvailabilityCell) =>
+    isAdmin || leadWeeks.includes(weekKey(new Date(cell.start)));
 
   const ask = (cell: AvailabilityCell) => {
     const when = whenLabel(cell);
@@ -251,7 +260,7 @@ export default function WeekAvailabilityGrid({
 
           {selectedIsPast ? (
             <p className="text-xs text-gray-500">{t('avail.past')}</p>
-          ) : canManage ? (
+          ) : canAsk(selected) ? (
             <button
               type="button"
               onClick={() => ask(selected)}
@@ -261,7 +270,7 @@ export default function WeekAvailabilityGrid({
               {asking ? t('avail.asking') : t('avail.ask')}
             </button>
           ) : (
-            <p className="text-xs text-gray-500">{t('avail.managerOnly')}</p>
+            <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
           )}
         </div>
       ) : (

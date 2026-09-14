@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { usePrefs } from '@/lib/ui/prefs';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
@@ -106,6 +107,8 @@ export default function AppNav({ userName }: { userName: string }) {
   const [nameLine1, nameLine2] = splitName(t('app.name'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const closeMobileMenu = () => setMobileMenuOpen(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   return (
     <>
@@ -255,17 +258,62 @@ export default function AppNav({ userName }: { userName: string }) {
             <p className="w-0 min-w-full text-sm text-gray-500 truncate">{userName}</p>
           </div>
 
-          <Link
-            href="/api/auth/signout"
+          {/* A button, not a link to /api/auth/signout: that route renders
+              NextAuth's own unstyled page, in English, outside the app's
+              theme. Confirming in place keeps both. */}
+          <button
+            type="button"
             title={t('nav.signOut')}
-            onClick={closeMobileMenu}
+            onClick={() => {
+              closeMobileMenu();
+              setSignOutOpen(true);
+            }}
             className="flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-sm text-red-500 hover:bg-gray-100"
           >
             <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
             <span className="whitespace-nowrap md:collapsed:sr-only">{t('nav.signOut')}</span>
-          </Link>
+          </button>
         </div>
       </nav>
+
+      {signOutOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="signout-title"
+        >
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 sm:p-6 space-y-4">
+            <h2 id="signout-title" className="text-lg font-semibold text-gray-900">
+              {t('signout.title')}
+            </h2>
+            <p className="text-sm text-gray-600">{t('signout.body')}</p>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSignOutOpen(false)}
+                disabled={signingOut}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => {
+                  setSigningOut(true);
+                  signOut({ callbackUrl: '/' });
+                }}
+                disabled={signingOut}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {signingOut ? t('signout.working') : t('nav.signOut')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,7 +1,7 @@
 export const COMMON_COLUMNS = ['id', 'created_at', 'updated_at', 'row_version', 'created_by'] as const;
 
 export const SCHEMAS = {
-  users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active'],
+  users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active', 'rotation_order'],
   teams: [...COMMON_COLUMNS, 'name'],
   meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at', 'host_id'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
@@ -24,6 +24,7 @@ export const SCHEMAS = {
   meta: [...COMMON_COLUMNS, 'key', 'value'],
   personal_events: [...COMMON_COLUMNS, 'user_id', 'title', 'start_at', 'end_at'],
   topics: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'week_key', 'meeting_id', 'present_order', 'status'],
+  week_leads: [...COMMON_COLUMNS, 'week_key', 'user_id'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -47,6 +48,12 @@ export type UserRecord = BaseRecord & {
   team_id: string;
   line_id: string;
   active: boolean;
+  /**
+   * Position in the weekly rotation, 1-based, as arranged by an admin in
+   * Settings. Empty for anyone never placed -- they queue after those who were,
+   * in the order they joined, so a new student is not silently skipped.
+   */
+  rotation_order: number | string;
 };
 
 export type TaskRecord = BaseRecord & {
@@ -81,9 +88,12 @@ export type MeetingRecord = BaseRecord & {
   google_calendar_owner_id: string;
   google_synced_at: string;
   /**
-   * The student responsible for this week's meeting -- preparing it and writing
-   * the summary. Empty until someone confirms the rotation's suggestion, which
-   * is what makes "suggested" and "confirmed" distinguishable.
+   * Superseded by the `week_leads` tab and no longer read or written.
+   *
+   * The duty turned out to belong to the week rather than to a meeting -- it is
+   * settled before anything is scheduled, and a week with no meeting still uses
+   * up a turn. The column stays because the migration only ever appends; do not
+   * write to it.
    */
   host_id: string;
 };
@@ -203,4 +213,18 @@ export type TopicRecord = BaseRecord & {
   /** Position in the running order, 1-based. Empty while the order is only suggested. */
   present_order: number | string;
   status: string;
+};
+
+/**
+ * Who is responsible for a given week -- preparing the meeting and writing the
+ * summary.
+ *
+ * The duty belongs to the week, not to a meeting: it is decided before anything
+ * is scheduled, and a week with no meeting still has someone whose turn it was.
+ * That is why it does not live on `meetings`.
+ */
+export type WeekLeadRecord = BaseRecord & {
+  /** ISO week, e.g. 2026-W38 -- see lib/week.ts. One row per week. */
+  week_key: string;
+  user_id: string;
 };
