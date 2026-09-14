@@ -111,7 +111,7 @@ body {
 .fc .fc-col-header-cell-cushion {
   color: var(--cal-ink-soft);
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
   text-decoration: none;
 }
@@ -136,7 +136,7 @@ body {
 }
 .fc .fc-timegrid-slot-label-cushion {
   color: var(--cal-ink-soft);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   padding-right: 0.5rem;
 }
@@ -148,7 +148,7 @@ body {
   border-radius: 0.375rem;
   box-shadow: none;
   padding: 1px 2px 1px 5px;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
 }
 /* Four kinds of event, each a tint of its own with the colour carried on the
    left edge. Classes rather than inline hexes, so the dark theme can restate
@@ -321,7 +321,7 @@ body {
     height: 1.9rem;
   }
   .fc .fc-timegrid-slot-label-cushion {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     padding-right: 0.25rem;
   }
   /* An empty all-day row still reserved about 90px of a phone screen -- a
@@ -340,7 +340,7 @@ body {
     line-height: 1.2;
   }
   .fc .fc-event {
-    font-size: 0.78rem;
+    font-size: 0.84rem;
     padding: 2px 3px 2px 6px;
   }
 }
@@ -376,25 +376,44 @@ body {
 
 /* Event tints restated for a dark ground: the light fills would have been four
    bright cards on a near-black page. */
+/* Lifted after reading them on an actual dark screen: the first pass kept the
+   fills near the page colour and the text near the fill, so a block was there
+   but the words in it were not. Every pair below now clears 7:1 against its
+   own fill. */
 :root[data-theme='dark'] .cal-ev-meeting {
-  --ev-bg: #1e3356;
-  --ev-ink: #bfdbfe;
-  --ev-edge: #3b82f6;
+  --ev-bg: #243b63;
+  --ev-ink: #dbeafe;
+  --ev-edge: #60a5fa;
 }
 :root[data-theme='dark'] .cal-ev-mine {
-  --ev-bg: #4a1d1d;
-  --ev-ink: #fecaca;
-  --ev-edge: #ef4444;
+  --ev-bg: #5a2424;
+  --ev-ink: #fee2e2;
+  --ev-edge: #f87171;
 }
 :root[data-theme='dark'] .cal-ev-theirs {
-  --ev-bg: #35201f;
-  --ev-ink: #fca5a5;
-  --ev-edge: #b91c1c;
+  --ev-bg: #452a28;
+  --ev-ink: #fee2e2;
+  --ev-edge: #ef4444;
 }
 :root[data-theme='dark'] .cal-ev-google {
-  --ev-bg: #26262a;
-  --ev-ink: #cbd5e1;
-  --ev-edge: #64748b;
+  --ev-bg: #303036;
+  --ev-ink: #e8eaee;
+  --ev-edge: #94a3b8;
+}
+
+/* The time inside an event is dimmed to sit behind the title. At 0.75 on a
+   dark fill it fell out of legibility altogether. */
+:root[data-theme='dark'] .fc .fc-event-time {
+  opacity: 0.92;
+}
+
+/* Today's header was blue text on a dark navy tint -- the two were within a
+   shade of each other, which is exactly what the screenshot showed. */
+:root[data-theme='dark'] .fc .fc-day-today .fc-col-header-cell-cushion {
+  color: #93c5fd;
+}
+:root[data-theme='dark'] .fc .fc-col-header-cell-cushion {
+  color: #d4d4d8;
 }
 :root[data-theme='dark'] .fc .fc-day.bg-gray-100 {
   background-image: repeating-linear-gradient(
