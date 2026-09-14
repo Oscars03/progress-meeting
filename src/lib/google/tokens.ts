@@ -1,20 +1,9 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { decryptSecret, encryptSecret } from '@/lib/secret-box';
 import type { GoogleTokenRecord } from '@/lib/db/schema';
+import { grantsCalendar } from './scopes';
 
-/**
- * Scopes asked for at sign-in.
- *
- * calendar.events is write access to events only -- it cannot create or delete
- * whole calendars, or read the person's settings. calendar.readonly is what
- * lets the app see busy times on their other calendars when suggesting a
- * meeting slot. Asking for plain `calendar` would cover both and more, which is
- * more than this app does.
- */
-export const CALENDAR_SCOPES = [
-  'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/calendar.readonly',
-];
+export { CALENDAR_SCOPES } from './scopes';
 
 export type StoredToken = {
   id: string;
@@ -51,6 +40,13 @@ export async function storeRefreshToken(input: {
   scope: string;
   accountEmail: string;
 }): Promise<void> {
+  // A plain sign-in now asks for identity only, so it says nothing about the
+  // calendar connection -- and must not speak for it. Without this guard a
+  // sign-in would rewrite the stored scope to one with no calendar in it, and
+  // a sign-in that happened to return a token would overwrite a working
+  // connection with one that cannot read a calendar.
+  if (!grantsCalendar(input.scope)) return;
+
   const rows = await SheetRepo.find<GoogleTokenRecord>('google_tokens');
   const existing = rows.find((r) => r.user_id === input.userId);
   const now = new Date().toISOString();

@@ -4,7 +4,8 @@ import GoogleProvider from 'next-auth/providers/google';
 import { SheetRepo } from './db/sheet-repo';
 import { verifyPassword } from './password';
 import { allowedSignupDomains, normalizeEmail } from './signup-policy';
-import { CALENDAR_SCOPES, storeRefreshToken } from './google/tokens';
+import { storeRefreshToken } from './google/tokens';
+import { IDENTITY_SCOPES } from './google/scopes';
 import type { UserRecord } from './db/schema';
 import { PENDING_APPROVAL } from './auth-signals';
 
@@ -50,18 +51,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
-          scope: ['openid', 'email', 'profile', ...CALENDAR_SCOPES].join(' '),
-          // A refresh token is only issued for an offline grant, and only on
-          // the *first* consent. Signing in does not force consent again: it
-          // happens constantly, and re-approving every time is a toll on the
-          // common path. A sign-in that returns no refresh token leaves the
-          // stored one alone (see storeRefreshToken), so nothing is lost.
-          //
-          // The calendar Connect buttons pass prompt=consent themselves. That
-          // is the one place a refresh token must be guaranteed -- including
-          // for an account that granted these scopes before the app started
-          // asking for offline access -- and it is pressed once.
-          access_type: 'offline',
+          // Identity only. Calendar access is a separate ask, made by the
+          // Connect button when somebody chooses to connect -- see
+          // lib/google/scopes.ts. Asking here made a first sign-in several
+          // consent screens for access the app did not need yet.
+          scope: IDENTITY_SCOPES.join(' '),
         },
       },
     })
