@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { setRotationOrderAction } from './actions';
@@ -33,13 +33,56 @@ export default function RotationOrder({ students }: { students: RotationStudent[
 
   const dirty = order.some((student, i) => students[i]?.id !== student.id);
 
-  const move = (index: number, by: -1 | 1) => {
-    const to = index + by;
-    if (to < 0 || to >= order.length) return;
+  /**
+   * Lift the row out and put it back at `to`, rather than swapping the two.
+   * A drag that crosses several rows at once -- a fast flick, or a pointer that
+   * reports one big jump -- would otherwise trade places with whoever happened
+   * to be under the finger at the end, leaving the rows in between untouched.
+   * For neighbours the two are the same thing.
+   */
+  const moveTo = (from: number, to: number) => {
+    if (to < 0 || to >= order.length || from === to) return;
     const next = [...order];
-    [next[index], next[to]] = [next[to], next[index]];
+    const [lifted] = next.splice(from, 1);
+    next.splice(to, 0, lifted);
     setOrder(next);
   };
+
+  const move = (index: number, by: -1 | 1) => moveTo(index, index + by);
+
+  /**
+   * Drag to reorder, by hand.
+   *
+   * Pointer events rather than HTML5 drag-and-drop, which a finger cannot
+   * start at all. Only the handle takes the drag, so the rest of the row still
+   * scrolls the page, and `touch-none` on it stops the browser from scrolling
+   * instead of dragging once a drag has begun. The arrow buttons stay: they are
+   * the keyboard path, and dragging is not one.
+   */
+  const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  const onHandleDown = (index: number) => (e: React.PointerEvent) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragIndex(index);
+  };
+
+  const onHandleMove = (e: React.PointerEvent) => {
+    if (dragIndex === null) return;
+
+    const over = rowRefs.current.findIndex((row) => {
+      if (!row) return false;
+      const box = row.getBoundingClientRect();
+      return e.clientY >= box.top && e.clientY <= box.bottom;
+    });
+
+    if (over !== -1 && over !== dragIndex) {
+      moveTo(dragIndex, over);
+      setDragIndex(over);
+    }
+  };
+
+  const onHandleUp = () => setDragIndex(null);
 
   const save = () => {
     setMessage(null);
@@ -84,8 +127,28 @@ export default function RotationOrder({ students }: { students: RotationStudent[
           {order.map((student, index) => (
             <li
               key={student.id}
-              className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-lg border border-gray-200"
+              ref={(el) => {
+                rowRefs.current[index] = el;
+              }}
+              className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-lg border transition ${
+                dragIndex === index
+                  ? 'border-blue-400 bg-blue-50 shadow-sm'
+                  : 'border-gray-200'
+              }`}
             >
+              <button
+                type="button"
+                onPointerDown={onHandleDown(index)}
+                onPointerMove={onHandleMove}
+                onPointerUp={onHandleUp}
+                onPointerCancel={onHandleUp}
+                aria-label={t('rotationOrder.drag')}
+                title={t('rotationOrder.drag')}
+                className="touch-none cursor-grab active:cursor-grabbing px-1.5 py-1 -ml-1 text-gray-400 hover:text-gray-600 select-none"
+              >
+                ⠿
+              </button>
+
               <span className="w-7 h-7 shrink-0 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-700 text-sm font-semibold tabular-nums">
                 {index + 1}
               </span>

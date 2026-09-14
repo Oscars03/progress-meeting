@@ -93,14 +93,14 @@ export function bestSlot(tallies: SlotTally[]): SlotTally | null {
 }
 
 /**
- * Open polls that still need an answer from one person, newest first.
+ * Every open poll, newest first, with how many slots this person has left to
+ * answer.
  *
- * The lead proposes a time; everyone else has to answer for it to mean
- * anything. A poll the person has already answered in full is not waiting on
- * them, so it is dropped -- the point is a list of things to act on, not a
- * list of polls.
+ * Answered polls are kept rather than filtered out: an answer can be changed
+ * while the poll is open, and a poll you can no longer find is a poll you can
+ * no longer change. The caller decides how loudly to show each group.
  */
-export function pollsAwaiting<
+export function openPolls<
   P extends { id: string; status: string; title: string; created_at: string },
   S extends { id: string; poll_id: string },
   V extends { slot_id: string; user_id: string },
@@ -115,6 +115,5 @@ export function pollsAwaiting<
       );
       return { poll, remaining: mySlots.length - answered.size };
     })
-    .filter((row) => row.remaining > 0)
     .sort((a, b) => b.poll.created_at.localeCompare(a.poll.created_at));
 }

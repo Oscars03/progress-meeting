@@ -288,11 +288,11 @@ export default function CalendarView({
            * On a touch screen a plain drag scrolls the page, so FullCalendar
            * only starts a selection after a long press. The default is a full
            * second, which reads as "dragging does nothing" -- long enough that
-           * people give up before it fires. A quarter second is past an
-           * accidental tap and still feels immediate.
+           * people give up before it fires. 150ms is still past a tap and
+           * feels immediate under a finger.
            */
-          longPressDelay={250}
-          selectLongPressDelay={250}
+          longPressDelay={150}
+          selectLongPressDelay={150}
           select={handleSelect}
           eventClick={handleEventClick}
         />

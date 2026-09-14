@@ -23,7 +23,13 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     SheetRepo.find<UserRecord>('users'),
   ]);
 
-  const poll = polls.find((p) => p.id === id);
+  // A miss may just be a cached list from before another instance inserted the
+  // poll, so check a fresh read before calling it gone. See SheetRepo.find.
+  const poll =
+    polls.find((p) => p.id === id) ??
+    (await SheetRepo.find<AvailabilityPollRecord>('availability_polls', { fresh: true })).find(
+      (p) => p.id === id,
+    );
   if (!poll) notFound();
 
   const activeUsers = users.filter((u) => u.active === true);
