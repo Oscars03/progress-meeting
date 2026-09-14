@@ -46,10 +46,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         params: {
           scope: ['openid', 'email', 'profile', ...CALENDAR_SCOPES].join(' '),
           // A refresh token is only issued for an offline grant, and only on
-          // the first consent -- prompt=consent asks again so an account that
-          // signed in before the calendar scopes existed still yields one.
+          // the *first* consent. Signing in does not force consent again: it
+          // happens constantly, and re-approving every time is a toll on the
+          // common path. A sign-in that returns no refresh token leaves the
+          // stored one alone (see storeRefreshToken), so nothing is lost.
+          //
+          // The calendar Connect buttons pass prompt=consent themselves. That
+          // is the one place a refresh token must be guaranteed -- including
+          // for an account that granted these scopes before the app started
+          // asking for offline access -- and it is pressed once.
           access_type: 'offline',
-          prompt: 'consent',
         },
       },
     })
