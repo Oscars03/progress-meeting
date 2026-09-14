@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole, hasManagerRights } from '@/lib/auth-guard';
+import { requireRole, requireSession, hasManagerRights, type SessionUser } from '@/lib/auth-guard';
+import { isWeekLead } from '@/lib/rotation';
+import type { WeekLeadRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { weekKey } from '@/lib/week';
@@ -97,6 +99,26 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
 }
 
 /**
+ * Whoever may arrange a week's running order.
+ *
+ * The lead prepares that week's meeting, so the order it runs in is theirs to
+ * decide -- it was professor-and-above only, which meant the one person
+ * actually running the meeting had to ask somebody else to move a name.
+ * Advisors and admin keep it too.
+ *
+ * Judged on the week being arranged, not on today: rearranging last week's
+ * agenda answers to whoever led last week.
+ */
+async function assertMayArrange(weekKey: string): Promise<SessionUser> {
+  const actor = await requireSession();
+  if (hasManagerRights(actor.role)) return actor;
+
+  const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+  if (!isWeekLead(leads, weekKey, actor.id)) throw new UserError('avail.leadOnly');
+  return actor;
+}
+
+/**
  * Store an explicit running order.
  *
  * Positions are written for every topic in the list at once, because a partial
@@ -105,9 +127,10 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
  */
 export async function setTopicOrder(
   order: { id: string; row_version: number }[],
+  weekKey: string,
 ): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('professor');
+    const actor = await assertMayArrange(weekKey);
     if (order.length === 0) return;
 
     // Sequential: each write is a separate row edit and the repo serialises them
@@ -129,9 +152,10 @@ export async function setTopicOrder(
 /** Drop the stored order, handing the week back to the suggestion. */
 export async function clearTopicOrder(
   topics: { id: string; row_version: number }[],
+  weekKey: string,
 ): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('professor');
+    const actor = await assertMayArrange(weekKey);
 
     for (const entry of topics) {
       await SheetRepo.update('topics', entry.id, { present_order: '' }, entry.row_version, actor.id);

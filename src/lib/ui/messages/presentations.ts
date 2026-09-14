@@ -4,6 +4,8 @@ import { defineMessages } from './define';
 export const presentations = defineMessages({
   th: {
     'nav.presentations': 'ลำดับนำเสนอ',
+    'presentations.dragHint': 'ลากเพื่อเปลี่ยนลำดับ หัวข้อทั้งหมดของคนนี้จะย้ายตามไปด้วย',
+    'presentations.topicCount': '{n} หัวข้อ',
 
     'presentations.title': 'ลำดับการนำเสนอ',
     'presentations.subtitle': 'หัวข้อที่จะนำเสนอในสัปดาห์นี้ เรียงตามลำดับการนำเสนอ',
@@ -38,6 +40,8 @@ export const presentations = defineMessages({
   },
   en: {
     'nav.presentations': 'Running order',
+    'presentations.dragHint': 'Drag to reorder — everything this person brought moves with them',
+    'presentations.topicCount': '{n} topics',
 
     'presentations.title': 'Presentation order',
     'presentations.subtitle': "Topics for this week's meeting, in the order they will be presented",

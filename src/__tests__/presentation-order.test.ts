@@ -4,6 +4,8 @@ import {
   suggestTopicOrder,
   effectiveTopicOrder,
   topicCounts,
+  groupByPresenter,
+  flattenPresenters,
 } from '../lib/presentation-order';
 import type { TopicRecord } from '../lib/db/schema';
 
@@ -123,5 +125,64 @@ describe('topicCounts', () => {
     const counts = topicCounts(topics);
     expect(counts.get('stu1')).toBe(1);
     expect(counts.get('stu2')).toBe(2);
+  });
+});
+
+describe('groupByPresenter', () => {
+  const topic = (id: string, owner: string, at = '2026-09-01T00:00:00.000Z') =>
+    ({ id, owner_id: owner, created_at: at, present_order: '', week_key: '2026-W38', status: 'planned' }) as TopicRecord;
+
+  it('turns a flat order into one block per person, keeping the order it was given', () => {
+    const blocks = groupByPresenter([
+      topic('a1', 'ann'),
+      topic('a2', 'ann'),
+      topic('b1', 'bob'),
+    ]);
+
+    expect(blocks.map((b) => b.ownerId)).toEqual(['ann', 'bob']);
+    expect(blocks[0].topics.map((t) => t.id)).toEqual(['a1', 'a2']);
+  });
+
+  // The point of the change: one person is called on once, not once per topic.
+  it("gathers a person's topics even when they arrive scattered", () => {
+    const blocks = groupByPresenter([
+      topic('a1', 'ann'),
+      topic('b1', 'bob'),
+      topic('a2', 'ann'),
+    ]);
+
+    expect(blocks.map((b) => b.ownerId)).toEqual(['ann', 'bob']);
+    expect(blocks[0].topics.map((t) => t.id)).toEqual(['a1', 'a2']);
+    expect(blocks[1].topics.map((t) => t.id)).toEqual(['b1']);
+  });
+
+  it('places a person where their first topic fell, not their last', () => {
+    const blocks = groupByPresenter([
+      topic('b1', 'bob'),
+      topic('a1', 'ann'),
+      topic('b2', 'bob'),
+    ]);
+    expect(blocks.map((b) => b.ownerId)).toEqual(['bob', 'ann']);
+  });
+
+  it('has nothing to group when the week is empty', () => {
+    expect(groupByPresenter([])).toEqual([]);
+  });
+});
+
+describe('flattenPresenters', () => {
+  const topic = (id: string, owner: string) =>
+    ({ id, owner_id: owner, created_at: '2026-09-01T00:00:00.000Z', present_order: '', week_key: '2026-W38', status: 'planned' }) as TopicRecord;
+
+  it('round-trips a grouped order back to the topic order that gets stored', () => {
+    const flat = [topic('a1', 'ann'), topic('a2', 'ann'), topic('b1', 'bob')];
+    expect(flattenPresenters(groupByPresenter(flat)).map((t) => t.id)).toEqual(['a1', 'a2', 'b1']);
+  });
+
+  it('moves every topic of a person when the person moves', () => {
+    const blocks = groupByPresenter([topic('a1', 'ann'), topic('a2', 'ann'), topic('b1', 'bob')]);
+    // Bob is dragged above Ann.
+    const reordered = [blocks[1], blocks[0]];
+    expect(flattenPresenters(reordered).map((t) => t.id)).toEqual(['b1', 'a1', 'a2']);
   });
 });
