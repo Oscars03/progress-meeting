@@ -12,7 +12,7 @@ export default async function Home() {
   return (
     <div className="min-h-dvh bg-gray-50 flex flex-col relative">
       {/* Header */}
-      <header className="w-full p-6 flex justify-between items-start z-10">
+      <header className="w-full p-4 sm:p-6 lg:py-4 flex justify-between items-start z-10">
         {/* The brand column below carries the name, but it is hidden under lg,
             so on a phone the app would sit unnamed. The name rides beside the
             mark instead -- inside the existing header row, so nothing else on
@@ -22,7 +22,7 @@ export default async function Home() {
           <img
             src="/brand/irish-mark.png"
             alt="IRiSH Logo"
-            className="brand-logo w-20 h-20 sm:w-24 sm:h-24 object-contain shrink-0"
+            className="brand-logo w-20 h-20 lg:w-[72px] lg:h-[72px] object-contain shrink-0"
           />
           <span className="lg:hidden min-w-0 text-lg sm:text-xl font-bold text-blue-600 leading-tight">
             {t('app.name')}
@@ -34,17 +34,17 @@ export default async function Home() {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6 flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-16">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5 flex flex-col lg:flex-row items-center justify-center gap-10 lg:gap-16">
         {/* Left Side: Brand & Description */}
         <div className="hidden lg:block lg:flex-1 text-center lg:text-left max-w-xl mb-8 lg:mb-0">
-          <h1 className="text-4xl font-extrabold text-blue-600 sm:text-5xl sm:tracking-tight lg:text-6xl mb-4">
+          <h1 className="text-4xl font-extrabold text-blue-600 sm:text-5xl sm:tracking-tight lg:text-5xl xl:text-6xl mb-3">
             {t('app.name')}
           </h1>
-          <p className="text-2xl text-gray-700 mb-6 font-medium leading-relaxed">
+          <p className="text-xl xl:text-2xl text-gray-700 mb-4 font-medium leading-relaxed">
             {t('app.tagline')}
           </p>
           
-          <div className="hidden lg:block space-y-5 mt-6">
+          <div className="hidden lg:block space-y-4 mt-4">
             <div className="flex items-start">
               <div className="flex-shrink-0 mt-1">
                 <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 text-blue-600">
@@ -96,7 +96,7 @@ export default async function Home() {
       </main>
 
       <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-2 text-sm text-gray-500">
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-center gap-1.5 sm:gap-6 text-sm text-gray-500">
           <p className="text-center">
             © {new Date().getFullYear()} IRiSH Lab, Suranaree University of Technology
           </p>

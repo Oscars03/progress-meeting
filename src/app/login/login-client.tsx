@@ -299,7 +299,11 @@ function LoginForm({
       )}
 
       {/* Brand logo at the bottom */}
-      <div className="pt-6 mt-4 flex justify-center">
+      {/* From lg up the brand column beside this card already carries the mark,
+          the name and the tagline, so a third copy inside the card is only
+          height -- and it was the 104px that pushed the page past a laptop
+          screen. Below lg that column is hidden, and this is the branding. */}
+      <div className="flex lg:hidden pt-6 mt-4 justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/brand/irish-logo-text.png"
