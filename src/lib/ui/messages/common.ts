@@ -119,6 +119,8 @@ export const common = defineMessages({
     'pending.approve': 'อนุมัติ',
     'pending.approving': 'กำลังอนุมัติ...',
     'pending.manage': 'จัดการผู้ใช้ทั้งหมด',
+    'users.error.nameRequired': 'กรุณากรอกชื่อที่จะแสดง',
+    'users.error.nameTooLong': 'ชื่อยาวเกินไป (ไม่เกิน 60 ตัวอักษร)',
 
     // The screen the person who is waiting sees. `pending.*` above is the
     // admin's list of them; these two are not the same audience.
@@ -279,6 +281,8 @@ export const common = defineMessages({
     'pending.approve': 'Approve',
     'pending.approving': 'Approving...',
     'pending.manage': 'Manage all users',
+    'users.error.nameRequired': 'Give a name to show',
+    'users.error.nameTooLong': 'That name is too long (60 characters at most)',
 
     'waiting.title': 'Waiting for approval',
     'waiting.created': 'Your account was created. Nothing went wrong.',

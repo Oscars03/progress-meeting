@@ -11,12 +11,13 @@ import type {
   UserRecord,
   WeekLeadRecord,
 } from '@/lib/db/schema';
-import { leadForWeek, rotationMembers, suggestNextHost } from '@/lib/rotation';
+import { isWeekLead, leadForWeek, rotationMembers, suggestNextHost } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import HostPicker from '../../dashboard/host-picker';
 import MinutesEditor from './minutes-editor';
 import ActionItems from './action-items';
 import CalendarSync from './calendar-sync';
+import DeleteMeeting from './delete-meeting';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import { formatLabTime } from '@/lib/lab-time';
 
@@ -59,6 +60,9 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const meetingWeek = meeting.start_at ? weekKey(new Date(meeting.start_at)) : weekKey();
   const lead = leadForWeek(leads, meetingWeek);
   const hostName = lead ? (users.find((u) => u.id === lead.user_id)?.name ?? '') : '';
+  // Whoever runs the week owns its schedule, so the lead can undo their own
+  // booking. Admin can always step in.
+  const canRemove = actor.role === 'admin' || isWeekLead(leads, meetingWeek, actor.id);
   const suggestedHost = hostName ? null : suggestNextHost(users, leads);
   const calendarOwner = users.find((u) => u.id === meeting.google_calendar_owner_id);
   // This showed the two stored instants verbatim -- "2026-09-25T01:00:00.000Z"
@@ -157,6 +161,14 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
         openTasks={openTasks}
         canDelete={canManage}
       />
+
+      {/* Last, and apart: it is the one thing on this page that cannot be
+          undone, so it does not sit next to the things people press often. */}
+      {canRemove && (
+        <div className="pt-4 border-t border-gray-100">
+          <DeleteMeeting meetingId={id} rowVersion={meeting.row_version} />
+        </div>
+      )}
     </div>
   );
 }
