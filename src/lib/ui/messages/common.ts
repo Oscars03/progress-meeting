@@ -119,6 +119,9 @@ export const common = defineMessages({
     'pending.approve': 'อนุมัติ',
     'pending.approving': 'กำลังอนุมัติ...',
     'pending.manage': 'จัดการผู้ใช้ทั้งหมด',
+    'myName.title': 'ชื่อที่แสดง',
+    'myName.hint': 'ชื่อที่คนอื่นเห็นในลำดับผู้รับผิดชอบ ปฏิทิน และรายการงาน',
+    'myName.label': 'ชื่อของคุณ',
     'users.error.nameRequired': 'กรุณากรอกชื่อที่จะแสดง',
     'users.error.nameTooLong': 'ชื่อยาวเกินไป (ไม่เกิน 60 ตัวอักษร)',
 
@@ -281,6 +284,9 @@ export const common = defineMessages({
     'pending.approve': 'Approve',
     'pending.approving': 'Approving...',
     'pending.manage': 'Manage all users',
+    'myName.title': 'Your display name',
+    'myName.hint': 'What everyone else sees in the rotation, the calendar and task lists',
+    'myName.label': 'Your name',
     'users.error.nameRequired': 'Give a name to show',
     'users.error.nameTooLong': 'That name is too long (60 characters at most)',
 

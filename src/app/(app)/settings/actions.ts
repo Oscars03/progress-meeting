@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { initDatabase, getPopulatedTabs } from '@/lib/db/init-db';
 import { clearDatabase } from '@/lib/db/clear-db';
-import { requireRole, canAssignRole, type Role } from '@/lib/auth-guard';
+import { requireRole, requireSession, canAssignRole, type Role } from '@/lib/auth-guard';
 import { hashPassword, validatePassword, verifyPassword, isHashed } from '@/lib/password';
 import type {
   MeetingRecord,
@@ -383,6 +383,40 @@ export async function updateUserNameAction(
     await SheetRepo.update<UserRecord>('users', userId, { name: trimmed }, rowVersion, actor.id);
 
     // The name is read on every page that names anybody.
+    revalidatePath('/settings');
+    revalidatePath('/dashboard');
+    revalidatePath('/meetings');
+    revalidatePath('/presentations');
+    revalidatePath('/tasks');
+  });
+}
+
+/**
+ * Change your own display name.
+ *
+ * The name arrives from whatever Google had on the account, or from whatever
+ * was typed at registration, and it is what the rotation, the week's lead and
+ * every "[name] event" on the calendar show. Correcting your own spelling
+ * should not require finding an admin.
+ *
+ * The row_version is read here rather than taken from the caller: this is the
+ * one row a person is always entitled to, so there is nothing for the client to
+ * hold, and reading it in the same request is what the write contract wants.
+ */
+export async function updateMyNameAction(name: string): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+
+    const trimmed = name.trim().replace(/\s+/g, ' ');
+    if (!trimmed) throw new UserError('users.error.nameRequired');
+    if (trimmed.length > 60) throw new UserError('users.error.nameTooLong');
+
+    const me = await SheetRepo.findOne<UserRecord>('users', actor.id);
+    if (!me) throw new UserError('error.notFound');
+    if (me.name === trimmed) return;
+
+    await SheetRepo.update<UserRecord>('users', actor.id, { name: trimmed }, me.row_version, actor.id);
+
     revalidatePath('/settings');
     revalidatePath('/dashboard');
     revalidatePath('/meetings');

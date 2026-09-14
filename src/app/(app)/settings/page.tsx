@@ -8,6 +8,7 @@ import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
 import RotationOrder, { type RotationStudent } from './rotation-order';
 import TermBreaks from './term-breaks';
+import MyName from './my-name';
 import { rotationMembers } from '@/lib/rotation';
 import type { TermBreakRecord } from '@/lib/db/schema';
 
@@ -20,6 +21,10 @@ export default async function SettingsPage() {
   let breaks: TermBreakRecord[] = [];
   let loadError = false;
   let populatedTabs: string[] = [];
+
+  // The session carries the name from whenever it was issued, so it goes stale
+  // the moment somebody renames themselves. The sheet is the current answer.
+  const me = await SheetRepo.findOne<UserRecord>('users', actor.id).catch(() => null);
 
   // Calendar status is per-person, so it is read for everyone, not just admins.
   const stored = await getStoredToken(actor.id).catch(() => null);
@@ -65,6 +70,9 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <h2 className="text-2xl font-bold text-gray-900">การตั้งค่าระบบ (Settings)</h2>
+
+      {/* First, because it is the only thing here every member can act on. */}
+      <MyName name={me?.name ?? (actor.name ?? '')} email={actor.email ?? ''} />
 
       <CalendarCard
         status={{
