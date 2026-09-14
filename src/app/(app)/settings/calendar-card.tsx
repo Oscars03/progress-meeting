@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { disconnectCalendarAction, type ConnectionStatus } from '../calendar-actions';
+import Spinner from '@/lib/ui/spinner';
 
 export default function CalendarCard({
   status,
@@ -18,6 +19,9 @@ export default function CalendarCard({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // Google takes the browser away, so this is never cleared: the button stays
+  // spent while the redirect is in flight rather than inviting a second press.
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
 
   if (!googleEnabled) {
@@ -91,17 +95,23 @@ export default function CalendarCard({
               });
             }}
             disabled={isPending}
-            className="text-sm text-red-600 hover:underline disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-sm text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            ยกเลิกการเชื่อม
+            {isPending && <Spinner className="h-3 w-3" />}
+            {isPending ? 'กำลังยกเลิก...' : 'ยกเลิกการเชื่อม'}
           </button>
         </div>
       ) : (
         <button
-          onClick={() => signIn('google', { callbackUrl: '/settings' })}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+          disabled={connecting}
+          onClick={() => {
+            setConnecting(true);
+            signIn('google', { callbackUrl: '/settings' });
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          เชื่อมบัญชี Google Calendar
+          {connecting && <Spinner />}
+          {connecting ? 'กำลังเชื่อมต่อ...' : 'เชื่อมบัญชี Google Calendar'}
         </button>
       )}
 
