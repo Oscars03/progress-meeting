@@ -213,3 +213,49 @@ describe('booking a meeting outright', () => {
     expect(insert).not.toHaveBeenCalled();
   });
 });
+
+describe('term breaks', () => {
+  const meeting = {
+    title: 'Progress',
+    start_at: `${MONDAY}T10:00`,
+    end_at: `${MONDAY}T11:00`,
+  };
+  const slots = [{ start: `${MONDAY}T10:00`, end: `${MONDAY}T11:00` }];
+
+  beforeEach(() => {
+    seedPoll();
+    // Week 40 is a break week (2026-09-28 to 2026-10-04)
+    tables['term_breaks'] = [
+      { id: 'tb1', name: 'Semester Break', start_date: '2026-09-28', end_date: '2026-10-04', row_version: 1 }
+    ];
+  });
+
+  it('refuses to book a meeting during a break', async () => {
+    signedInAs('boss', 'admin');
+    const result = await createMeeting(meeting);
+    expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses to open a poll for slots during a break', async () => {
+    signedInAs('boss', 'admin');
+    const result = await createPollAction({ title: 'Progress', note: '', slots });
+    expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses to confirm a slot during a break (in case a break is declared after the poll opens)', async () => {
+    signedInAs('boss', 'admin');
+    const result = await confirmSlotAction('p1', 1, 's1');
+    expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses to confirm a week lead for a break week', async () => {
+    const { setWeekLead } = await import('../app/(app)/meetings/actions');
+    signedInAs('prof', 'professor');
+    const result = await setWeekLead(WEEK, 'lead');
+    expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+});

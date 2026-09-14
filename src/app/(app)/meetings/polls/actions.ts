@@ -14,7 +14,9 @@ import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
   AvailabilityVoteRecord,
+  TermBreakRecord,
 } from '@/lib/db/schema';
+import { breakCovering } from '@/lib/term-breaks';
 
 function assertChoice(value: string): asserts value is Choice {
   if (!isChoice(value)) {
@@ -91,6 +93,12 @@ export async function createPollAction(input: {
     const week = weekKey(new Date(slots[0].start));
     const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
     if (!isWeekLead(leads, week, actor.id)) throw new UserError('avail.leadOnly');
+  }
+
+  const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
+  for (const s of slots) {
+    const coveringBreak = breakCovering(breaks, s.start.slice(0, 10));
+    if (coveringBreak) throw new UserError('error.duringBreak', { name: coveringBreak.name });
   }
 
   const poll = await SheetRepo.insert(
@@ -204,6 +212,10 @@ export async function confirmSlotAction(
 
   const slot = slots.find((s) => s.id === slotId && s.poll_id === pollId);
   if (!slot) throw new UserError('polls.error.slotNotFound');
+
+  const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
+  const coveringBreak = breakCovering(breaks, slot.start_at.slice(0, 10));
+  if (coveringBreak) throw new UserError('error.duringBreak', { name: coveringBreak.name });
 
   await assertRunsThePoll(actor, [slot]);
 

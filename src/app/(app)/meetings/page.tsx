@@ -9,19 +9,20 @@ import ConnectGoogleButton from './connect-google-button';
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requireSession } from '@/lib/auth-guard';
 import { myEvents, type GoogleEvent } from '@/lib/google/calendar';
-import type { PersonalEventRecord, UserRecord } from '@/lib/db/schema';
+import type { PersonalEventRecord, UserRecord, TermBreakRecord } from '@/lib/db/schema';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
 export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string };
 
 export default async function MeetingsPage() {
   const actor = await requireSession();
-  const [meetings, t, storedToken, allPersonalEvents, users] = await Promise.all([
+  const [meetings, t, storedToken, allPersonalEvents, users, termBreaks] = await Promise.all([
     SheetRepo.find<MeetingRecord>('meetings'), 
     getT(),
     getStoredToken(actor.id).catch(() => null),
     SheetRepo.find<PersonalEventRecord>('personal_events').catch(() => []),
     SheetRepo.find<UserRecord>('users').catch(() => []),
+    SheetRepo.find<TermBreakRecord>('term_breaks').catch(() => []),
   ]);
 
   // Booking a meeting outright skips the poll, so it is admin's escape hatch.
@@ -104,6 +105,7 @@ export default async function MeetingsPage() {
         personalEvents={mappedPersonalEvents} 
         googleEvents={allGoogleEvents} 
         currentUserId={actor.id} 
+        termBreaks={termBreaks}
       />
     </div>
   );

@@ -25,6 +25,7 @@ export const SCHEMAS = {
   personal_events: [...COMMON_COLUMNS, 'user_id', 'title', 'start_at', 'end_at'],
   topics: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'week_key', 'meeting_id', 'present_order', 'status'],
   week_leads: [...COMMON_COLUMNS, 'week_key', 'user_id'],
+  term_breaks: [...COMMON_COLUMNS, 'name', 'start_date', 'end_date'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -227,4 +228,10 @@ export type WeekLeadRecord = BaseRecord & {
   /** ISO week, e.g. 2026-W38 -- see lib/week.ts. One row per week. */
   week_key: string;
   user_id: string;
+};
+
+export type TermBreakRecord = BaseRecord & {
+  name: string;
+  start_date: string;
+  end_date: string;
 };

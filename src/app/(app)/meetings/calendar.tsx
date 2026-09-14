@@ -12,6 +12,8 @@ import { usePrefs } from '@/lib/ui/prefs';
 import { createPersonalEventAction, deletePersonalEventAction } from '../settings/schedule-actions';
 import type { EventInput, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import type { MappedMeeting, MappedPersonalEvent } from './page';
+import type { TermBreakRecord } from '@/lib/db/schema';
+import { breakCovering } from '@/lib/term-breaks';
 
 
 
@@ -59,12 +61,14 @@ export default function CalendarView({
   meetings,
   personalEvents = [],
   googleEvents = [],
-  currentUserId = ''
+  currentUserId = '',
+  termBreaks = []
 }: { 
   meetings: MappedMeeting[],
   personalEvents?: MappedPersonalEvent[],
   googleEvents?: GoogleEvent[],
-  currentUserId?: string
+  currentUserId?: string,
+  termBreaks?: TermBreakRecord[]
 }) {
   const router = useRouter();
   const { locale, t } = usePrefs();
@@ -295,6 +299,14 @@ export default function CalendarView({
           selectLongPressDelay={150}
           select={handleSelect}
           eventClick={handleEventClick}
+          dayCellClassNames={(arg) => {
+            const pad = (n: number) => String(n).padStart(2, '0');
+            const dateStr = `${arg.date.getFullYear()}-${pad(arg.date.getMonth() + 1)}-${pad(arg.date.getDate())}`;
+            if (breakCovering(termBreaks, dateStr)) {
+              return ['bg-gray-100', 'dark:bg-gray-800', 'opacity-50'];
+            }
+            return [];
+          }}
         />
       </div>
 

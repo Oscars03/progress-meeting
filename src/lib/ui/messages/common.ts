@@ -56,6 +56,7 @@ export const common = defineMessages({
     'error.passwordTooShort': 'รหัสผ่านต้องมีความยาวอย่างน้อย {n} ตัวอักษร',
     'error.dateInvalid': 'รูปแบบวันเวลาไม่ถูกต้อง',
     'error.endBeforeStart': 'เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่ม',
+    'error.duringBreak': 'ไม่สามารถดำเนินการได้เนื่องจากอยู่ในช่วงปิดเทอม: {name}',
 
     'login.title': 'เข้าสู่ระบบ',
     'login.email': 'อีเมล',
@@ -98,6 +99,8 @@ export const common = defineMessages({
     'dashboard.nextMeeting': 'การประชุมครั้งถัดไป',
     'dashboard.notScheduled': 'ยังไม่ได้นัดหมาย',
     'dashboard.notScheduledHint': 'ยังไม่มีการประชุมที่นัดไว้ล่วงหน้า',
+    'dashboard.breakWeek': 'ปิดเทอม: {name}',
+    'dashboard.breakResumes': 'เริ่มเปิดเทอมวันที่ {date}',
     'dashboard.scheduleNow': 'นัดหมายการประชุม',
     'dashboard.openMeeting': 'เปิดรายละเอียด',
     'dashboard.restOfWeek': 'การประชุมอื่นในสัปดาห์นี้',
@@ -129,6 +132,13 @@ export const common = defineMessages({
     'rotationOrder.desc': 'ระบบจะเสนอคนถัดไปตามลำดับนี้ ผู้ที่ยังไม่ถูกจัดลำดับจะต่อท้ายตามลำดับที่เข้าร่วม',
     'rotationOrder.save': 'บันทึกลำดับ',
     'rotationOrder.drag': 'กดค้างแล้วลากเพื่อจัดลำดับ',
+
+    'termBreaks.title': 'ช่วงปิดเทอม',
+    'termBreaks.desc': 'กำหนดช่วงเวลาปิดเทอม ระบบจะไม่เสนอรายชื่อผู้รับผิดชอบและระงับการนัดหมายในสัปดาห์เหล่านี้',
+    'termBreaks.add': 'เพิ่มช่วงปิดเทอม',
+    'termBreaks.name': 'ชื่อช่วงปิดเทอม',
+    'termBreaks.start': 'วันเริ่มต้น',
+    'termBreaks.end': 'วันสิ้นสุด',
 
     'report.title': 'รายงาน',
     'report.weeklyTitle': 'รายงานสรุปรายสัปดาห์',
@@ -190,6 +200,7 @@ export const common = defineMessages({
     'error.passwordTooShort': 'Passwords must be at least {n} characters',
     'error.dateInvalid': 'That date or time is not valid',
     'error.endBeforeStart': 'The end time must be after the start time',
+    'error.duringBreak': 'Cannot proceed because this falls during a term break: {name}',
 
     'login.title': 'Sign in',
     'login.email': 'Email',
@@ -233,6 +244,8 @@ export const common = defineMessages({
     'dashboard.nextMeeting': 'Next meeting',
     'dashboard.notScheduled': 'Not scheduled yet',
     'dashboard.notScheduledHint': 'No meeting has been booked ahead',
+    'dashboard.breakWeek': 'Term break: {name}',
+    'dashboard.breakResumes': 'Term resumes on {date}',
     'dashboard.scheduleNow': 'Schedule a meeting',
     'dashboard.openMeeting': 'Open details',
     'dashboard.restOfWeek': 'Other meetings this week',
@@ -264,6 +277,13 @@ export const common = defineMessages({
     'rotationOrder.desc': 'The next lead is suggested by stepping down this list. Anyone not placed follows in the order they joined.',
     'rotationOrder.save': 'Save order',
     'rotationOrder.drag': 'Hold and drag to reorder',
+
+    'termBreaks.title': 'Term breaks',
+    'termBreaks.desc': 'Define term breaks. The rotation will pause and meetings cannot be scheduled during these weeks.',
+    'termBreaks.add': 'Add break',
+    'termBreaks.name': 'Break name',
+    'termBreaks.start': 'Start date',
+    'termBreaks.end': 'End date',
 
     'report.title': 'Report',
     'report.weeklyTitle': 'Weekly summary report',
