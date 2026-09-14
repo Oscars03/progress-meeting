@@ -26,6 +26,7 @@ export const SCHEMAS = {
   topics: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'week_key', 'meeting_id', 'present_order', 'status'],
   week_leads: [...COMMON_COLUMNS, 'week_key', 'user_id'],
   term_breaks: [...COMMON_COLUMNS, 'name', 'start_date', 'end_date'],
+  feedback: [...COMMON_COLUMNS, 'body', 'category', 'status'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -234,4 +235,19 @@ export type TermBreakRecord = BaseRecord & {
   name: string;
   start_date: string;
   end_date: string;
+};
+
+/**
+ * Something a member wanted to say about the app itself.
+ *
+ * `created_by` is the author -- there is no separate column for it, and no way
+ * to submit as somebody else. Kept deliberately small: a body, a word for what
+ * kind of thing it is, and whether it has been dealt with.
+ */
+export type FeedbackRecord = BaseRecord & {
+  body: string;
+  /** 'problem' | 'idea' | 'other' -- see feedback/categories.ts. */
+  category: string;
+  /** 'open' while it still wants an answer, 'done' once it has had one. */
+  status: string;
 };

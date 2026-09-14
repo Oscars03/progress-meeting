@@ -27,10 +27,11 @@ import type {
   WeekLeadRecord,
   TermBreakRecord,
   TaskRecord,
+  FeedbackRecord,
 } from '@/lib/db/schema';
 
 export default async function DashboardPage() {
-  const [actor, users, meetings, leads, polls, slots, votes, termBreaks, tasks, t, locale] = await Promise.all([
+  const [actor, users, meetings, leads, polls, slots, votes, termBreaks, tasks, feedback, t, locale] = await Promise.all([
     requireSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
@@ -40,6 +41,7 @@ export default async function DashboardPage() {
     SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
     SheetRepo.find<TermBreakRecord>('term_breaks'),
     SheetRepo.find<TaskRecord>('tasks').catch(() => []),
+    SheetRepo.find<FeedbackRecord>('feedback').catch(() => []),
     getT(),
     getLocale(),
   ]);
@@ -85,6 +87,10 @@ export default async function DashboardPage() {
         }))
       : [];
 
+  // Somebody took the trouble to say something. Only an admin can answer it,
+  // and a suggestion box nobody empties stops being used.
+  const openFeedback = actor.role === 'admin' ? feedback.filter((f) => f.status !== 'done').length : 0;
+
   // Asking is the lead's job, but answering is everyone's, and the ask is easy
   // to miss on a page nobody opens. It sits at the top of the page they do.
   const open = openPolls(polls, slots, votes, actor.id);
@@ -114,6 +120,22 @@ export default async function DashboardPage() {
         <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
         {canSchedule && <NewMeetingButton />}
       </div>
+
+      {openFeedback > 0 && (
+        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div>
+              <h3 className="font-semibold text-gray-900">
+                {t('dashboard.feedbackWaiting')} ({openFeedback})
+              </h3>
+              <p className="text-sm text-gray-500">{t('dashboard.feedbackWaitingHint')}</p>
+            </div>
+            <Link href="/feedback" className="text-sm text-blue-600 hover:underline">
+              {t('dashboard.feedbackOpen')}
+            </Link>
+          </div>
+        </section>
+      )}
 
       {brokenCalendars.length > 0 && (
         <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">

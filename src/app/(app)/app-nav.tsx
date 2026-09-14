@@ -8,7 +8,7 @@ import { usePrefs } from '@/lib/ui/prefs';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
 
-type IconName = 'dashboard' | 'tasks' | 'meetings' | 'presentations' | 'report' | 'settings';
+type IconName = 'dashboard' | 'tasks' | 'meetings' | 'presentations' | 'report' | 'feedback' | 'settings';
 
 /**
  * Tasks and Report are not part of the current workflow, so they are off the
@@ -20,6 +20,7 @@ const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
   { href: '/tasks', key: 'nav.tasks', icon: 'tasks' },
   { href: '/meetings', key: 'nav.meetings', icon: 'meetings' },
   { href: '/presentations', key: 'nav.presentations', icon: 'presentations' },
+  { href: '/feedback', key: 'nav.feedback', icon: 'feedback' },
   { href: '/settings', key: 'nav.settings', icon: 'settings' },
 ];
 
@@ -72,6 +73,8 @@ function NavIcon({ name }: { name: IconName }) {
       return <Icon d="M4 6h6M4 12h10M4 18h7M17 5l3 3-3 3" />;
     case 'report':
       return <Icon d="M3 20h18M7 16V9M12 16V5M17 16v-4" />;
+    case 'feedback':
+      return <Icon d="M21 12a8 8 0 01-8 8H8l-4 3v-5.5A8 8 0 1121 12z" />;
     case 'settings':
       return (
         <Icon>
