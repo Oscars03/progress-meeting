@@ -9,7 +9,17 @@ import interactionPlugin from '@fullcalendar/interaction';
 import thLocale from '@fullcalendar/core/locales/th';
 import enGbLocale from '@fullcalendar/core/locales/en-gb';
 import { usePrefs } from '@/lib/ui/prefs';
-import { createPersonalEventAction, deletePersonalEventAction } from '../settings/schedule-actions';
+import {
+  createPersonalEventAction,
+  deletePersonalEventAction,
+  updatePersonalEventAction,
+} from '../settings/schedule-actions';
+import {
+  EVENT_CATEGORIES,
+  EVENT_COLORS,
+  colorFor,
+  googleColor,
+} from '@/lib/event-colors';
 import type { EventInput, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import type { MappedMeeting, MappedPersonalEvent } from './page';
 import type { TermBreakRecord } from '@/lib/db/schema';
@@ -46,6 +56,7 @@ type GoogleEvent = {
   start: string;
   end: string;
   owner_name?: string;
+  colorId?: string;
 };
 
 function safeHttpUrl(value: unknown): string | undefined {
@@ -86,6 +97,11 @@ export default function CalendarView({
   const [createEndDate, setCreateEndDate] = useState('');
   const [createEndTime, setCreateEndTime] = useState('');
   const [createTitle, setCreateTitle] = useState('');
+  const [createColor, setCreateColor] = useState('');
+  const [createCategory, setCreateCategory] = useState('');
+  /** Set while the create dialog is editing an existing block rather than
+      making a new one -- the fields are identical, so it is the same form. */
+  const [editingEvent, setEditingEvent] = useState<{ id: string; rowVersion: number } | null>(null);
   
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -140,7 +156,14 @@ export default function CalendarView({
       // Colour by class, not inline: an inline hex cannot follow the theme, and
       // a wall of saturated red for "somebody is busy" read as a page full of
       // errors rather than a page full of ordinary commitments.
-      classNames: ['cal-ev', isMine ? 'cal-ev-mine' : 'cal-ev-theirs'],
+      // The chosen colour, else the kind's, else the default. cal-ev-mine /
+      // -theirs still decide what is clickable and how loud it is; the colour
+      // class only supplies the palette.
+      classNames: [
+        'cal-ev',
+        isMine ? 'cal-ev-mine' : 'cal-ev-theirs',
+        `cal-c-${colorFor(pe.color ?? '', pe.category ?? '')}`,
+      ],
       extendedProps: {
         type: 'personal',
         isMine,
@@ -156,7 +179,13 @@ export default function CalendarView({
       title: ge.owner_name ? `[${ge.owner_name}] ${ge.title}` : ge.title,
       start: ge.start,
       end: ge.end,
-      classNames: ['cal-ev', 'cal-ev-google'],
+      // Google sends a colour only when its owner set one by hand; the rest
+      // keep the neutral import look rather than guessing.
+      classNames: [
+        'cal-ev',
+        'cal-ev-google',
+        ...(googleColor(ge.colorId) ? [`cal-c-${googleColor(ge.colorId)}`] : []),
+      ],
       extendedProps: { type: 'google' }
     });
   });
@@ -184,6 +213,9 @@ export default function CalendarView({
   const handleSelect = (info: DateSelectArg) => {
     setError('');
     setCreateTitle('');
+    setCreateColor('');
+    setCreateCategory('');
+    setEditingEvent(null);
     
     // Format dates to date and time components
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -215,20 +247,30 @@ export default function CalendarView({
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const fields = {
+      title: createTitle,
+      start_at: `${createStartDate}T${createStartTime}`,
+      end_at: `${createEndDate}T${createEndTime}`,
+      color: createColor,
+      category: createCategory,
+    };
+
     startTransition(async () => {
       try {
-        const res = await createPersonalEventAction({
-          title: createTitle,
-          start_at: `${createStartDate}T${createStartTime}`,
-          end_at: `${createEndDate}T${createEndTime}`,
-        });
+        // The same form either way: editing differs only in which row it lands
+        // on, and a block that started an hour late used to have to be deleted
+        // and retyped because there was no way to change one.
+        const res = editingEvent
+          ? await updatePersonalEventAction(editingEvent.id, fields, editingEvent.rowVersion)
+          : await createPersonalEventAction(fields);
         if (!res.ok) {
           setError(t(res.error, res.vars) || res.error);
           return;
         }
         setCreateModalOpen(false);
+        setEditingEvent(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to create event');
+        setError(err instanceof Error ? err.message : 'Failed to save event');
       }
     });
   };
@@ -385,9 +427,14 @@ export default function CalendarView({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90dvh]">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-semibold text-gray-900">{t('settings.addBusyBlock')}</h3>
+              <h3 className="font-semibold text-gray-900">
+                {editingEvent ? t('events.editTitle') : t('settings.addBusyBlock')}
+              </h3>
               <button 
-                onClick={() => setCreateModalOpen(false)}
+                onClick={() => {
+                  setCreateModalOpen(false);
+                  setEditingEvent(null);
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 ✕
@@ -414,6 +461,63 @@ export default function CalendarView({
                   className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                   autoFocus
                 />
+              </div>
+
+              {/* Kind first, colour second: picking a kind already colours the
+                  block, so most people never touch the swatches. */}
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">
+                  {t('events.category')}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {EVENT_CATEGORIES.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setCreateCategory(createCategory === value ? '' : value)}
+                      aria-pressed={createCategory === value}
+                      className={`px-2.5 py-1 rounded-full border text-xs transition ${
+                        createCategory === value
+                          ? 'bg-blue-600 border-blue-600 text-white font-medium'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t(`events.category.${value}` as 'events.category.teaching')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">
+                  {t('events.color')}
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {EVENT_COLORS.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setCreateColor(createColor === value ? '' : value)}
+                      aria-label={value}
+                      aria-pressed={createColor === value}
+                      className={`cal-c-${value} w-7 h-7 rounded-full border-2 transition ${
+                        createColor === value
+                          ? 'ring-2 ring-offset-1 ring-blue-500 border-white'
+                          : 'border-white'
+                      }`}
+                      style={{ backgroundColor: 'var(--ev-edge)' }}
+                    />
+                  ))}
+                  {createColor && (
+                    <button
+                      type="button"
+                      onClick={() => setCreateColor('')}
+                      className="text-xs text-gray-500 hover:underline"
+                    >
+                      {t('events.colorAuto')}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="space-y-4">
                 <div>
@@ -581,18 +685,51 @@ export default function CalendarView({
                 )}
                 
                 {selectedEventInfo.type === 'personal' && selectedEventInfo.isMine && (
-                  <button
-                    onClick={() => {
-                      setDetailModalOpen(false);
-                      setSelectedEventId(selectedEventInfo.id);
-                      setSelectedEventTitle(selectedEventInfo.title);
-                      setSelectedEventRowVer(selectedEventInfo.rowVersion || 0);
-                      setDeleteModalOpen(true);
-                    }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition cursor-pointer"
-                  >
-                    ลบเวลาไม่ว่าง
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        const source = personalEvents.find((pe) => pe.id === selectedEventInfo.id);
+                        const pad = (n: number) => String(n).padStart(2, '0');
+                        const toDate = (d: Date) =>
+                          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                        const toTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+                        setError('');
+                        setCreateTitle(source?.title ?? selectedEventInfo.title);
+                        setCreateColor(source?.color ?? '');
+                        setCreateCategory(source?.category ?? '');
+                        if (selectedEventInfo.start) {
+                          setCreateStartDate(toDate(selectedEventInfo.start));
+                          setCreateStartTime(toTime(selectedEventInfo.start));
+                        }
+                        if (selectedEventInfo.end) {
+                          setCreateEndDate(toDate(selectedEventInfo.end));
+                          setCreateEndTime(toTime(selectedEventInfo.end));
+                        }
+                        setEditingEvent({
+                          id: selectedEventInfo.id,
+                          rowVersion: selectedEventInfo.rowVersion || 0,
+                        });
+                        setDetailModalOpen(false);
+                        setCreateModalOpen(true);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition cursor-pointer"
+                    >
+                      {t('topics.edit')}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDetailModalOpen(false);
+                        setSelectedEventId(selectedEventInfo.id);
+                        setSelectedEventTitle(selectedEventInfo.title);
+                        setSelectedEventRowVer(selectedEventInfo.rowVersion || 0);
+                        setDeleteModalOpen(true);
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition cursor-pointer"
+                    >
+                      ลบเวลาไม่ว่าง
+                    </button>
+                  </>
                 )}
               </div>
             </div>

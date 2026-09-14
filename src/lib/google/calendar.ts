@@ -83,7 +83,14 @@ export async function busyTimes(
   });
 }
 
-export type GoogleEvent = { id: string; title: string; start: string; end: string };
+export type GoogleEvent = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  /** Google's own colour for the event, when its owner set one. */
+  colorId?: string;
+};
 
 /**
  * Fetch the user's actual events with titles for their personal view.
@@ -108,6 +115,9 @@ export async function myEvents(
         title: e.summary || 'Busy',
         start: (e.start?.dateTime || e.start?.date) as string,
         end: (e.end?.dateTime || e.end?.date) as string,
+        // Only set when the person coloured the event by hand; most carry
+        // none and take their calendar's default.
+        colorId: e.colorId ?? '',
       }));
   });
 }
