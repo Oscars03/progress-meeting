@@ -11,6 +11,7 @@ import {
 } from '@/lib/rotation';
 import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
+import PendingUsers from './pending-users';
 import { weekKey } from '@/lib/week';
 import { openPolls } from '@/lib/poll-tally';
 import type {
@@ -53,16 +54,29 @@ export default async function DashboardPage() {
   const students = rotationMembers(users);
   const nameOf = (id: string) => users.find((user) => user.id === id)?.name ?? '';
 
+  // The next meeting has its own card, so listing it again under "this week"
+  // says the same thing twice. What is left is what the card does not show.
+  const restOfWeek = thisWeek.filter((meeting) => meeting.id !== upcoming?.id);
   // The duty belongs to the week itself, so it stands whether or not anything
   // has been scheduled yet.
-  // The next meeting has its own card above, so listing it again under "this
-  // week" says the same thing twice. What is left is what the card does not
-  // already show.
-  const restOfWeek = thisWeek.filter((meeting) => meeting.id !== upcoming?.id);
   const thisWeekKey = weekKey();
   const lead = leadForWeek(leads, thisWeekKey);
   const confirmedHost = lead ? nameOf(lead.user_id) : '';
   const suggested = confirmedHost ? null : suggestNextHost(users, leads);
+
+  // Self-registration lands inactive, so somebody is stuck until an admin acts.
+  // Only an admin can do anything about it, so only an admin is told.
+  const awaitingApproval =
+    actor.role === 'admin'
+      ? users
+          .filter((user) => user.active !== true)
+          .map((user) => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            row_version: user.row_version,
+          }))
+      : [];
 
   // Asking is the lead's job, but answering is everyone's, and the ask is easy
   // to miss on a page nobody opens. It sits at the top of the page they do.
@@ -80,6 +94,22 @@ export default async function DashboardPage() {
         <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
         {canSchedule && <NewMeetingButton />}
       </div>
+
+      {awaitingApproval.length > 0 && (
+        <section className="p-5 sm:p-6 bg-purple-100 border border-gray-200 rounded-xl space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div>
+              <h3 className="font-semibold text-purple-700">{t('pending.title')}</h3>
+              <p className="text-sm text-gray-600">{t('pending.hint')}</p>
+            </div>
+            <Link href="/settings" className="text-sm text-blue-600 hover:underline">
+              {t('pending.manage')}
+            </Link>
+          </div>
+
+          <PendingUsers users={awaitingApproval} />
+        </section>
+      )}
 
       {awaiting.length > 0 && (
         <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">

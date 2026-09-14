@@ -108,6 +108,12 @@ export const common = defineMessages({
     'dashboard.answeredHint': 'ยังเปิดอยู่ แก้คำตอบได้จนกว่าจะปิดโพล',
     'dashboard.editAnswer': 'แก้คำตอบ',
 
+    'pending.title': 'ผู้ใช้รออนุมัติ',
+    'pending.hint': 'สมัครเข้ามาแล้ว แต่ยังเข้าใช้งานไม่ได้จนกว่าคุณจะอนุมัติ',
+    'pending.approve': 'อนุมัติ',
+    'pending.approving': 'กำลังอนุมัติ...',
+    'pending.manage': 'จัดการผู้ใช้ทั้งหมด',
+
     'rotation.title': 'ผู้รับผิดชอบประจำสัปดาห์',
     'rotation.duty': 'เตรียมการประชุมและสรุปผลของสัปดาห์นี้',
     'rotation.confirmed': 'ยืนยันแล้ว',
@@ -234,6 +240,12 @@ export const common = defineMessages({
     'dashboard.answeredPolls': 'Polls you have answered',
     'dashboard.answeredHint': 'Still open — you can change your answer until it closes',
     'dashboard.editAnswer': 'Change answer',
+
+    'pending.title': 'Users waiting for approval',
+    'pending.hint': 'They have signed up but cannot sign in until you approve them',
+    'pending.approve': 'Approve',
+    'pending.approving': 'Approving...',
+    'pending.manage': 'Manage all users',
 
     'rotation.title': "This week's lead",
     'rotation.duty': "Prepares this week's meeting and writes the summary",
