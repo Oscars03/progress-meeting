@@ -1,12 +1,21 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import type { TaskRecord } from '@/lib/db/schema';
+import type { TaskRecord, UserRecord } from '@/lib/db/schema';
 import KanbanBoard from './kanban';
 import NewTaskButton from './new-task-button';
 import { getT } from '@/lib/ui/server-i18n';
+import { requireSession } from '@/lib/auth-guard';
+import { canAssignWork } from '@/lib/task-rights';
 
 export default async function TasksPage() {
-  const [tasks, t] = await Promise.all([SheetRepo.find<TaskRecord>('tasks'), getT()]);
+  const actor = await requireSession();
+  const [tasks, users, t] = await Promise.all([
+    SheetRepo.find<TaskRecord>('tasks'),
+    SheetRepo.find<UserRecord>('users'),
+    getT()
+  ]);
+
+  const canAssign = canAssignWork(actor);
 
   return (
     <div className="space-y-6">
@@ -19,11 +28,11 @@ export default async function TasksPage() {
           >
             {t('weekly.title')}
           </Link>
-          <NewTaskButton />
+          {canAssign && <NewTaskButton users={users} />}
         </div>
       </div>
 
-      <KanbanBoard tasks={tasks} />
+      <KanbanBoard tasks={tasks} users={users} currentUserId={actor.id} canAssign={canAssign} />
     </div>
   );
 }

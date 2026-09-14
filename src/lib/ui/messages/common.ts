@@ -95,6 +95,8 @@ export const common = defineMessages({
     'dashboard.total': 'งานทั้งหมด',
     'dashboard.open': 'งานที่ยังไม่เสร็จ',
     'dashboard.overdue': 'งานที่เกินกำหนด',
+    'dashboard.myTasks': 'งานของฉัน',
+    'dashboard.myTasksHint': 'งานที่ได้รับมอบหมายและยังไม่เสร็จสิ้น',
 
     'dashboard.nextMeeting': 'การประชุมครั้งถัดไป',
     'dashboard.notScheduled': 'ยังไม่ได้นัดหมาย',
@@ -240,6 +242,8 @@ export const common = defineMessages({
     'dashboard.total': 'All tasks',
     'dashboard.open': 'Open tasks',
     'dashboard.overdue': 'Overdue tasks',
+    'dashboard.myTasks': 'My Tasks',
+    'dashboard.myTasksHint': 'Open tasks assigned to you',
 
     'dashboard.nextMeeting': 'Next meeting',
     'dashboard.notScheduled': 'Not scheduled yet',

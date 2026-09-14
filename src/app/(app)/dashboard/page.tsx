@@ -25,10 +25,11 @@ import type {
   UserRecord,
   WeekLeadRecord,
   TermBreakRecord,
+  TaskRecord,
 } from '@/lib/db/schema';
 
 export default async function DashboardPage() {
-  const [actor, users, meetings, leads, polls, slots, votes, termBreaks, t, locale] = await Promise.all([
+  const [actor, users, meetings, leads, polls, slots, votes, termBreaks, tasks, t, locale] = await Promise.all([
     requireSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
     SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
     SheetRepo.find<TermBreakRecord>('term_breaks'),
+    SheetRepo.find<TaskRecord>('tasks').catch(() => []),
     getT(),
     getLocale(),
   ]);
@@ -81,6 +83,18 @@ export default async function DashboardPage() {
   // Everyone else schedules by proposing times and confirming the winner.
   const canSchedule = actor.role === 'admin';
 
+  const myOpenTasks = tasks
+    .filter(task => {
+      const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
+      return assignees.includes(actor.id) && task.status !== 'done';
+    })
+    .sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return a.due_date.localeCompare(b.due_date);
+    });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -101,6 +115,54 @@ export default async function DashboardPage() {
           </div>
 
           <PendingUsers users={awaitingApproval} />
+        </section>
+      )}
+
+      {myOpenTasks.length > 0 && (
+        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('dashboard.myTasks')}</h3>
+              <p className="text-sm text-gray-500">{t('dashboard.myTasksHint')}</p>
+            </div>
+            <Link href="/tasks" className="text-sm text-blue-600 hover:underline">
+              {t('dashboard.total')}
+            </Link>
+          </div>
+
+          <ul className="space-y-2">
+            {myOpenTasks.map((task) => {
+              let overdue = false;
+              if (task.due_date) {
+                const due = new Date(task.due_date);
+                const now = new Date();
+                due.setHours(0,0,0,0);
+                now.setHours(0,0,0,0);
+                overdue = due < now;
+              }
+              return (
+                <li key={task.id}>
+                  <Link
+                    href={`/tasks`}
+                    className={`block p-4 rounded-xl border transition ${
+                      overdue ? 'bg-red-50 border-red-200 hover:border-red-300' : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                      <span className={`font-semibold ${overdue ? 'text-red-900' : 'text-gray-900'}`}>
+                        {task.title}
+                      </span>
+                      {task.due_date && (
+                        <span className={`text-xs font-medium tabular-nums ${overdue ? 'text-red-600' : 'text-gray-500'}`}>
+                          {t('tasks.due')}: {task.due_date} {overdue && t('tasks.overdue')}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 

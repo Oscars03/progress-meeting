@@ -4,8 +4,9 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createTask } from './actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import type { UserRecord } from '@/lib/db/schema';
 
-export default function NewTaskButton() {
+export default function NewTaskButton({ users = [] }: { users?: UserRecord[] }) {
   const { t } = usePrefs();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -16,12 +17,14 @@ export default function NewTaskButton() {
   const [details, setDetails] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
 
   const reset = () => {
     setTitle('');
     setDetails('');
     setDueDate('');
     setPriority('medium');
+    setAssigneeIds([]);
     setError(null);
   };
 
@@ -31,7 +34,7 @@ export default function NewTaskButton() {
 
     startTransition(async () => {
       try {
-        const res = await createTask({ title, details, due_date: dueDate, priority });
+        const res = await createTask({ title, details, due_date: dueDate, priority, assignee_ids: assigneeIds });
         if (!res.ok) {
           setError(t(res.error, res.vars));
           return;
@@ -90,11 +93,36 @@ export default function NewTaskButton() {
                 </label>
                 <textarea
                   id="task-details"
-                  rows={3}
+                  rows={2}
                   value={details}
                   onChange={(e) => setDetails(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md"
                 />
+              </div>
+
+              <div>
+                <label className="block text-gray-600 mb-1">
+                  {t('tasks.assignees')}
+                </label>
+                <div className="max-h-32 overflow-y-auto border rounded-md p-2 space-y-1 bg-gray-50">
+                  {users.map((u) => (
+                    <label key={u.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={assigneeIds.includes(u.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setAssigneeIds([...assigneeIds, u.id]);
+                          else setAssigneeIds(assigneeIds.filter(id => id !== u.id));
+                        }}
+                        className="rounded text-blue-600"
+                      />
+                      {u.name}
+                    </label>
+                  ))}
+                  {users.length === 0 && (
+                    <span className="text-gray-400">No members</span>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

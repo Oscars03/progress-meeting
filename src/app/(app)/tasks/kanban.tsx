@@ -5,9 +5,19 @@ import { useRouter } from 'next/navigation';
 import { updateTaskStatus } from './actions';
 import { TASK_STATUSES } from './statuses';
 import { usePrefs } from '@/lib/ui/prefs';
-import type { TaskRecord } from '@/lib/db/schema';
+import type { TaskRecord, UserRecord } from '@/lib/db/schema';
 
-export default function KanbanBoard({ tasks }: { tasks: TaskRecord[] }) {
+export default function KanbanBoard({ 
+  tasks,
+  users = [],
+  currentUserId = '',
+  canAssign = false
+}: { 
+  tasks: TaskRecord[],
+  users?: UserRecord[],
+  currentUserId?: string,
+  canAssign?: boolean
+}) {
   const { t } = usePrefs();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -15,6 +25,7 @@ export default function KanbanBoard({ tasks }: { tasks: TaskRecord[] }) {
   const [movingId, setMovingId] = useState<string | null>(null);
 
   const columns = TASK_STATUSES.map((id) => ({ id, label: t(`tasks.status.${id}`) }));
+  const userMap = new Map(users.map(u => [u.id, u.name]));
 
   const handleMove = (task: TaskRecord, newStatus: string) => {
     setError(null);
@@ -57,32 +68,59 @@ export default function KanbanBoard({ tasks }: { tasks: TaskRecord[] }) {
                 </span>
               </h3>
               <div className="space-y-3">
-                {inColumn.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`bg-white p-3 rounded shadow-sm border border-gray-200 transition-opacity ${
-                      movingId === task.id ? 'opacity-50' : ''
-                    }`}
-                  >
-                    <div className="font-medium mb-1">{task.title}</div>
-                    {task.details && (
-                      <div className="text-sm text-gray-500 mb-3">{task.details}</div>
-                    )}
-                    <select
-                      className="text-sm border rounded p-1 w-full"
-                      value={task.status}
-                      onChange={(e) => handleMove(task, e.target.value)}
-                      disabled={isPending}
-                      aria-label={t('tasks.changeStatusOf', { title: task.title })}
+                {inColumn.map((task) => {
+                  const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
+                  const editable = canAssign || assignees.includes(currentUserId);
+                  const assigneeNames = assignees.map(id => userMap.get(id)).filter(Boolean).join(', ');
+                  
+                  let overdue = false;
+                  if (task.due_date && task.status !== 'done') {
+                    const due = new Date(task.due_date);
+                    const now = new Date();
+                    due.setHours(0,0,0,0);
+                    now.setHours(0,0,0,0);
+                    overdue = due < now;
+                  }
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={`bg-white p-3 rounded shadow-sm border border-gray-200 transition-opacity ${
+                        movingId === task.id ? 'opacity-50' : ''
+                      }`}
                     >
-                      {columns.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+                      <div className="font-medium mb-1">{task.title}</div>
+                      {task.details && (
+                        <div className="text-sm text-gray-500 mb-3">{task.details}</div>
+                      )}
+                      
+                      {task.due_date && (
+                        <div className={`text-xs mb-1 font-medium ${overdue ? 'text-red-600' : 'text-gray-500'}`}>
+                          {t('tasks.due')}: {task.due_date} {overdue && t('tasks.overdue')}
+                        </div>
+                      )}
+                      {assigneeNames && (
+                        <div className="text-xs text-gray-500 mb-3">
+                          {t('tasks.assignees')}: {assigneeNames}
+                        </div>
+                      )}
+
+                      <select
+                        className="text-sm border rounded p-1 w-full"
+                        value={task.status}
+                        onChange={(e) => handleMove(task, e.target.value)}
+                        disabled={isPending || !editable}
+                        aria-label={t('tasks.changeStatusOf', { title: task.title })}
+                      >
+                        {columns.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
                 {inColumn.length === 0 && (
                   <p className="text-xs text-gray-400 text-center py-3">{t('tasks.emptyColumn')}</p>
                 )}
