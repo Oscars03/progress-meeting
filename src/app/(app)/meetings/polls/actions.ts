@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole, requireSession } from '@/lib/auth-guard';
+import { requireSession } from '@/lib/auth-guard';
 import { isChoice, type Choice } from '@/lib/poll-tally';
 import { isWeekLead } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
@@ -37,6 +37,29 @@ function revalidate(pollId?: string) {
  * Checked here rather than only in the page: a server action is reachable by
  * anyone holding its id, so a hidden button protects nothing.
  */
+/**
+ * Running a poll belongs to whoever runs the week it is for -- the same rule
+ * that governs opening one. Admin stays the fallback, so a week with no
+ * confirmed lead is not a poll nobody can finish.
+ *
+ * The week comes from the poll's own slots, so a poll is governed by the week
+ * it would schedule, not by when it happened to be created.
+ */
+async function assertRunsThePoll(
+  actor: { id: string; role: string },
+  pollSlots: { start_at: string }[],
+): Promise<void> {
+  if (actor.role === 'admin') return;
+
+  const earliest = [...pollSlots].sort((a, b) => a.start_at.localeCompare(b.start_at))[0];
+  if (!earliest) throw new UserError('avail.leadOnly');
+
+  const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+  if (!isWeekLead(leads, weekKey(new Date(earliest.start_at)), actor.id)) {
+    throw new UserError('avail.leadOnly');
+  }
+}
+
 export async function createPollAction(input: {
   title: string;
   note: string;
@@ -136,7 +159,11 @@ export async function closePollAction(
   status: 'open' | 'closed'
 ) {
   return toResult(async () => {
-  const actor = await requireRole('professor');
+  const actor = await requireSession();
+
+  const slots = await SheetRepo.find<AvailabilitySlotRecord>('availability_slots');
+  await assertRunsThePoll(actor, slots.filter((s) => s.poll_id === pollId));
+
   await SheetRepo.update<AvailabilityPollRecord>(
     'availability_polls',
     pollId,
@@ -160,7 +187,7 @@ export async function confirmSlotAction(
   slotId: string
 ) {
   return toResult(async () => {
-  const actor = await requireRole('professor');
+  const actor = await requireSession();
 
   const [polls, slots] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
@@ -173,6 +200,8 @@ export async function confirmSlotAction(
 
   const slot = slots.find((s) => s.id === slotId && s.poll_id === pollId);
   if (!slot) throw new UserError('polls.error.slotNotFound');
+
+  await assertRunsThePoll(actor, [slot]);
 
   const meeting = await SheetRepo.insert(
     'meetings',
@@ -205,7 +234,7 @@ export async function confirmSlotAction(
 
 export async function deletePollAction(pollId: string, rowVersion: number) {
   return toResult(async () => {
-  const actor = await requireRole('professor');
+  const actor = await requireSession();
 
   const [slots, votes] = await Promise.all([
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
@@ -213,6 +242,7 @@ export async function deletePollAction(pollId: string, rowVersion: number) {
   ]);
 
   const mySlots = slots.filter((s) => s.poll_id === pollId);
+  await assertRunsThePoll(actor, mySlots);
   const slotIds = new Set(mySlots.map((s) => s.id));
 
   // Votes first, then slots, then the poll: deleting top-down would leave rows
