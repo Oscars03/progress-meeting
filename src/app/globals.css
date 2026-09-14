@@ -423,24 +423,28 @@ body {
      day view still shows everything, and is what the calendar opens on.
      ------------------------------------------------------------------ */
 
-  /* Week: blocks become bars. The colour and the position say who is busy
-     and when, which is the whole job at this width. */
-  .fc-timeGridWeek-view .fc-timegrid-event .fc-event-time,
-  .fc-timeGridWeek-view .fc-timegrid-event .fc-event-title {
-    display: none;
+  /* Week: a heat map of how many people are busy, not a list of names.
+     Printing titles into a 45px column broke them to one character per line;
+     drawing them as bars said nothing at all. A count answers the question
+     this view is for -- the palest column is when the lab is free. */
+  .fc-timeGridWeek-view .fc-bg-event {
+    opacity: 1;
   }
-  .fc-timeGridWeek-view .fc-timegrid-event {
-    /* A bar reads as a bar: fill the column rather than leaving a hairline. */
-    padding: 0;
-    border-left-width: 4px;
-    border-radius: 3px;
-    min-height: 6px;
+  .fc-timeGridWeek-view .fc-bg-event .cal-heat-n {
+    display: block;
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    line-height: 1.5rem;
+    color: var(--cal-ink);
+    opacity: 0.75;
   }
-  /* Overlapping blocks are inset to slivers by FullCalendar; at this width
-     that makes two people's hours indistinguishable from one. */
-  .fc-timeGridWeek-view .fc-timegrid-event-harness-inset .fc-timegrid-event {
-    box-shadow: none;
-  }
+  /* One hue, five depths. Colour would imply a kind; depth implies a count. */
+  .fc-timeGridWeek-view .cal-heat-1 { background: rgba(220, 38, 38, 0.1); }
+  .fc-timeGridWeek-view .cal-heat-2 { background: rgba(220, 38, 38, 0.22); }
+  .fc-timeGridWeek-view .cal-heat-3 { background: rgba(220, 38, 38, 0.36); }
+  .fc-timeGridWeek-view .cal-heat-4 { background: rgba(220, 38, 38, 0.5); }
+  .fc-timeGridWeek-view .cal-heat-5 { background: rgba(220, 38, 38, 0.66); }
 
   /* Month: a dot per event, so the date stays the biggest thing in the cell
      and a glance still shows which days are full. */
