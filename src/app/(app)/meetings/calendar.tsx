@@ -380,9 +380,26 @@ export default function CalendarView({
             );
           }}
           views={{
-            timeGridWeek: { dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true } },
+            timeGridWeek: {
+              // Seven columns on a phone is about 45px each, which is not a
+              // column you can read a name in -- the header becomes a date
+              // over a weekday instead of a sentence, and the blocks are read
+              // as colour. See the mobile rules in globals.css.
+              dayHeaderFormat: isPhone
+                ? { weekday: 'narrow' }
+                : { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true },
+            },
             timeGridDay: { dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true } },
-            dayGridMonth: { dayHeaderFormat: { weekday: 'short' } }
+            dayGridMonth: {
+              dayHeaderFormat: { weekday: 'narrow' },
+              // A month cell on a phone is ~50px wide. Three truncated titles
+              // in it say less than three dots do, and the dots leave the date
+              // legible, which is what a month view is actually for.
+              eventDisplay: isPhone ? 'list-item' : 'block',
+              dayMaxEvents: isPhone ? 3 : 4,
+              // "+3 more" is cut mid-word in a 50px cell; the number carries it.
+              moreLinkContent: isPhone ? (arg: { num: number }) => `+${arg.num}` : undefined,
+            },
           }}
           headerToolbar={{
             left: 'prev,next today',
