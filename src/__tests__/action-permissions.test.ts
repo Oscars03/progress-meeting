@@ -43,6 +43,7 @@ const { createPollAction, closePollAction, confirmSlotAction, deletePollAction }
 );
 const { createMeeting } = await import('../app/(app)/meetings/actions');
 const { createTask, updateTaskStatus, updateTaskDetails } = await import('../app/(app)/tasks/actions');
+const { saveWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
@@ -312,5 +313,59 @@ describe('task permissions', () => {
     signedInAs('student1');
     const result = await updateTaskDetails('t1', { title: 'Updated' }, 1);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('weekly progress permissions', () => {
+  beforeEach(() => {
+    tables['tasks'] = [
+      { id: 't1', title: 'Task 1', assignee_ids: ['student1'], status: 'draft', row_version: 1 }
+    ];
+    tables['task_updates'] = [];
+  });
+
+  const input = {
+    taskId: 't1',
+    progressPct: 10,
+    summary: 'Did some work',
+    risks: '',
+    nextPlan: '',
+    weekKey: WEEK
+  };
+
+  it('allows an assignee to record their own progress', async () => {
+    signedInAs('student1');
+    const result = await saveWeeklyUpdateAction(input);
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith('task_updates', expect.anything(), 'student1');
+  });
+
+  it('refuses a non-assignee who is not the lead', async () => {
+    signedInAs('student2');
+    const result = await saveWeeklyUpdateAction(input);
+    expect(result.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('allows the lead of the week to record anyone’s progress for that week', async () => {
+    signedInAs('lead');
+    const result = await saveWeeklyUpdateAction(input);
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalled();
+  });
+
+  it('refuses the lead of a different week to record progress', async () => {
+    signedInAs('lead');
+    // lead is assigned to WEEK (2026-W40)
+    const result = await saveWeeklyUpdateAction({ ...input, weekKey: '2026-W41' });
+    expect(result.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('allows professor/admin to record anyone’s progress', async () => {
+    signedInAs('prof', 'professor');
+    const result = await saveWeeklyUpdateAction(input);
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalled();
   });
 });

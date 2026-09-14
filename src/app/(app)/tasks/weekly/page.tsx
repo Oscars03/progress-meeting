@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
 import { recentWeekKeys, weekKey, weeksAgo, weekStartDate } from '@/lib/week';
-import type { TaskRecord, TaskUpdateRecord, UserRecord } from '@/lib/db/schema';
+import type { TaskRecord, TaskUpdateRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { canRecordProgress } from '@/lib/task-rights';
 import WeeklyBoard, { type TaskRow } from './weekly-board';
 import { getT } from '@/lib/ui/server-i18n';
 
@@ -20,10 +21,11 @@ export default async function WeeklyPage() {
   const actor = await requireSession();
   const thisWeek = weekKey();
 
-  const [tasks, updates, users, t] = await Promise.all([
+  const [tasks, updates, users, leads, t] = await Promise.all([
     SheetRepo.find<TaskRecord>('tasks'),
     SheetRepo.find<TaskUpdateRecord>('task_updates'),
     SheetRepo.find<UserRecord>('users'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
     getT(),
   ]);
 
@@ -52,8 +54,8 @@ export default async function WeeklyPage() {
       overdue: task.overdue_flag === true,
       progressPct: Math.round(Number(task.progress_pct) || 0),
       ownerName: nameById.get(task.owner_id) ?? '—',
-      isMine:
-        task.owner_id === actor.id || assigneeIds(task).includes(actor.id),
+      isMine: task.owner_id === actor.id || assigneeIds(task).includes(actor.id),
+      editable: canRecordProgress(actor, task, thisWeek, leads),
       current: current
         ? {
             summary: current.summary ?? '',
