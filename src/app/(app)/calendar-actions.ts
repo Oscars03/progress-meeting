@@ -19,6 +19,7 @@ import {
   type PersonAvailability,
 } from '@/lib/availability-grid';
 import { labInstant } from '@/lib/lab-time';
+import { labMembers } from '@/lib/members';
 import type { MeetingAttendeeRecord, MeetingRecord, UserRecord, PersonalEventRecord } from '@/lib/db/schema';
 
 /**
@@ -65,7 +66,7 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     SheetRepo.find<PersonalEventRecord>('personal_events'),
   ]);
 
-  const active = users.filter((u) => u.active === true);
+  const active = labMembers(users);
 
   const appBusy = new Map<string, Interval[]>();
   for (const meeting of meetings) {
@@ -229,8 +230,8 @@ export async function slotConflictsAction(
     SheetRepo.find<PersonalEventRecord>('personal_events'),
   ]);
 
-  const candidates = users.filter(
-    (u) => u.active === true && (connected.has(u.id) || personalEvents.some(pe => pe.user_id === u.id))
+  const candidates = labMembers(users).filter(
+    (u) => connected.has(u.id) || personalEvents.some((pe) => pe.user_id === u.id)
   );
   const empty = slots.map((s) => ({ slotId: s.id, busyNames: [], checked: 0 }));
   if (candidates.length === 0) return empty;

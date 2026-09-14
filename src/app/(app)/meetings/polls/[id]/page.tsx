@@ -15,6 +15,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import PollGrid, { type SlotView } from './poll-grid';
+import { labMembers } from '@/lib/members';
 
 export default async function PollDetailPage(props: PageProps<'/meetings/polls/[id]'>) {
   const { id } = await props.params;
@@ -37,7 +38,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     );
   if (!poll) notFound();
 
-  const activeUsers = users.filter((u) => u.active === true);
+  const activeUsers = labMembers(users);
   const nameById = new Map(activeUsers.map((u) => [u.id, u.name] as const));
 
   const mySlots = slots

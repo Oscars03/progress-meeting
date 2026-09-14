@@ -13,6 +13,7 @@ import type {
 } from '@/lib/db/schema';
 import { isWeekLead, leadForWeek, rotationMembers, suggestNextHost } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
+import { isMember } from '@/lib/members';
 import HostPicker from '../../dashboard/host-picker';
 import MinutesEditor from './minutes-editor';
 import ActionItems from './action-items';
@@ -42,7 +43,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   ]);
 
   const people = users
-    .filter((u) => u.active === true)
+    .filter(isMember)
     .map((u) => ({ id: u.id, name: u.name }));
 
   const minutes = allMinutes.find((m) => m.meeting_id === id) ?? null;

@@ -8,6 +8,7 @@ import ConnectGoogleButton from './connect-google-button';
 
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requireSession } from '@/lib/auth-guard';
+import { labMembers } from '@/lib/members';
 import { myEvents, type GoogleEvent } from '@/lib/google/calendar';
 import type { PersonalEventRecord, UserRecord, TermBreakRecord } from '@/lib/db/schema';
 
@@ -30,15 +31,24 @@ export default async function MeetingsPage() {
 
   const userMap = new Map(users.map(u => [u.id, u.name]));
 
+  // The calendar is the lab's week. An admin is the account that administers
+  // the app rather than somebody the week has to accommodate, so its personal
+  // hours are not other people's business and its name does not belong on a
+  // shared calendar. Its own owner still sees them, because they are theirs.
+  const memberIds = new Set(labMembers(users).map((u) => u.id));
+  const showsOnCalendar = (userId: string) => memberIds.has(userId) || userId === actor.id;
+
   const mappedMeetings: MappedMeeting[] = meetings.map(m => ({
     ...m,
     owner_name: userMap.get(m.owner_id) || 'Unknown'
   }));
 
-  const mappedPersonalEvents: MappedPersonalEvent[] = allPersonalEvents.map(pe => ({
-    ...pe,
-    user_name: userMap.get(pe.user_id) || 'Unknown'
-  }));
+  const mappedPersonalEvents: MappedPersonalEvent[] = allPersonalEvents
+    .filter((pe) => showsOnCalendar(pe.user_id))
+    .map(pe => ({
+      ...pe,
+      user_name: userMap.get(pe.user_id) || 'Unknown'
+    }));
 
   const isCalendarSynced = Boolean(storedToken);
   
@@ -52,7 +62,7 @@ export default async function MeetingsPage() {
   const allGoogleEvents: (GoogleEvent & { owner_name?: string })[] = [];
   
   await Promise.all(
-    Array.from(connectedUserIds).map(async (uId) => {
+    Array.from(connectedUserIds).filter(showsOnCalendar).map(async (uId) => {
       try {
         const events = await myEvents(uId, timeMin.toISOString(), timeMax.toISOString());
         const userName = userMap.get(uId) || 'Unknown';
