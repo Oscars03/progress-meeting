@@ -10,6 +10,7 @@ import RotationOrder, { type RotationStudent } from './rotation-order';
 import TermBreaks from './term-breaks';
 import MyName from './my-name';
 import { rotationMembers } from '@/lib/rotation';
+import { labMembers } from '@/lib/members';
 import type { TermBreakRecord } from '@/lib/db/schema';
 
 export default async function SettingsPage() {
@@ -33,7 +34,7 @@ export default async function SettingsPage() {
   try {
     const connected = await getConnectedUserIds();
     const allUsers = await SheetRepo.find<UserRecord>('users');
-    const active = allUsers.filter((u) => u.active === true);
+    const active = labMembers(allUsers);
     activeCount = active.length;
     connectedCount = active.filter((u) => connected.has(u.id)).length;
   } catch {
