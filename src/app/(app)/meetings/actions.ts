@@ -7,7 +7,8 @@ import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { rotationMembers } from '@/lib/rotation';
 import { labInstant } from '@/lib/lab-time';
-import type { UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import type { UserRecord, WeekLeadRecord, TermBreakRecord } from '@/lib/db/schema';
+import { breakCovering, breakForWeek } from '@/lib/term-breaks';
 
 function isHttpUrl(value: string): boolean {
   try {
@@ -46,6 +47,12 @@ export async function createMeeting(data: {
     const end = labInstant(data.end_at);
     if (!start || !end) throw new UserError('error.dateInvalid');
     if (end <= start) throw new UserError('error.endBeforeStart');
+
+    const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
+    const coveringBreak = breakCovering(breaks, start.toISOString().slice(0, 10));
+    if (coveringBreak) {
+      throw new UserError('error.duringBreak', { name: coveringBreak.name });
+    }
 
     const meetLink = data.meet_link?.trim() ?? '';
     if (meetLink && !isHttpUrl(meetLink)) {
@@ -89,6 +96,12 @@ export async function setWeekLead(weekKey: string, userId: string): Promise<Acti
 
     if (!/^\d{4}-W\d{2}$/.test(weekKey)) {
       throw new UserError('error.invalidValue', { value: weekKey });
+    }
+
+    const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
+    const coveringBreak = breakForWeek(breaks, weekKey);
+    if (coveringBreak) {
+      throw new UserError('error.duringBreak', { name: coveringBreak.name });
     }
 
     if (userId) {

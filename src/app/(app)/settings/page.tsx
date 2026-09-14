@@ -7,7 +7,9 @@ import { requireSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
 import RotationOrder, { type RotationStudent } from './rotation-order';
+import TermBreaks from './term-breaks';
 import { rotationMembers } from '@/lib/rotation';
+import type { TermBreakRecord } from '@/lib/db/schema';
 
 export default async function SettingsPage() {
   const actor = await requireSession();
@@ -15,6 +17,7 @@ export default async function SettingsPage() {
 
   let users: SafeUser[] = [];
   let rotation: RotationStudent[] = [];
+  let breaks: TermBreakRecord[] = [];
   let loadError = false;
   let populatedTabs: string[] = [];
 
@@ -44,6 +47,7 @@ export default async function SettingsPage() {
         row_version: u.row_version,
       }));
       rotation = rotationMembers(rawUsers).map((u) => ({ id: u.id, name: u.name }));
+      breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
     } catch {
       // Database may not be initialised yet.
       loadError = true;
@@ -74,6 +78,8 @@ export default async function SettingsPage() {
       />
 
       {isAdmin && <RotationOrder students={rotation} />}
+
+      {isAdmin && <TermBreaks breaks={breaks} />}
 
       {isAdmin ? (
         <UserManager initialUsers={users} loadError={loadError} populatedTabs={populatedTabs} />

@@ -15,6 +15,8 @@ import PendingUsers from './pending-users';
 import { weekKey } from '@/lib/week';
 import { formatLabTime } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
+import { breakForWeek } from '@/lib/term-breaks';
+import { intlLocale } from '@/lib/ui/i18n';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -22,10 +24,11 @@ import type {
   MeetingRecord,
   UserRecord,
   WeekLeadRecord,
+  TermBreakRecord,
 } from '@/lib/db/schema';
 
 export default async function DashboardPage() {
-  const [actor, users, meetings, leads, polls, slots, votes, t, locale] = await Promise.all([
+  const [actor, users, meetings, leads, polls, slots, votes, termBreaks, t, locale] = await Promise.all([
     requireSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
@@ -33,6 +36,7 @@ export default async function DashboardPage() {
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
     SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
+    SheetRepo.find<TermBreakRecord>('term_breaks'),
     getT(),
     getLocale(),
   ]);
@@ -48,9 +52,10 @@ export default async function DashboardPage() {
   // The duty belongs to the week itself, so it stands whether or not anything
   // has been scheduled yet.
   const thisWeekKey = weekKey();
-  const lead = leadForWeek(leads, thisWeekKey);
+  const currentBreak = breakForWeek(termBreaks, thisWeekKey);
+  const lead = currentBreak ? null : leadForWeek(leads, thisWeekKey);
   const confirmedHost = lead ? nameOf(lead.user_id) : '';
-  const suggested = confirmedHost ? null : suggestNextHost(users, leads);
+  const suggested = (confirmedHost || currentBreak) ? null : suggestNextHost(users, leads);
 
   // Self-registration lands inactive, so somebody is stuck until an admin acts.
   // Only an admin can do anything about it, so only an admin is told.
@@ -148,6 +153,18 @@ export default async function DashboardPage() {
               {t('dashboard.openMeeting')}
             </Link>
           </>
+        ) : currentBreak ? (
+          <>
+            <p className="text-xl font-bold text-gray-900">{t('dashboard.breakWeek', { name: currentBreak.name })}</p>
+            <p className="text-sm text-gray-500">
+              {(() => {
+                const resumes = new Date(currentBreak.end_date);
+                resumes.setUTCDate(resumes.getUTCDate() + 1);
+                const formatter = new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: 'long' });
+                return t('dashboard.breakResumes', { date: formatter.format(resumes) });
+              })()}
+            </p>
+          </>
         ) : (
           <>
             <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
@@ -165,39 +182,41 @@ export default async function DashboardPage() {
 
         {/* The lead stands whether or not anything is scheduled, so this strip
             shows in both states above. */}
-        <div className="pt-3 border-t border-gray-100 space-y-2">
-          {students.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              <span className="text-gray-400">{t('rotation.title')}: </span>
-              {t('rotation.noStudents')}
-            </p>
-          ) : (
-            <>
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                <span className="text-gray-500">{t('rotation.title')}:</span>
-                <span className="font-semibold text-gray-900">
-                  {confirmedHost || suggested?.name}
-                </span>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    confirmedHost ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
-                  }`}
-                >
-                  {confirmedHost ? t('rotation.confirmed') : t('rotation.suggested')}
-                </span>
+        {!currentBreak && (
+          <div className="pt-3 border-t border-gray-100 space-y-2">
+            {students.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                <span className="text-gray-400">{t('rotation.title')}: </span>
+                {t('rotation.noStudents')}
               </p>
+            ) : (
+              <>
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                  <span className="text-gray-500">{t('rotation.title')}:</span>
+                  <span className="font-semibold text-gray-900">
+                    {confirmedHost || suggested?.name}
+                  </span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      confirmedHost ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    {confirmedHost ? t('rotation.confirmed') : t('rotation.suggested')}
+                  </span>
+                </p>
 
-              {canConfirm && (
-                <HostPicker
-                  weekKey={thisWeekKey}
-                  students={students.map((student) => ({ id: student.id, name: student.name }))}
-                  hostId={lead?.user_id ?? ''}
-                  suggestedId={suggested?.id ?? ''}
-                />
-              )}
-            </>
-          )}
-        </div>
+                {canConfirm && (
+                  <HostPicker
+                    weekKey={thisWeekKey}
+                    students={students.map((student) => ({ id: student.id, name: student.name }))}
+                    hostId={lead?.user_id ?? ''}
+                    suggestedId={suggested?.id ?? ''}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Answered, but still open: quieter than the amber card above, because
