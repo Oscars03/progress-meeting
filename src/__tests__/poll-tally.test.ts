@@ -30,6 +30,10 @@ describe('tallySlot', () => {
   it('flags a slot nobody is blocked on', () => {
     expect(tallySlot('s1', votes([['u1', 'yes'], ['u2', 'maybe']]), 2).everyoneCanMake).toBe(true);
     expect(tallySlot('s1', votes([['u1', 'yes'], ['u2', 'no']]), 2).everyoneCanMake).toBe(false);
+
+    // Nobody has said no, but most of the group has not answered: claiming the
+    // slot is clear here is how the badge came to contradict the counts beside it.
+    expect(tallySlot('s1', votes([['u1', 'maybe']]), 10).everyoneCanMake).toBe(false);
   });
 
   it('does not call an unanswered slot attendable', () => {

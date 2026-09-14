@@ -41,7 +41,13 @@ export type SlotTally = {
   /** People invited who have not answered this slot. */
   pending: number;
   score: number;
-  /** True when nobody answered "no". */
+  /**
+   * True only when every voter has answered and none of them said "no".
+   *
+   * It used to mean "nobody said no yet", which let the badge claim a slot was
+   * clear while nine of ten people had not answered at all -- the loudest
+   * possible way to be wrong about a time.
+   */
   everyoneCanMake: boolean;
 };
 
@@ -61,14 +67,16 @@ export function tallySlot(
   }
 
   const answered = yes + maybe + no;
+  const pending = Math.max(0, voterCount - answered);
+
   return {
     slotId,
     yes,
     maybe,
     no,
-    pending: Math.max(0, voterCount - answered),
+    pending,
     score: yes * CHOICE_WEIGHT.yes + maybe * CHOICE_WEIGHT.maybe,
-    everyoneCanMake: no === 0 && answered > 0,
+    everyoneCanMake: no === 0 && answered > 0 && pending === 0,
   };
 }
 
