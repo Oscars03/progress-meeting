@@ -169,7 +169,7 @@ export default function PollGrid({
             key={slot.id}
             className={`p-4 rounded-xl border shadow-sm space-y-3 ${
               slot.isRecommended
-                ? 'bg-white border-green-300 ring-1 ring-green-200'
+                ? 'bg-white border-green-200 ring-1 ring-green-200'
                 : 'bg-white border-gray-100'
             }`}
           >
@@ -181,8 +181,12 @@ export default function PollGrid({
                 {formatRange(slot.startAt, slot.endAt)}
               </span>
 
+              {/* green-50, not green-100: only the shades listed in globals.css
+                  are remapped for dark mode, and green-100 is not one -- it
+                  stayed near-white while the text turned light green, leaving
+                  the badge unreadable. */}
               {slot.isRecommended && (
-                <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded font-medium ml-2">
+                <span className="bg-green-50 text-green-800 text-xs px-2 py-0.5 rounded font-medium ml-2">
                   {t('polls.recommended')}
                 </span>
               )}
