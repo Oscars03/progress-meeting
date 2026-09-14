@@ -161,6 +161,26 @@ export default function CalendarView({
     });
   });
 
+  /**
+   * Whether the week on screen has anything to put in the all-day strip.
+   *
+   * FullCalendar sizes that row in JS, so no amount of CSS collapses it -- an
+   * empty one costs about 52px on every view. It is worth its space when it
+   * holds something and nothing when it does not, so it is only rendered when
+   * the *visible* range has an all-day entry. Judging it on the whole dataset
+   * instead would keep the strip open all year for one all-day event in March.
+   *
+   * Meetings and personal events always carry a time, so only Google can send
+   * a whole-day entry: its all-day form is a date with no "T".
+   */
+  const [range, setRange] = useState<{ start: number; end: number } | null>(null);
+  const hasAllDayEvents = googleEvents.some((ge) => {
+    if (!ge.start || ge.start.includes('T')) return false;
+    if (!range) return true;
+    const at = Date.parse(ge.start);
+    return !Number.isNaN(at) && at >= range.start && at < range.end;
+  });
+
   const handleSelect = (info: DateSelectArg) => {
     setError('');
     setCreateTitle('');
@@ -298,6 +318,20 @@ export default function CalendarView({
           initialView={isPhone ? 'timeGridDay' : 'timeGridWeek'}
           slotMinTime="08:00:00"
           slotMaxTime="22:00:00"
+          /* The all-day strip holds a label, a scroll track and about 90px of
+             nothing on every week where Google returned no all-day events --
+             which is most of them. Shown only when it has something to show. */
+          allDaySlot={hasAllDayEvents}
+          /* Fires after the view settles, so this is a callback rather than an
+             effect. Guarded on the value: without that, setting state here
+             would re-render, fire it again, and spin. */
+          datesSet={(arg) => {
+            const start = arg.start.getTime();
+            const end = arg.end.getTime();
+            setRange((prev) =>
+              prev && prev.start === start && prev.end === end ? prev : { start, end }
+            );
+          }}
           views={{
             timeGridWeek: { dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true } },
             timeGridDay: { dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true } },

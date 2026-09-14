@@ -68,14 +68,20 @@ body {
   border-right: none;
 }
 
-/* Hour lines stay, at a weight you read past rather than at. The half-hour
-   line goes: it doubled the ruling for no information. */
+/* One line per hour, and only per hour. FullCalendar rules every 30-minute
+   slot, so half the lines marked nothing and the pair of them read as a dotted
+   fill across the whole week. The hour label is what you navigate by; the line
+   only has to say where the hour starts. */
+/* 24px per half hour, so an hour is 48px and the 08:00-22:00 range almost
+   fits a desktop screen. At the previous 3rem a slot, a week showed five hours
+   and picking a time meant scrolling blind through the other nine. */
 .fc .fc-timegrid-slot {
   border-bottom: 1px solid var(--cal-line-soft);
-  height: 3rem;
+  height: 1.5rem;
 }
-.fc .fc-timegrid-slot-minor {
+.fc .fc-timegrid-slot.fc-timegrid-slot-minor {
   border-top: none;
+  border-bottom: none;
 }
 
 /* Day headers: the weekday small and quiet above the date, instead of one
@@ -191,6 +197,7 @@ body {
 .fc .fc-daygrid-body .fc-daygrid-day-events {
   max-height: 5.25rem;
   overflow-y: auto;
+  min-height: 0;
 }
 .fc .fc-timegrid-divider {
   padding: 0;
@@ -278,10 +285,10 @@ body {
     text-align: center;
   }
 
-  /* An hour of screen for an hour of the day: at the desktop height a phone
-     shows four hours, and picking a time means scrolling blind. */
+  /* Slightly taller than desktop: a finger needs more than 24px to land on the
+     right half hour, and a phone has one column to spend it on. */
   .fc .fc-timegrid-slot {
-    height: 2.75rem;
+    height: 1.9rem;
   }
   .fc .fc-timegrid-slot-label-cushion {
     font-size: 0.68rem;
