@@ -34,9 +34,14 @@ function LoginForm({
     ? (SIGNIN_ERRORS[urlError] ?? 'login.signInFailed')
     : null;
 
+  // Signing up is not failing. The account was created; it is waiting. Shown in
+  // red beside a sign-in form, that reads as "something went wrong, try again"
+  // -- so people tried again, which is the one thing that cannot help.
+  const waiting = urlError === 'PendingApproval';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(urlErrorKey ? t(urlErrorKey) : '');
+  const [error, setError] = useState(urlErrorKey && !waiting ? t(urlErrorKey) : '');
   const [loading, setLoading] = useState(false);
   // Google sends the browser away, so this never resets -- which is the point:
   // the button stays spent while the redirect is on its way.
@@ -47,7 +52,7 @@ function LoginForm({
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(waiting && urlErrorKey ? t(urlErrorKey) : '');
 
   const switchMode = (next: 'login' | 'register') => {
     setMode(next);
@@ -85,6 +90,7 @@ function LoginForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setLoading(true);
 
     try {
@@ -125,9 +131,16 @@ function LoginForm({
         </div>
       )}
 
+      {/* Amber, not green: the account exists but cannot be used yet, and green
+          reads as "done". Both routes here -- registering, and a first Google
+          sign-in -- end in the same wait, so both say what to do next: nothing. */}
       {notice && (
-        <div className="p-3 text-sm text-green-800 bg-green-50 rounded-lg border border-green-200">
-          {notice}
+        <div
+          className="p-3 text-sm bg-amber-50 rounded-lg border border-amber-200 space-y-1"
+          role="status"
+        >
+          <p className="text-amber-900 font-medium">{notice}</p>
+          <p className="text-amber-800">{t('login.pendingNothingToDo')}</p>
         </div>
       )}
 
@@ -264,6 +277,7 @@ function LoginForm({
           type="button"
           disabled={busy}
           onClick={() => {
+            setNotice('');
             setGoogleLoading(true);
             signIn('google', { callbackUrl });
           }}
