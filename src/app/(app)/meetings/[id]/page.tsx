@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import BackLink from '@/lib/ui/back-link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
@@ -103,6 +104,18 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
             <p className="text-base font-semibold text-gray-900">
               {hostName || suggestedHost?.name}
             </p>
+
+            {lead?.user_id === actor.id && (
+              <div className="pt-2">
+                <Link
+                  href="/tasks/weekly"
+                  className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition"
+                >
+                  {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
+                </Link>
+              </div>
+            )}
+
             {canManage && (
               <HostPicker
                 weekKey={meetingWeek}

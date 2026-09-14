@@ -267,6 +267,17 @@ export default async function DashboardPage() {
                   </span>
                 </p>
 
+                {lead?.user_id === actor.id && (
+                  <div className="pt-2">
+                    <Link
+                      href="/tasks/weekly"
+                      className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition"
+                    >
+                      {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
+                    </Link>
+                  </div>
+                )}
+
                 {canConfirm && (
                   <HostPicker
                     weekKey={thisWeekKey}

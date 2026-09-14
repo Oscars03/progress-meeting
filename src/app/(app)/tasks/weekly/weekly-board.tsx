@@ -15,6 +15,7 @@ export type TaskRow = {
   progressPct: number;
   ownerName: string;
   isMine: boolean;
+  editable: boolean;
   current: {
     summary: string;
     risks: string;
@@ -169,12 +170,14 @@ export default function WeeklyBoard({
                       {t('weekly.dueOn', { date: row.dueDate })}
                     </span>
                   )}
-                  <button
-                    onClick={() => (editing ? setOpenId(null) : startEdit(row))}
-                    className="text-sm text-blue-600 hover:underline ml-auto"
-                  >
-                    {editing ? t('weekly.close') : row.current ? t('weekly.edit') : t('weekly.fill')}
-                  </button>
+                  {row.editable && (
+                    <button
+                      onClick={() => (editing ? setOpenId(null) : startEdit(row))}
+                      className="text-sm text-blue-600 hover:underline ml-auto"
+                    >
+                      {editing ? t('weekly.close') : row.current ? t('weekly.edit') : t('weekly.fill')}
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">
