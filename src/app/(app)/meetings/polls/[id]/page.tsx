@@ -50,7 +50,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     for (const vote of votes) {
       if (vote.slot_id !== slot.id) continue;
       const choice = vote.choice as Choice;
-      if (choice === 'yes' || choice === 'maybe' || choice === 'no') {
+      if (choice === 'yes' || choice === 'no') {
         byUser.set(vote.user_id, choice);
       }
     }
@@ -66,7 +66,6 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     startAt: slot.start_at,
     endAt: slot.end_at,
     yes: tally.yes,
-    maybe: tally.maybe,
     no: tally.no,
     pending: tally.pending,
     everyoneCanMake: tally.everyoneCanMake,

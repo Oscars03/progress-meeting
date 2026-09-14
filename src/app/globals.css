@@ -188,6 +188,34 @@ body {
   --ev-ink: #334155;
   --ev-edge: #94a3b8;
 }
+
+/**
+ * Somebody else's hours do not swallow the click.
+ *
+ * An event sits above the grid and takes the pointer, so an hour covered by a
+ * colleague's block could not be dragged over -- and the times you most want
+ * to mark are exactly the ones already crowded. There was nothing to do about
+ * it either: another person's entry is information, not something you can open
+ * or edit, so the click it was intercepting had nowhere to go.
+ *
+ * Your own entries and lab meetings keep theirs, because those *do* open.
+ */
+/* The wrapper has to pass the pointer through as well as the event -- it is
+   positioned over the grid and was catching the click by itself. Turned off on
+   the harness and back on for the two kinds that open something, rather than
+   matched with :has(), which not every browser in use here supports. */
+.fc .fc-timegrid-event-harness,
+.fc .fc-daygrid-event-harness {
+  pointer-events: none;
+}
+.fc .fc-event.cal-ev-mine,
+.fc .fc-event.cal-ev-meeting {
+  pointer-events: auto;
+}
+.fc .fc-event.cal-ev-theirs,
+.fc .fc-event.cal-ev-google {
+  pointer-events: none;
+}
 .fc .fc-event:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 1px;

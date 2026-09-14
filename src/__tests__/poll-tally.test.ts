@@ -4,17 +4,25 @@ import { tallySlot, rankSlots, bestSlot, type Choice, type SlotTally } from '../
 const votes = (entries: [string, Choice][]) => new Map<string, Choice>(entries);
 
 describe('tallySlot', () => {
-  it('counts each answer and scores yes above maybe', () => {
+  it('counts each answer and scores only the yeses', () => {
     const t = tallySlot(
       's1',
       votes([
         ['u1', 'yes'],
         ['u2', 'yes'],
-        ['u3', 'maybe'],
+        ['u3', 'no'],
       ]),
       3
     );
-    expect(t).toMatchObject({ yes: 2, maybe: 1, no: 0, pending: 0, score: 5 });
+    expect(t).toMatchObject({ yes: 2, no: 1, pending: 0, score: 2 });
+  });
+
+  // The poll used to offer a third answer. A row left in the sheet from then
+  // must not be read as availability nobody confirmed.
+  it('treats a leftover "maybe" in stored data as a blocker, not a yes', () => {
+    const t = tallySlot('s1', votes([['u1', 'yes'], ['u2', 'maybe' as Choice]]), 2);
+    expect(t).toMatchObject({ yes: 1, no: 1 });
+    expect(t.everyoneCanMake).toBe(false);
   });
 
   it('reports how many invitees have not answered', () => {
@@ -28,12 +36,12 @@ describe('tallySlot', () => {
   });
 
   it('flags a slot nobody is blocked on', () => {
-    expect(tallySlot('s1', votes([['u1', 'yes'], ['u2', 'maybe']]), 2).everyoneCanMake).toBe(true);
+    expect(tallySlot('s1', votes([['u1', 'yes'], ['u2', 'yes']]), 2).everyoneCanMake).toBe(true);
     expect(tallySlot('s1', votes([['u1', 'yes'], ['u2', 'no']]), 2).everyoneCanMake).toBe(false);
 
     // Nobody has said no, but most of the group has not answered: claiming the
     // slot is clear here is how the badge came to contradict the counts beside it.
-    expect(tallySlot('s1', votes([['u1', 'maybe']]), 10).everyoneCanMake).toBe(false);
+    expect(tallySlot('s1', votes([['u1', 'yes']]), 10).everyoneCanMake).toBe(false);
   });
 
   it('does not call an unanswered slot attendable', () => {
@@ -45,7 +53,6 @@ describe('rankSlots', () => {
   const make = (over: Partial<SlotTally>): SlotTally => ({
     slotId: 'x',
     yes: 0,
-    maybe: 0,
     no: 0,
     pending: 0,
     score: 0,
@@ -60,16 +67,9 @@ describe('rankSlots', () => {
   });
 
   it('uses score when blockers are equal', () => {
-    const weak = make({ slotId: 'weak', maybe: 3, score: 3 });
-    const strong = make({ slotId: 'strong', yes: 3, score: 6 });
+    const weak = make({ slotId: 'weak', yes: 1, score: 1 });
+    const strong = make({ slotId: 'strong', yes: 3, score: 3 });
     expect(rankSlots([weak, strong])[0].slotId).toBe('strong');
-  });
-
-  it('prefers firm yeses when score ties', () => {
-    // Two yeses (4) versus one yes and two maybes (4).
-    const firm = make({ slotId: 'firm', yes: 2, score: 4 });
-    const soft = make({ slotId: 'soft', yes: 1, maybe: 2, score: 4 });
-    expect(rankSlots([firm, soft])[0].slotId).toBe('firm');
   });
 
   it('leaves genuinely equal slots in their original order', () => {
@@ -99,10 +99,10 @@ describe('bestSlot', () => {
     expect(bestSlot(tallies)?.slotId).toBe('chosen');
   });
 
-  it('recommends the slot everyone can make', () => {
+  it('recommends the slot everyone can make over a more popular one with a blocker', () => {
     const tallies = [
       tallySlot('clash', votes([['u1', 'yes'], ['u2', 'yes'], ['u3', 'no']]), 3),
-      tallySlot('clear', votes([['u1', 'yes'], ['u2', 'maybe'], ['u3', 'maybe']]), 3),
+      tallySlot('clear', votes([['u1', 'yes'], ['u2', 'yes']]), 2),
     ];
     expect(bestSlot(tallies)?.slotId).toBe('clear');
   });
