@@ -203,12 +203,70 @@ export default function CalendarView({
    * a whole-day entry: its all-day form is a date with no "T".
    */
   const [range, setRange] = useState<{ start: number; end: number } | null>(null);
+  const [viewType, setViewType] = useState('');
   const hasAllDayEvents = googleEvents.some((ge) => {
     if (!ge.start || ge.start.includes('T')) return false;
     if (!range) return true;
     const at = Date.parse(ge.start);
     return !Number.isNaN(at) && at >= range.start && at < range.end;
   });
+
+  /**
+   * The week, on a phone, as how many people are busy in each half hour.
+   *
+   * Seven columns on a 390px screen cannot carry a name -- the first attempt
+   * printed titles and broke them to one character per line; the second drew
+   * bars and said nothing at all. The question this view is actually for is
+   * "when is the lab free", and a count answers it directly: the darker the
+   * cell, the more people cannot make it. Anything paler than the rest is a
+   * candidate for a meeting.
+   *
+   * Drawn as background events so FullCalendar keeps owning the dates, the
+   * header and the navigation. The day view still shows every title, and is
+   * where to go for what a block actually is.
+   */
+  const showHeat = isPhone && viewType === 'timeGridWeek';
+  const heatEvents: EventInput[] = [];
+  if (showHeat && range) {
+    const busy: { from: number; to: number; who: string }[] = [];
+    const push = (start: string, end: string, who: string) => {
+      const a = Date.parse(start);
+      const b = Date.parse(end);
+      if (!Number.isNaN(a) && !Number.isNaN(b) && b > a && who) busy.push({ from: a, to: b, who });
+    };
+
+    meetings.forEach((m) => push(m.start_at, m.end_at, m.owner_name || 'meeting'));
+    personalEvents.forEach((pe) => {
+      if (pe.user_id !== currentUserId && !showOthers) return;
+      push(pe.start_at, pe.end_at, pe.user_name || pe.user_id);
+    });
+    googleEvents.forEach((ge) => push(ge.start, ge.end, ge.owner_name || ge.id));
+
+    const SLOT = 30 * 60 * 1000;
+    for (let day = new Date(range.start); day.getTime() < range.end; day.setDate(day.getDate() + 1)) {
+      for (let hour = 8; hour < 22; hour++) {
+        for (const half of [0, 30]) {
+          const from = new Date(day);
+          from.setHours(hour, half, 0, 0);
+          const a = from.getTime();
+          const b = a + SLOT;
+
+          // Distinct people, not overlapping blocks: one person with three
+          // clashing entries is still one person who cannot make it.
+          const who = new Set(busy.filter((x) => x.from < b && x.to > a).map((x) => x.who));
+          if (who.size === 0) continue;
+
+          heatEvents.push({
+            start: new Date(a),
+            end: new Date(b),
+            display: 'background',
+            classNames: ['cal-heat', `cal-heat-${Math.min(who.size, 5)}`],
+            extendedProps: { busyCount: who.size },
+          });
+        }
+      }
+    }
+  }
 
   const handleSelect = (info: DateSelectArg) => {
     setError('');
@@ -378,6 +436,7 @@ export default function CalendarView({
             setRange((prev) =>
               prev && prev.start === start && prev.end === end ? prev : { start, end }
             );
+            setViewType((prev) => (prev === arg.view.type ? prev : arg.view.type));
           }}
           views={{
             timeGridWeek: {
@@ -406,7 +465,9 @@ export default function CalendarView({
             center: 'title',
             right: isPhone ? 'timeGridDay,timeGridWeek,dayGridMonth' : 'dayGridMonth,timeGridWeek,timeGridDay'
           }}
-          events={allEvents}
+          // On a phone the week is a heat map of who is busy; every other
+          // view shows the events themselves.
+          events={showHeat ? heatEvents : allEvents}
           /* auto, not 100%: the grid takes the height its hours need and the
              page scrolls it, instead of becoming its own scroll container. */
           height="auto"
@@ -424,6 +485,14 @@ export default function CalendarView({
           selectLongPressDelay={150}
           select={handleSelect}
           eventClick={handleEventClick}
+          eventContent={
+            showHeat
+              ? (arg) => {
+                  const n = arg.event.extendedProps.busyCount as number | undefined;
+                  return n ? { html: `<span class="cal-heat-n">${n}</span>` } : undefined;
+                }
+              : undefined
+          }
           dayCellClassNames={(arg) => {
             const pad = (n: number) => String(n).padStart(2, '0');
             const dateStr = `${arg.date.getFullYear()}-${pad(arg.date.getMonth() + 1)}-${pad(arg.date.getDate())}`;
