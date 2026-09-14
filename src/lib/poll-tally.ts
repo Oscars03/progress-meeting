@@ -1,25 +1,26 @@
 /**
  * Scoring for an availability poll.
  *
- * "Best slot" is not simply the most yeses: a slot two people cannot make at
- * all is worse than one three people can make at a cost. A "no" therefore
- * outweighs a "maybe", and the count of blockers breaks ties before the score
- * does -- a meeting nobody has to miss beats a marginally more popular one
- * somebody cannot attend.
+ * "Best slot" is the one fewest people are blocked by, then the one most
+ * people confirmed. Blockers break ties before popularity does: a meeting
+ * nobody has to miss beats a marginally more popular one somebody cannot
+ * attend.
  */
 
 /**
- * Three answers, not two.
+ * Two answers: free, or not.
  *
- * A research group rarely has a window everyone is free for. Forcing yes/no
- * hides the slot that works for everybody at a cost, which is usually the one
- * that gets picked.
+ * This carried a third, "maybe", on the argument that a research group rarely
+ * has a window everybody is free for and a soft yes is worth seeing. In use it
+ * did the opposite -- it is the comfortable answer, so it absorbed the people
+ * who had not really checked, and a slot could look workable on a column of
+ * shrugs. Asked to choose, people check.
  *
  * This lives here rather than beside the server actions: a file-level
  * 'use server' turns every export into a server reference, so a plain array
  * exported from there fails at runtime with "can only export async functions".
  */
-export const CHOICES = ['yes', 'maybe', 'no'] as const;
+export const CHOICES = ['yes', 'no'] as const;
 
 export type Choice = (typeof CHOICES)[number];
 
@@ -28,15 +29,13 @@ export function isChoice(value: unknown): value is Choice {
 }
 
 export const CHOICE_WEIGHT: Record<Choice, number> = {
-  yes: 2,
-  maybe: 1,
+  yes: 1,
   no: 0,
 };
 
 export type SlotTally = {
   slotId: string;
   yes: number;
-  maybe: number;
   no: number;
   /** People invited who have not answered this slot. */
   pending: number;
@@ -57,25 +56,25 @@ export function tallySlot(
   voterCount: number
 ): SlotTally {
   let yes = 0;
-  let maybe = 0;
   let no = 0;
 
+  // Anything that is not a plain yes counts as a blocker, so a "maybe" left in
+  // the sheet from before this was a two-answer poll is read the cautious way
+  // rather than quietly scoring as availability nobody confirmed.
   for (const choice of choicesByUser.values()) {
     if (choice === 'yes') yes++;
-    else if (choice === 'maybe') maybe++;
     else no++;
   }
 
-  const answered = yes + maybe + no;
+  const answered = yes + no;
   const pending = Math.max(0, voterCount - answered);
 
   return {
     slotId,
     yes,
-    maybe,
     no,
     pending,
-    score: yes * CHOICE_WEIGHT.yes + maybe * CHOICE_WEIGHT.maybe,
+    score: yes * CHOICE_WEIGHT.yes,
     everyoneCanMake: no === 0 && answered > 0 && pending === 0,
   };
 }
@@ -95,7 +94,7 @@ export function rankSlots(tallies: SlotTally[]): SlotTally[] {
 
 /** The slot to recommend, or null when nobody has answered anything yet. */
 export function bestSlot(tallies: SlotTally[]): SlotTally | null {
-  const answered = tallies.filter((t) => t.yes + t.maybe + t.no > 0);
+  const answered = tallies.filter((t) => t.yes + t.no > 0);
   if (answered.length === 0) return null;
   return rankSlots(answered)[0];
 }

@@ -170,7 +170,7 @@ export type AvailabilitySlotRecord = BaseRecord & {
 export type AvailabilityVoteRecord = BaseRecord & {
   slot_id: string;
   user_id: string;
-  /** yes | no | maybe */
+  /** yes | no */
   choice: string;
 };
 

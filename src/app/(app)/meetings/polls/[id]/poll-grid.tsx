@@ -7,14 +7,13 @@ import { slotConflictsAction, type SlotBusy } from '../../../calendar-actions';
 import { usePrefs } from '@/lib/ui/prefs';
 import { LAB_TIME_ZONE } from '@/lib/lab-time';
 
-type Choice = 'yes' | 'maybe' | 'no';
+type Choice = 'yes' | 'no';
 
 export type SlotView = {
   id: string;
   startAt: string;
   endAt: string;
   yes: number;
-  maybe: number;
   no: number;
   pending: number;
   everyoneCanMake: boolean;
@@ -26,7 +25,6 @@ export type SlotView = {
 
 const ANSWER_LABELS: Record<Choice, string> = {
   yes: 'polls.status.yes',
-  maybe: 'polls.status.maybe',
   no: 'polls.status.no',
 };
 
@@ -34,10 +32,6 @@ const CHOICE_STYLE: Record<Choice, { on: string; off: string }> = {
   yes: {
     on: 'bg-green-600 text-white',
     off: 'bg-white text-green-700 border border-green-200 hover:bg-green-50',
-  },
-  maybe: {
-    on: 'bg-amber-500 text-white',
-    off: 'bg-white text-amber-800 border border-amber-200 hover:bg-amber-50',
   },
   no: {
     on: 'bg-red-600 text-white',
@@ -214,7 +208,6 @@ export default function PollGrid({
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 tabular-nums">
               <span>{t('polls.statusCount.yes', { yes: slot.yes })}</span>
-              <span>{t('polls.statusCount.maybe', { maybe: slot.maybe })}</span>
               <span>{t('polls.statusCount.no', { no: slot.no })}</span>
               {slot.pending > 0 && <span>{t('polls.statusCount.pending', { pending: slot.pending })}</span>}
             </div>
@@ -228,9 +221,7 @@ export default function PollGrid({
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       r.choice === 'yes'
                         ? 'bg-green-50 text-green-700'
-                        : r.choice === 'maybe'
-                          ? 'bg-amber-50 text-amber-800'
-                          : 'bg-red-50 text-red-700'
+                        : 'bg-red-50 text-red-700'
                     }`}
                   >
                     {r.name}
@@ -241,7 +232,7 @@ export default function PollGrid({
 
             {!closed && (
               <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
-                {(['yes', 'maybe', 'no'] as Choice[]).map((choice) => {
+                {(['yes', 'no'] as Choice[]).map((choice) => {
                   const active = slot.myChoice === choice;
                   const style = CHOICE_STYLE[choice];
                   return (
