@@ -4,16 +4,18 @@ import { getT } from '@/lib/ui/server-i18n';
 import { weekKey } from '@/lib/week';
 import { effectiveTopicOrder, topicsForWeek } from '@/lib/presentation-order';
 import OrderBoard from './order-board';
-import type { TopicRecord, UserRecord } from '@/lib/db/schema';
+import type { TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { isWeekLead } from '@/lib/rotation';
 
 export default async function PresentationsPage(props: {
   searchParams: Promise<{ week?: string }>;
 }) {
   const { week } = await props.searchParams;
-  const [actor, users, allTopics, t] = await Promise.all([
+  const [actor, users, allTopics, leads, t] = await Promise.all([
     requireSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<TopicRecord>('topics'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
     getT(),
   ]);
 
@@ -36,7 +38,7 @@ export default async function PresentationsPage(props: {
       <OrderBoard
         weekKey={activeWeek}
         custom={custom}
-        canArrange={hasManagerRights(actor.role)}
+        canArrange={hasManagerRights(actor.role) || isWeekLead(leads, activeWeek, actor.id)}
         currentUserId={actor.id}
         topics={ordered.map((topic) => ({
           id: topic.id,

@@ -45,6 +45,7 @@ const { createMeeting, deleteMeeting } = await import('../app/(app)/meetings/act
 const { createTask, updateTaskStatus, updateTaskDetails } = await import('../app/(app)/tasks/actions');
 const { saveWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 const { updateMyNameAction } = await import('../app/(app)/settings/actions');
+const { setTopicOrder, clearTopicOrder } = await import('../app/(app)/presentations/actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
@@ -538,6 +539,63 @@ describe('changing your own display name', () => {
     const result = await updateMyNameAction('Whoever');
 
     expect(result).toMatchObject({ ok: false, error: 'error.signInRequired' });
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+// The lead prepares that week's meeting, so the order it runs in is theirs.
+// It was professor-and-above only, which meant the one person actually running
+// the meeting had to ask somebody else to move a name.
+describe('arranging the running order', () => {
+  beforeEach(() => {
+    tables['topics'] = [
+      { id: 't1', title: 'A', owner_id: 'lead', week_key: WEEK, status: 'planned', row_version: 1 },
+      { id: 't2', title: 'B', owner_id: 'other', week_key: WEEK, status: 'planned', row_version: 1 },
+    ];
+  });
+
+  const order = [
+    { id: 't2', row_version: 1 },
+    { id: 't1', row_version: 1 },
+  ];
+
+  it('lets the lead of that week arrange it', async () => {
+    signedInAs('lead');
+    const result = await setTopicOrder(order, WEEK);
+
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalledWith('topics', 't2', { present_order: 1 }, 1, 'lead');
+    expect(update).toHaveBeenCalledWith('topics', 't1', { present_order: 2 }, 1, 'lead');
+  });
+
+  it('lets a professor arrange it', async () => {
+    signedInAs('prof', 'professor');
+    const result = await setTopicOrder(order, WEEK);
+    expect(result.ok).toBe(true);
+  });
+
+  it('refuses a member who does not hold that week', async () => {
+    signedInAs('other');
+    const result = await setTopicOrder(order, WEEK);
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  // Rearranging one week answers to whoever led it, not to this week's lead.
+  it('refuses the lead of a different week', async () => {
+    signedInAs('lead');
+    const result = await setTopicOrder(order, '2026-W41');
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('applies the same rule to clearing the order', async () => {
+    signedInAs('other');
+    const result = await clearTopicOrder(order, WEEK);
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
     expect(update).not.toHaveBeenCalled();
   });
 });

@@ -75,3 +75,51 @@ export function topicCounts(topics: TopicRecord[]): Map<string, number> {
   }
   return counts;
 }
+
+/** One presenter and everything they are bringing, in their own order. */
+export type PresenterBlock = {
+  ownerId: string;
+  topics: TopicRecord[];
+};
+
+/**
+ * The running order as a list of people rather than a list of topics.
+ *
+ * A meeting runs person by person: somebody stands up, shows the three things
+ * they have been working on, and sits down. Arranging loose topics let those
+ * three be scattered through the hour, so the same person was called on three
+ * times and the order on screen was not the order anybody would actually run.
+ *
+ * A person's position is where their *first* topic falls, so this reads the
+ * stored per-topic positions without needing a column of its own -- and a
+ * topic added later joins the end of its author's block instead of the end of
+ * the meeting.
+ */
+export function groupByPresenter(ordered: TopicRecord[]): PresenterBlock[] {
+  const blocks: PresenterBlock[] = [];
+  const byOwner = new Map<string, PresenterBlock>();
+
+  for (const topic of ordered) {
+    const existing = byOwner.get(topic.owner_id);
+    if (existing) {
+      existing.topics.push(topic);
+      continue;
+    }
+    const block: PresenterBlock = { ownerId: topic.owner_id, topics: [topic] };
+    byOwner.set(topic.owner_id, block);
+    blocks.push(block);
+  }
+
+  return blocks;
+}
+
+/**
+ * Flatten a presenter order back to the topic order that gets stored.
+ *
+ * Moving one person has to move everything they brought, which is the whole
+ * point: the stored positions stay per topic, so nothing about the sheet
+ * changes, but they are only ever written in whole blocks.
+ */
+export function flattenPresenters(blocks: PresenterBlock[]): TopicRecord[] {
+  return blocks.flatMap((block) => block.topics);
+}

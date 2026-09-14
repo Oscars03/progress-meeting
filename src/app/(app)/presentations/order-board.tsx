@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { addTopic, deleteTopic, setTopicOrder, clearTopicOrder, updateTopic } from './actions';
@@ -15,8 +15,42 @@ export type BoardTopic = {
   row_version: number;
 };
 
+/** A presenter and everything they are bringing, in their own order. */
+type Block = { ownerId: string; ownerName: string; topics: BoardTopic[] };
+
 /**
- * The week's running order.
+ * Group the flat list the server sends into one block per person, keeping the
+ * order it arrived in. A person's place is where their first topic falls.
+ */
+function toBlocks(topics: BoardTopic[]): Block[] {
+  const blocks: Block[] = [];
+  const byOwner = new Map<string, Block>();
+
+  for (const topic of topics) {
+    const existing = byOwner.get(topic.owner_id);
+    if (existing) {
+      existing.topics.push(topic);
+      continue;
+    }
+    const block: Block = { ownerId: topic.owner_id, ownerName: topic.owner_name, topics: [topic] };
+    byOwner.set(topic.owner_id, block);
+    blocks.push(block);
+  }
+
+  return blocks;
+}
+
+/**
+ * The week's running order, arranged by presenter.
+ *
+ * A meeting runs person by person: somebody stands up, shows the two or three
+ * things they have been working on, and sits down. Arranging loose topics let
+ * one person's three be scattered through the hour, so they were called on
+ * three times and the list on screen was not the order anybody would run.
+ *
+ * So a person is what you move, and their topics go with them. What gets
+ * stored is still a position per topic -- the block is flattened on save --
+ * which is why this needed no change to the sheet.
  *
  * Reordering is local until it is saved, so arranging several people does not
  * fire a write per press. `dirty` compares against what the server sent, which
@@ -40,7 +74,7 @@ export default function OrderBoard({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
 
-  const [order, setOrder] = useState<BoardTopic[]>(topics);
+  const [order, setOrder] = useState<Block[]>(() => toBlocks(topics));
   const [adding, setAdding] = useState(false);
 
   // Re-sync when the server sends a different set -- a topic added, edited or
@@ -52,14 +86,15 @@ export default function OrderBoard({
   const [seen, setSeen] = useState(signature);
   if (seen !== signature) {
     setSeen(signature);
-    setOrder(topics);
+    setOrder(toBlocks(topics));
   }
 
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const dirty = order.some((topic, i) => topics[i]?.id !== topic.id);
+  const flat = order.flatMap((block) => block.topics);
+  const dirty = flat.some((topic, i) => topics[i]?.id !== topic.id);
 
   const run = (work: () => Promise<ActionResult>) => {
     setError('');
@@ -74,18 +109,62 @@ export default function OrderBoard({
     });
   };
 
-  const move = (index: number, by: -1 | 1) => {
-    const to = index + by;
-    if (to < 0 || to >= order.length) return;
+  /**
+   * Lift a presenter out and put them back at `to`, rather than swapping the
+   * two. A drag crossing several rows at once -- a flick, or a pointer that
+   * reports one big jump -- would otherwise trade places with whoever happened
+   * to be under the finger at the end, leaving everybody between untouched.
+   */
+  const moveTo = (from: number, to: number) => {
+    if (to < 0 || to >= order.length || from === to) return;
     const next = [...order];
-    [next[index], next[to]] = [next[to], next[index]];
+    const [lifted] = next.splice(from, 1);
+    next.splice(to, 0, lifted);
     setOrder(next);
   };
+
+  const move = (index: number, by: -1 | 1) => moveTo(index, index + by);
+
+  /**
+   * Drag a presenter, and everything they brought comes with them.
+   *
+   * Pointer events rather than HTML5 drag-and-drop, which a finger cannot
+   * start at all. Only the handle takes the drag, so the rest of the card still
+   * scrolls the page, and `touch-none` on it stops the browser scrolling
+   * instead of dragging once one has begun. The arrows stay: they are the
+   * keyboard path, and dragging is not one.
+   */
+  const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  const onHandleDown = (index: number) => (e: React.PointerEvent) => {
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Carry on uncaptured; the handler still receives moves over the card.
+    }
+    setDragIndex(index);
+  };
+
+  const onHandleMove = (e: React.PointerEvent) => {
+    if (dragIndex === null) return;
+    const over = rowRefs.current.findIndex((row) => {
+      if (!row) return false;
+      const box = row.getBoundingClientRect();
+      return e.clientY >= box.top && e.clientY <= box.bottom;
+    });
+    if (over !== -1 && over !== dragIndex) {
+      moveTo(dragIndex, over);
+      setDragIndex(over);
+    }
+  };
+
+  const onHandleUp = () => setDragIndex(null);
 
   const submitTopic = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingId) {
-      const topic = order.find((x) => x.id === editingId);
+      const topic = flat.find((x) => x.id === editingId);
       if (!topic) return;
       run(async () => {
         const res = await updateTopic(editingId, { title, details }, topic.row_version);
@@ -216,33 +295,54 @@ export default function OrderBoard({
         </div>
       ) : (
         <ol className="space-y-2">
-          {order.map((topic, index) => {
-            const mine = topic.owner_id === currentUserId;
+          {order.map((block, index) => {
+            const mine = block.ownerId === currentUserId;
             return (
               <li
-                key={topic.id}
-                className="p-4 bg-white rounded-xl border border-gray-100 shadow-sm space-y-2"
+                key={block.ownerId}
+                ref={(el) => {
+                  rowRefs.current[index] = el;
+                }}
+                className={`p-4 bg-white rounded-xl border shadow-sm space-y-3 transition ${
+                  dragIndex === index
+                    ? 'border-blue-300 ring-2 ring-blue-200 scale-[1.01] shadow-md'
+                    : 'border-gray-100'
+                }`}
               >
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  {canArrange && (
+                    <span
+                      onPointerDown={onHandleDown(index)}
+                      onPointerMove={onHandleMove}
+                      onPointerUp={onHandleUp}
+                      onPointerCancel={onHandleUp}
+                      title={t('presentations.dragHint')}
+                      className="touch-none cursor-grab active:cursor-grabbing px-1.5 py-1 -ml-1 text-gray-400 hover:text-gray-600 select-none"
+                    >
+                      ⠿
+                    </span>
+                  )}
+
                   <span className="w-7 h-7 shrink-0 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-700 text-sm font-semibold tabular-nums">
                     {index + 1}
                   </span>
-                  <span className="font-semibold text-gray-900 flex-1 min-w-48">{topic.title}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">
-                    {topic.owner_name}
+
+                  <span className="font-semibold text-gray-900 flex-1 min-w-32">
+                    {block.ownerName}
                   </span>
+
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600 tabular-nums">
+                    {t('presentations.topicCount', { n: block.topics.length })}
+                  </span>
+
                   {mine && (
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
                       {t('topics.mine')}
                     </span>
                   )}
-                </div>
 
-                {topic.details && <p className="text-sm text-gray-600">{topic.details}</p>}
-
-                <div className="flex flex-wrap items-center gap-2 pt-1">
                   {canArrange && (
-                    <>
+                    <span className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => move(index, -1)}
@@ -261,33 +361,51 @@ export default function OrderBoard({
                       >
                         ↓
                       </button>
-                    </>
-                  )}
-
-                  {(mine || canArrange) && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(topic)}
-                        disabled={isPending}
-                        className="text-sm text-blue-600 hover:underline"
-                      >
-                        {t('topics.edit')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!confirm(t('topics.confirmDelete'))) return;
-                          run(() => deleteTopic(topic.id, topic.row_version));
-                        }}
-                        disabled={isPending}
-                        className="text-sm text-red-500 hover:underline"
-                      >
-                        {t('common.delete')}
-                      </button>
-                    </>
+                    </span>
                   )}
                 </div>
+
+                {/* The person is the thing being ordered, so their topics sit
+                    inside them rather than as siblings competing for a place. */}
+                <ul className="space-y-1.5 pl-2 border-l-2 border-gray-100">
+                  {block.topics.map((topic) => (
+                    <li key={topic.id} className="pl-3">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="text-sm font-medium text-gray-900 flex-1 min-w-40">
+                          {topic.title}
+                        </span>
+
+                        {(mine || canArrange) && (
+                          <span className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(topic)}
+                              disabled={isPending}
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              {t('topics.edit')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!confirm(t('topics.confirmDelete'))) return;
+                                run(() => deleteTopic(topic.id, topic.row_version));
+                              }}
+                              disabled={isPending}
+                              className="text-xs text-red-500 hover:underline"
+                            >
+                              {t('common.delete')}
+                            </button>
+                          </span>
+                        )}
+                      </div>
+
+                      {topic.details && (
+                        <p className="text-sm text-gray-600 mt-0.5">{topic.details}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </li>
             );
           })}
@@ -300,7 +418,10 @@ export default function OrderBoard({
             type="button"
             onClick={() =>
               run(() =>
-                setTopicOrder(order.map((topic) => ({ id: topic.id, row_version: topic.row_version }))),
+                setTopicOrder(
+                  flat.map((topic) => ({ id: topic.id, row_version: topic.row_version })),
+                  weekKey,
+                ),
               )
             }
             disabled={isPending || !dirty}
@@ -316,6 +437,7 @@ export default function OrderBoard({
                 run(() =>
                   clearTopicOrder(
                     topics.map((topic) => ({ id: topic.id, row_version: topic.row_version })),
+                    weekKey,
                   ),
                 )
               }
