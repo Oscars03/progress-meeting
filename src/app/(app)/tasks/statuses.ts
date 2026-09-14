@@ -8,16 +8,40 @@
  * module.
  */
 
-/** The only statuses a task may hold; mirrors the Kanban columns. */
+/**
+ * The only statuses a task may hold; mirrors the Kanban columns.
+ *
+ * Eight columns did not fit a screen and did not fit the way the lab works
+ * either -- `draft` and `assigned` both meant nobody had started, `presented`
+ * and `follow_up` both meant the meeting had moved on. Five is what is left
+ * once each column has a distinct answer to "what happens next".
+ */
 export const TASK_STATUSES = [
-  'draft',
-  'assigned',
+  'not_started',
   'in_progress',
   'blocked',
   'ready_to_present',
-  'presented',
-  'follow_up',
   'done',
 ] as const;
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+/**
+ * What the retired statuses become.
+ *
+ * Rows written before the list shrank still carry the old value, and a board
+ * that silently drops them would lose work rather than move it. Read through
+ * this instead of trusting the stored string.
+ */
+const RETIRED: Record<string, TaskStatus> = {
+  draft: 'not_started',
+  assigned: 'not_started',
+  presented: 'done',
+  follow_up: 'in_progress',
+};
+
+/** The column a stored status belongs in today. */
+export function readStatus(value: string): TaskStatus {
+  if ((TASK_STATUSES as readonly string[]).includes(value)) return value as TaskStatus;
+  return RETIRED[value] ?? 'not_started';
+}

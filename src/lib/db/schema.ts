@@ -5,7 +5,7 @@ export const SCHEMAS = {
   teams: [...COMMON_COLUMNS, 'name'],
   meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at', 'host_id'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
-  tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links'],
+  tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links', 'assigner_id'],
   task_updates: [...COMMON_COLUMNS, 'task_id', 'week_key', 'progress_pct', 'summary', 'risks', 'next_plan', 'updated_by'],
   action_items: [...COMMON_COLUMNS, 'meeting_id', 'title', 'owner_id', 'due_date', 'status', 'source_task_id'],
   minutes: [...COMMON_COLUMNS, 'meeting_id', 'content', 'recorded_by'],
@@ -72,6 +72,8 @@ export type TaskRecord = BaseRecord & {
   project: string;
   meeting_id: string;
   links: string[] | string;
+  /** The professor who asked for this, when a student entered it themselves. */
+  assigner_id: string;
 };
 
 export type MeetingRecord = BaseRecord & {

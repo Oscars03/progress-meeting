@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateTaskStatus } from './actions';
-import { TASK_STATUSES } from './statuses';
+import { TASK_STATUSES, readStatus } from './statuses';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TaskRecord, UserRecord } from '@/lib/db/schema';
 
@@ -58,7 +58,7 @@ export default function KanbanBoard({
 
       <div className="flex gap-4 overflow-x-auto pb-4">
         {columns.map((col) => {
-          const inColumn = tasks.filter((task) => task.status === col.id);
+          const inColumn = tasks.filter((task) => readStatus(task.status) === col.id);
           return (
             <div key={col.id} className="min-w-[300px] bg-gray-100 rounded-lg p-4">
               <h3 className="font-semibold text-gray-700 mb-4 flex items-center justify-between">
@@ -74,7 +74,7 @@ export default function KanbanBoard({
                   const assigneeNames = assignees.map(id => userMap.get(id)).filter(Boolean).join(', ');
                   
                   let overdue = false;
-                  if (task.due_date && task.status !== 'done') {
+                  if (task.due_date && readStatus(task.status) !== 'done') {
                     const due = new Date(task.due_date);
                     const now = new Date();
                     due.setHours(0,0,0,0);
@@ -107,7 +107,7 @@ export default function KanbanBoard({
 
                       <select
                         className="text-sm border rounded p-1 w-full"
-                        value={task.status}
+                        value={readStatus(task.status)}
                         onChange={(e) => handleMove(task, e.target.value)}
                         disabled={isPending || !editable}
                         aria-label={t('tasks.changeStatusOf', { title: task.title })}

@@ -329,11 +329,92 @@ describe('task permissions', () => {
     expect(insert).toHaveBeenCalled();
   });
 
-  it('refuses student from creating a task', async () => {
+  // This used to be refused, which -- with no professor account in the lab --
+  // meant nobody could add work at all.
+  it('lets a student write down their own work', async () => {
     signedInAs('student1');
     const result = await createTask({ title: 'New Task' });
-    expect(result.ok).toBe(false);
-    expect(insert).not.toHaveBeenCalled();
+
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith(
+      'tasks',
+      expect.objectContaining({ assignee_ids: ['student1'], status: 'not_started' }),
+      'student1'
+    );
+  });
+
+  // Writing down your own work is not the same as handing work to somebody
+  // else, so the list a student sends is ignored rather than obeyed.
+  it('puts a student on their own task whoever they named', async () => {
+    signedInAs('student1');
+    await createTask({ title: 'New Task', assignee_ids: ['someone-else', 'third'] });
+
+    expect(insert).toHaveBeenCalledWith(
+      'tasks',
+      expect.objectContaining({ assignee_ids: ['student1'] }),
+      'student1'
+    );
+  });
+
+  it('lets a professor put work on somebody else', async () => {
+    signedInAs('prof', 'professor');
+    await createTask({ title: 'New Task', assignee_ids: ['student1'] });
+
+    expect(insert).toHaveBeenCalledWith(
+      'tasks',
+      expect.objectContaining({ assignee_ids: ['student1'] }),
+      'prof'
+    );
+  });
+
+  describe('naming who asked for it', () => {
+    beforeEach(() => {
+      tables['users'] = [
+        { id: 'prof', name: 'Advisor', role: 'professor', active: true, row_version: 1 },
+        { id: 'student1', name: 'Student', role: 'student', active: true, row_version: 1 },
+        { id: 'boss', name: 'Admin', role: 'admin', active: true, row_version: 1 },
+      ];
+    });
+
+    it('records the professor a student names', async () => {
+      signedInAs('student1');
+      const result = await createTask({ title: 'New Task', assigner_id: 'prof' });
+
+      expect(result.ok).toBe(true);
+      expect(insert).toHaveBeenCalledWith(
+        'tasks',
+        expect.objectContaining({ assigner_id: 'prof' }),
+        'student1'
+      );
+    });
+
+    // Otherwise it becomes a way to attribute work to somebody who never set it.
+    it('refuses a student named as the one who asked', async () => {
+      signedInAs('student1');
+      const result = await createTask({ title: 'New Task', assigner_id: 'student1' });
+
+      expect(result).toMatchObject({ ok: false, error: 'tasks.assignerMustBeProfessor' });
+      expect(insert).not.toHaveBeenCalled();
+    });
+
+    it('refuses an admin named as the one who asked', async () => {
+      signedInAs('student1');
+      const result = await createTask({ title: 'New Task', assigner_id: 'boss' });
+
+      expect(result).toMatchObject({ ok: false, error: 'tasks.assignerMustBeProfessor' });
+      expect(insert).not.toHaveBeenCalled();
+    });
+
+    it('leaves it blank when nobody is named', async () => {
+      signedInAs('student1');
+      await createTask({ title: 'New Task' });
+
+      expect(insert).toHaveBeenCalledWith(
+        'tasks',
+        expect.objectContaining({ assigner_id: '' }),
+        'student1'
+      );
+    });
   });
 
   it('allows manager to edit task details', async () => {

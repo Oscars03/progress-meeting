@@ -6,7 +6,17 @@ import { createTask } from './actions';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { UserRecord } from '@/lib/db/schema';
 
-export default function NewTaskButton({ users = [] }: { users?: UserRecord[] }) {
+export default function NewTaskButton({
+  users = [],
+  professors = [],
+  canAssign = false,
+}: {
+  users?: UserRecord[];
+  /** Only a professor can be named as having asked for something. */
+  professors?: UserRecord[];
+  /** Whether this person may put work on somebody else's list. */
+  canAssign?: boolean;
+}) {
   const { t } = usePrefs();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -18,6 +28,7 @@ export default function NewTaskButton({ users = [] }: { users?: UserRecord[] }) 
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState('medium');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assignerId, setAssignerId] = useState('');
 
   const reset = () => {
     setTitle('');
@@ -34,7 +45,7 @@ export default function NewTaskButton({ users = [] }: { users?: UserRecord[] }) 
 
     startTransition(async () => {
       try {
-        const res = await createTask({ title, details, due_date: dueDate, priority, assignee_ids: assigneeIds });
+        const res = await createTask({ title, details, due_date: dueDate, priority, assignee_ids: assigneeIds, assigner_id: assignerId });
         if (!res.ok) {
           setError(t(res.error, res.vars));
           return;
@@ -100,29 +111,56 @@ export default function NewTaskButton({ users = [] }: { users?: UserRecord[] }) 
                 />
               </div>
 
-              <div>
-                <label className="block text-gray-600 mb-1">
-                  {t('tasks.assignees')}
-                </label>
-                <div className="max-h-32 overflow-y-auto border rounded-md p-2 space-y-1 bg-gray-50">
-                  {users.map((u) => (
-                    <label key={u.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={assigneeIds.includes(u.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) setAssigneeIds([...assigneeIds, u.id]);
-                          else setAssigneeIds(assigneeIds.filter(id => id !== u.id));
-                        }}
-                        className="rounded text-blue-600"
-                      />
-                      {u.name}
-                    </label>
-                  ))}
-                  {users.length === 0 && (
-                    <span className="text-gray-400">No members</span>
-                  )}
+              {/* Handing work to somebody else is the advisors' to do. A
+                  student is writing down their own, so there is nobody to
+                  choose and the field would only be a way to get it wrong. */}
+              {canAssign && (
+                <div>
+                  <label className="block text-gray-600 mb-1">
+                    {t('tasks.assignees')}
+                  </label>
+                  <div className="max-h-32 overflow-y-auto border rounded-md p-2 space-y-1 bg-gray-50">
+                    {users.map((u) => (
+                      <label key={u.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={assigneeIds.includes(u.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setAssigneeIds([...assigneeIds, u.id]);
+                            else setAssigneeIds(assigneeIds.filter(id => id !== u.id));
+                          }}
+                          className="rounded text-blue-600"
+                        />
+                        {u.name}
+                      </label>
+                    ))}
+                    {users.length === 0 && (
+                      <span className="text-gray-400">No members</span>
+                    )}
+                  </div>
                 </div>
+              )}
+
+              <div>
+                <label className="block text-gray-600 mb-1" htmlFor="task-assigner">
+                  {t('tasks.assigner')}
+                </label>
+                <select
+                  id="task-assigner"
+                  value={assignerId}
+                  onChange={(e) => setAssignerId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-white"
+                >
+                  <option value="">{t('tasks.assignerNone')}</option>
+                  {professors.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {professors.length === 0 ? t('tasks.noProfessors') : t('tasks.assignerHint')}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
