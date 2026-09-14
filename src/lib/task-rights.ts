@@ -2,8 +2,27 @@ import { hasManagerRights, type SessionUser } from './auth-guard';
 import type { TaskRecord, WeekLeadRecord } from './db/schema';
 import { isWeekLead } from './rotation';
 
+/**
+ * Who may give work to somebody else.
+ *
+ * Adding work *for yourself* is open to everybody -- see canAddOwnWork. This
+ * is the narrower question of putting a task on another person's list, which
+ * stays with the advisors.
+ */
 export function canAssignWork(actor: SessionUser): boolean {
   return hasManagerRights(actor.role);
+}
+
+/**
+ * Anybody may write down what they have been asked to do.
+ *
+ * It was professor-and-above, and there is no professor account, so in
+ * practice nothing could be added at all. A student entering their own work
+ * names the professor who asked for it instead, which is the record that
+ * matters and does not need an advisor to be sitting at a keyboard.
+ */
+export function canAddOwnWork(actor: SessionUser): boolean {
+  return Boolean(actor.id);
 }
 
 export function canEditWork(actor: SessionUser, task: Pick<TaskRecord, 'assignee_ids'>): boolean {

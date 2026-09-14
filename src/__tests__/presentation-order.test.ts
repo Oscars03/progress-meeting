@@ -7,6 +7,7 @@ import {
   groupByPresenter,
   flattenPresenters,
 } from '../lib/presentation-order';
+import { readStatus } from '../app/(app)/tasks/statuses';
 import type { TopicRecord } from '../lib/db/schema';
 
 function topic(
@@ -184,5 +185,26 @@ describe('flattenPresenters', () => {
     // Bob is dragged above Ann.
     const reordered = [blocks[1], blocks[0]];
     expect(flattenPresenters(reordered).map((t) => t.id)).toEqual(['b1', 'a1', 'a2']);
+  });
+});
+
+describe('readStatus', () => {
+  it('keeps a status that is still offered', () => {
+    expect(readStatus('in_progress')).toBe('in_progress');
+    expect(readStatus('done')).toBe('done');
+  });
+
+  // Eight columns became five. Rows written before that still carry the old
+  // value, and a board that dropped them would lose work rather than move it.
+  it('lands a retired status in the column that replaced it', () => {
+    expect(readStatus('draft')).toBe('not_started');
+    expect(readStatus('assigned')).toBe('not_started');
+    expect(readStatus('presented')).toBe('done');
+    expect(readStatus('follow_up')).toBe('in_progress');
+  });
+
+  it('falls back rather than losing a row it cannot read at all', () => {
+    expect(readStatus('')).toBe('not_started');
+    expect(readStatus('something-else')).toBe('not_started');
   });
 });

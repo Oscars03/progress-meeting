@@ -5,7 +5,8 @@ import KanbanBoard from './kanban';
 import NewTaskButton from './new-task-button';
 import { getT } from '@/lib/ui/server-i18n';
 import { requireSession } from '@/lib/auth-guard';
-import { canAssignWork } from '@/lib/task-rights';
+import { canAddOwnWork, canAssignWork } from '@/lib/task-rights';
+import { labMembers } from '@/lib/members';
 
 export default async function TasksPage() {
   const actor = await requireSession();
@@ -16,6 +17,12 @@ export default async function TasksPage() {
   ]);
 
   const canAssign = canAssignWork(actor);
+
+  // Admin runs the app; it is not somebody work gets handed to, and it was
+  // still in this picker after the same rule was applied everywhere else.
+  const members = labMembers(users);
+  // Only a professor can be named as having asked for something.
+  const professors = members.filter((u) => u.role === 'professor');
 
   return (
     <div className="space-y-6">
@@ -28,11 +35,13 @@ export default async function TasksPage() {
           >
             {t('weekly.title')}
           </Link>
-          {canAssign && <NewTaskButton users={users} />}
+          {canAddOwnWork(actor) && (
+            <NewTaskButton users={members} professors={professors} canAssign={canAssign} />
+          )}
         </div>
       </div>
 
-      <KanbanBoard tasks={tasks} users={users} currentUserId={actor.id} canAssign={canAssign} />
+      <KanbanBoard tasks={tasks} users={members} currentUserId={actor.id} canAssign={canAssign} />
     </div>
   );
 }

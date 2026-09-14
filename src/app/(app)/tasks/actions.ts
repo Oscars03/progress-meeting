@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole, requireSession, AuthorizationError } from '@/lib/auth-guard';
-import { canAssignWork, canEditWork } from '@/lib/task-rights';
+import { requireSession, AuthorizationError } from '@/lib/auth-guard';
+import { canAddOwnWork, canAssignWork, canEditWork } from '@/lib/task-rights';
+import type { UserRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import type { TaskRecord } from '@/lib/db/schema';
@@ -51,15 +52,34 @@ export async function createTask(data: {
   priority?: string;
   status?: string;
   assignee_ids?: string[];
+  assigner_id?: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('professor');
+    const actor = await requireSession();
+    if (!canAddOwnWork(actor)) throw new AuthorizationError();
 
     const title = data.title?.trim();
     if (!title) throw new UserError('tasks.titleRequired');
 
-    const status = data.status?.trim() || 'draft';
+    const status = data.status?.trim() || 'not_started';
     assertStatus(status);
+
+    // Giving work to somebody else stays with the advisors; writing down your
+    // own does not. A student's list is therefore always just themselves.
+    const requested = data.assignee_ids ?? [];
+    const assignees = canAssignWork(actor) ? requested : [actor.id];
+
+    // Who asked for it. Only a professor can be named, so this cannot become a
+    // way to attribute work to a student who never set it.
+    let assigner = '';
+    if (data.assigner_id) {
+      const users = await SheetRepo.find<UserRecord>('users');
+      const named = users.find((u) => u.id === data.assigner_id);
+      if (!named || named.role !== 'professor') {
+        throw new UserError('tasks.assignerMustBeProfessor');
+      }
+      assigner = named.id;
+    }
 
     await SheetRepo.insert(
       'tasks',
@@ -67,7 +87,8 @@ export async function createTask(data: {
         title,
         details: data.details?.trim() ?? '',
         owner_id: actor.id,
-        assignee_ids: data.assignee_ids ?? [],
+        assignee_ids: assignees,
+        assigner_id: assigner,
         due_date: data.due_date ?? '',
         priority: data.priority ?? 'medium',
         progress_pct: 0,
