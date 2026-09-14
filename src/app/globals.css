@@ -68,6 +68,23 @@ body {
   border-right: none;
 }
 
+/* One separator per day, put back deliberately: without them a block that
+   starts at the very edge of a column is hard to assign to a day, and a week
+   of seven unmarked lanes is harder to scan than a ruled one. Kept to a single
+   light line -- the original also ruled the time gutter, every half hour and
+   the outside of the whole table, which is what made it read as a grid to
+   audit rather than a week to plan. */
+.fc-theme-standard .fc-timegrid-col,
+.fc-theme-standard .fc-col-header-cell,
+.fc-theme-standard .fc-daygrid-day {
+  border-left: 1px solid var(--cal-line);
+}
+/* Not before the first day: that edge is the time axis, not a day boundary. */
+.fc-theme-standard .fc-timegrid-axis + .fc-timegrid-col,
+.fc-theme-standard .fc-timegrid-axis + .fc-col-header-cell {
+  border-left: none;
+}
+
 /* One line per hour, and only per hour. FullCalendar rules every 30-minute
    slot, so half the lines marked nothing and the pair of them read as a dotted
    fill across the whole week. The hour label is what you navigate by; the line
@@ -175,15 +192,28 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
 }
+/* Titles wrap rather than truncate -- a lab event is "[Name] ENG33 7101
+   research", and the first line alone identifies nothing. But wrapping was
+   paired with overflow:visible, so a long title spilled sideways out of its
+   block and over the neighbouring day, which is why events looked as though
+   they belonged to the wrong column. It wraps *inside* the block now, and what
+   does not fit is clipped rather than printed over somebody else's Tuesday. */
 .fc-event-title {
   white-space: normal !important;
-  text-overflow: clip !important;
-  overflow: visible !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis;
   font-weight: 500;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
-.fc-event-title-container {
-  overflow: visible !important;
+.fc-event-title-container,
+.fc .fc-event-main,
+.fc .fc-event-main-frame {
+  overflow: hidden;
+  min-width: 0;
+}
+.fc .fc-timegrid-event-harness {
+  overflow: hidden;
 }
 .fc .fc-event-time {
   font-weight: 400;
