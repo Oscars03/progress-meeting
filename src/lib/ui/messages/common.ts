@@ -69,7 +69,8 @@ export const common = defineMessages({
     'login.failed': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
     'login.error': 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง',
     'login.accessDenied': 'อีเมลนี้ไม่ได้รับอนุญาตให้เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
-    'login.pendingApproval': 'สร้างบัญชีแล้ว รอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน',
+    'login.pendingApproval': 'สร้างบัญชีให้แล้ว รอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน',
+    'login.pendingNothingToDo': 'ไม่ต้องทำอะไรเพิ่ม — เมื่อผู้ดูแลระบบอนุมัติแล้ว ค่อยกลับมาเข้าสู่ระบบอีกครั้ง',
     'login.accountInactive': 'บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
     'login.signInFailed': 'เข้าสู่ระบบไม่สำเร็จ',
     'login.devTitle': 'โหมดพัฒนา — บัญชีทดสอบใช้รหัสผ่านจาก',
@@ -203,6 +204,8 @@ export const common = defineMessages({
     'login.error': 'Something went wrong signing in. Please try again.',
     'login.accessDenied': 'This email is not allowed to sign in. Please contact an administrator.',
     'login.pendingApproval': 'Your account was created and is waiting for an administrator to approve it.',
+    'login.pendingNothingToDo':
+      'Nothing more to do — come back and sign in once an administrator has approved it.',
     'login.accountInactive': 'This account has been deactivated. Please contact an administrator.',
     'login.signInFailed': 'Sign-in failed',
     'login.devTitle': 'Development mode — test accounts use the password from',
