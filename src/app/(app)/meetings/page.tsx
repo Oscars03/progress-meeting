@@ -69,12 +69,17 @@ export default async function MeetingsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap justify-between items-center gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <h2 className="text-2xl font-bold text-gray-900">{t('meetings.title')}</h2>
-          <div className="flex items-center gap-3 text-sm">
-            <p className="text-gray-500 hidden sm:block">{t('meetings.hint')}</p>
+    <div className="space-y-4">
+      {/* On a phone this header used to run to roughly 370px before the
+          calendar began, so the thing the page is for started below the fold.
+          The descriptive line and the connection pill are desktop-only now --
+          the pill says nothing a member can act on from here, and Settings
+          carries the same status with the real explanation beside it. */}
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{t('meetings.title')}</h2>
+          <div className="hidden lg:flex items-center gap-3 text-sm">
+            <p className="text-gray-500">{t('meetings.hint')}</p>
             {isCalendarSynced ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium bg-green-50 text-green-700 w-fit">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -89,10 +94,10 @@ export default async function MeetingsPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/meetings/polls"
-            className="inline-flex items-center justify-center h-10 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition whitespace-nowrap"
+            className="inline-flex items-center justify-center h-10 px-3 sm:px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition whitespace-nowrap"
           >
             {t('meetings.findTime')}
           </Link>

@@ -15,6 +15,7 @@ import PendingUsers from './pending-users';
 import { weekKey } from '@/lib/week';
 import { formatLabTime, labDay } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
+import { brokenConnections } from '@/lib/google/tokens';
 import { breakForWeek } from '@/lib/term-breaks';
 import { intlLocale } from '@/lib/ui/i18n';
 import type {
@@ -73,6 +74,17 @@ export default async function DashboardPage() {
           }))
       : [];
 
+  // A calendar the app can no longer read makes the availability grid quietly
+  // less true rather than visibly broken, so nobody notices unless told. Only
+  // the person themselves can reconnect, but only an admin sees who has to.
+  const brokenCalendars =
+    actor.role === 'admin'
+      ? (await brokenConnections().catch(() => [])).map((row) => ({
+          ...row,
+          name: nameOf(row.userId) || row.accountEmail,
+        }))
+      : [];
+
   // Asking is the lead's job, but answering is everyone's, and the ask is easy
   // to miss on a page nobody opens. It sits at the top of the page they do.
   const open = openPolls(polls, slots, votes, actor.id);
@@ -102,6 +114,27 @@ export default async function DashboardPage() {
         <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
         {canSchedule && <NewMeetingButton />}
       </div>
+
+      {brokenCalendars.length > 0 && (
+        <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+          <div>
+            <h3 className="font-semibold text-amber-900">{t('calendarBroken.title')}</h3>
+            <p className="text-sm text-amber-800">{t('calendarBroken.hint')}</p>
+          </div>
+
+          <ul className="space-y-1.5">
+            {brokenCalendars.map((row) => (
+              <li
+                key={row.userId}
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm"
+              >
+                <span className="font-medium text-gray-900">{row.name}</span>
+                <span className="text-gray-500">{row.accountEmail}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {awaitingApproval.length > 0 && (
         <section className="p-5 sm:p-6 bg-purple-100 border border-gray-200 rounded-xl space-y-3">

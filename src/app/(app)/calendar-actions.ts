@@ -147,6 +147,12 @@ export type ConnectionStatus = {
   connected: boolean;
   accountEmail: string;
   connectedAt: string;
+  /**
+   * Set when the connection existed and then broke -- a revoked grant, say.
+   * "Not connected" alone reads as "never set up", which sends somebody
+   * looking for a problem that is not there.
+   */
+  brokeWith: string;
 };
 
 export async function myCalendarStatusAction(): Promise<ConnectionStatus> {
@@ -156,6 +162,7 @@ export async function myCalendarStatusAction(): Promise<ConnectionStatus> {
     connected: Boolean(stored),
     accountEmail: stored?.accountEmail ?? '',
     connectedAt: stored?.connectedAt ?? '',
+    brokeWith: stored?.lastError ?? '',
   };
 }
 
