@@ -44,6 +44,7 @@ const { createPollAction, closePollAction, confirmSlotAction, deletePollAction }
 const { createMeeting, deleteMeeting } = await import('../app/(app)/meetings/actions');
 const { createTask, updateTaskStatus, updateTaskDetails } = await import('../app/(app)/tasks/actions');
 const { saveWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
+const { updateMyNameAction } = await import('../app/(app)/settings/actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
@@ -472,5 +473,71 @@ describe('removing a meeting', () => {
     // The topic somebody proposed outlives the meeting it was going to be at.
     expect(update).toHaveBeenCalledWith('topics', 't1', { meeting_id: '' }, 1, 'boss');
     expect(remove).not.toHaveBeenCalledWith('topics', 't1', expect.anything(), expect.anything());
+  });
+});
+
+// Renaming yourself. The interesting property is not that it works but that it
+// cannot reach anybody else's row: the action takes a name and nothing else,
+// so there is no id for a caller to swap.
+describe('changing your own display name', () => {
+  beforeEach(() => {
+    tables['users'] = [
+      { id: 'me', name: 'Old Name', email: 'me@test.com', role: 'student', active: true, row_version: 3 },
+      { id: 'someone-else', name: 'Not Mine', email: 'other@test.com', role: 'student', active: true, row_version: 1 },
+    ];
+  });
+
+  it('writes to the caller\u2019s own row, at the version it just read', async () => {
+    signedInAs('me');
+    const result = await updateMyNameAction('  New   Name  ');
+
+    expect(result.ok).toBe(true);
+    // Trimmed, and inner runs of whitespace collapsed.
+    expect(update).toHaveBeenCalledWith('users', 'me', { name: 'New Name' }, 3, 'me');
+  });
+
+  it('touches nobody else, whatever is passed', async () => {
+    signedInAs('me');
+    await updateMyNameAction('New Name');
+
+    expect(update).not.toHaveBeenCalledWith(
+      'users',
+      'someone-else',
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('refuses an empty name rather than blanking the field everything reads', async () => {
+    signedInAs('me');
+    const result = await updateMyNameAction('   ');
+
+    expect(result).toMatchObject({ ok: false, error: 'users.error.nameRequired' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a name too long to sit in a table cell', async () => {
+    signedInAs('me');
+    const result = await updateMyNameAction('x'.repeat(61));
+
+    expect(result).toMatchObject({ ok: false, error: 'users.error.nameTooLong' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when the name has not actually changed', async () => {
+    signedInAs('me');
+    const result = await updateMyNameAction('Old Name');
+
+    expect(result.ok).toBe(true);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses an anonymous caller', async () => {
+    getServerSessionMock.mockResolvedValue(null);
+    const result = await updateMyNameAction('Whoever');
+
+    expect(result).toMatchObject({ ok: false, error: 'error.signInRequired' });
+    expect(update).not.toHaveBeenCalled();
   });
 });

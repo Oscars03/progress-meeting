@@ -3,6 +3,8 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import AppNav from './app-nav';
 import { NavDepth } from '@/lib/ui/back-link';
+import { SheetRepo } from '@/lib/db/sheet-repo';
+import type { UserRecord } from '@/lib/db/schema';
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await getServerSession(authOptions);
@@ -11,6 +13,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     redirect('/login');
   }
 
+  // The name is read from the sheet, not from the session. A JWT carries
+  // whatever was true when it was issued, so after somebody renames themselves
+  // in Settings the sidebar would keep calling them the old name for up to two
+  // days -- on the one screen they are looking at when they change it. The
+  // session stays the authority on *who* they are; the sheet on what they are
+  // called. A read that fails falls back rather than blocking the whole app.
+  const me = session.user?.id
+    ? await SheetRepo.findOne<UserRecord>('users', session.user.id).catch(() => null)
+    : null;
+  const userName = me?.name || session.user?.name || '';
+
   // h-dvh, not h-screen: on a phone or tablet 100vh is the height the page
   // would have with the browser toolbar hidden, so the bottom of the sidebar --
   // sign out -- sits underneath the toolbar and cannot be reached. dvh shrinks
@@ -18,7 +31,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="h-dvh flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
       <NavDepth />
-      <AppNav userName={session.user?.name ?? ''} />
+      <AppNav userName={userName} />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
         {children}
