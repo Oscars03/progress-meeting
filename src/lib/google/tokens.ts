@@ -23,6 +23,14 @@ export type StoredToken = {
   accountEmail: string;
   connectedAt: string;
   rowVersion: number;
+  /**
+   * Why this connection last failed, or empty while it is healthy.
+   *
+   * recordTokenError has always written this -- its comment says "so the UI can
+   * say so" -- but nothing read it, so a revoked grant showed as plain "not
+   * connected", which reads as "never set up" rather than "this broke".
+   */
+  lastError: string;
 };
 
 /** True when both halves of the OAuth client are configured. */
@@ -101,6 +109,7 @@ export async function getStoredToken(userId: string): Promise<StoredToken | null
     accountEmail: row.account_email ?? '',
     connectedAt: row.connected_at ?? '',
     rowVersion: row.row_version,
+    lastError: row.last_error ?? '',
   };
 }
 
@@ -131,4 +140,26 @@ export async function disconnect(userId: string): Promise<void> {
   const row = rows.find((r) => r.user_id === userId);
   if (!row) return;
   await SheetRepo.delete('google_tokens', row.id, row.row_version, userId);
+}
+
+/**
+ * Connections that have stopped working, for an admin to chase.
+ *
+ * A grant can be revoked from the Google account side at any time -- somebody
+ * removes the app from their third-party access, or changes their password --
+ * and the app finds out only when a free/busy read fails. That failure is
+ * swallowed on purpose so one broken calendar does not fail the whole grid,
+ * which means nothing surfaces it unless somebody asks. This is the asking.
+ */
+export async function brokenConnections(): Promise<
+  { userId: string; accountEmail: string; lastError: string }[]
+> {
+  const rows = await SheetRepo.find<GoogleTokenRecord>('google_tokens');
+  return rows
+    .filter((r) => (r.last_error ?? '') !== '')
+    .map((r) => ({
+      userId: r.user_id,
+      accountEmail: r.account_email ?? '',
+      lastError: r.last_error ?? '',
+    }));
 }

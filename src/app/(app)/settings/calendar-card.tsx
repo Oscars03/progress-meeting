@@ -24,6 +24,10 @@ export default function CalendarCard({
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
 
+  // A token that is stored but failing. Distinct from never having connected:
+  // the row is still there, Google just stopped honouring it.
+  const broken = status.connected && Boolean(status.brokeWith);
+
   if (!googleEnabled) {
     return (
       <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-2">
@@ -45,7 +49,11 @@ export default function CalendarCard({
             เชื่อมแล้วระบบจะเห็นเวลาที่คุณไม่ว่าง และลงนัดในปฏิทินของคุณได้
           </p>
         </div>
-        {status.connected ? (
+        {broken ? (
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800">
+            การเชื่อมต่อหลุด
+          </span>
+        ) : status.connected ? (
           <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
             เชื่อมแล้ว
           </span>
@@ -55,6 +63,24 @@ export default function CalendarCard({
           </span>
         )}
       </div>
+
+      {/* Amber, not red: nothing is damaged and nothing was lost -- the grant
+          was withdrawn on Google's side and one press puts it back. Said here
+          because the alternative is finding out from a rota built on a calendar
+          nobody could read. */}
+      {broken && (
+        <div
+          role="status"
+          className="p-3 text-sm bg-amber-50 border border-amber-200 rounded-lg space-y-1"
+        >
+          <p className="text-amber-900 font-medium">
+            ระบบอ่านปฏิทินของคุณไม่ได้แล้ว — เวลาว่างของคุณจะไม่ถูกนับในตารางหาเวลา
+          </p>
+          <p className="text-amber-800">
+            มักเกิดจากการถอนสิทธิ์ใน Google Account หรือเปลี่ยนรหัสผ่าน กดเชื่อมต่ออีกครั้งเพื่อแก้
+          </p>
+        </div>
+      )}
 
       {error && (
         <div

@@ -79,6 +79,7 @@ export default async function SettingsPage() {
           connected: Boolean(stored),
           accountEmail: stored?.accountEmail ?? '',
           connectedAt: stored?.connectedAt ?? '',
+          brokeWith: stored?.lastError ?? '',
         }}
         googleEnabled={googleOAuthConfigured()}
         connectedCount={connectedCount}

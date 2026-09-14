@@ -24,42 +24,287 @@ body {
   line-height: 1.65;
 }
 
-/* FullCalendar custom styles */
+/* ==========================================================================
+   Calendar
+   --------------------------------------------------------------------------
+   FullCalendar ships a spreadsheet: every cell boxed, every column ruled, the
+   whole thing wrapped in a table border. That reads as data to audit rather
+   than a week to plan, so most of what follows removes lines rather than adds
+   them -- vertical rules go entirely, horizontal ones survive only as the
+   faintest hint of where an hour starts.
+
+   Colours come through these variables so the dark theme can restate them in
+   one place. The utility remap further down does not reach raw CSS.
+   ========================================================================== */
+:root {
+  --cal-line: #eceef1;
+  --cal-line-soft: #f4f5f7;
+  --cal-ink: #111827;
+  --cal-ink-soft: #6b7280;
+  --cal-today: #eff6ff;
+  --cal-surface: #ffffff;
+}
+
+.fc {
+  --fc-border-color: var(--cal-line);
+  --fc-page-bg-color: var(--cal-surface);
+  --fc-neutral-bg-color: var(--cal-line-soft);
+  --fc-today-bg-color: var(--cal-today);
+  --fc-small-font-size: 0.75rem;
+}
+
+/* The outer frame and every vertical rule. A week does not need 8 columns of
+   chrome to be legible; the day headers already say where the columns are. */
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid table {
+  border: none;
+}
+.fc .fc-scrollgrid-section > td {
+  border: none;
+}
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-left: none;
+  border-right: none;
+}
+
+/* Hour lines stay, at a weight you read past rather than at. The half-hour
+   line goes: it doubled the ruling for no information. */
+.fc .fc-timegrid-slot {
+  border-bottom: 1px solid var(--cal-line-soft);
+  height: 3rem;
+}
+.fc .fc-timegrid-slot-minor {
+  border-top: none;
+}
+
+/* Day headers: the weekday small and quiet above the date, instead of one
+   run-on string in a boxed cell. */
+.fc .fc-col-header-cell {
+  border-bottom: 1px solid var(--cal-line);
+  padding: 0.5rem 0;
+  background: transparent;
+}
+.fc .fc-col-header-cell-cushion {
+  color: var(--cal-ink-soft);
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  text-decoration: none;
+}
+.fc .fc-day-today .fc-col-header-cell-cushion {
+  color: #2563eb;
+}
+
+/* Today is a tint on the header, not a full-height wash down the column --
+   that wash was the loudest thing on the screen and said the least. */
+.fc .fc-timegrid-col.fc-day-today {
+  background: transparent;
+}
+.fc .fc-col-header-cell.fc-day-today {
+  background: var(--cal-today);
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+/* The time gutter reads as an axis, so it is set back rather than boxed in. */
+.fc .fc-timegrid-axis,
+.fc .fc-timegrid-slot-label {
+  border: none;
+}
+.fc .fc-timegrid-slot-label-cushion {
+  color: var(--cal-ink-soft);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  padding-right: 0.5rem;
+}
+
+/* Events: a tinted card with the colour on one edge, rather than a saturated
+   block of fill. Names inside them are long, so they wrap. */
+.fc .fc-event {
+  border: none;
+  border-radius: 0.375rem;
+  box-shadow: none;
+  padding: 1px 2px 1px 5px;
+  font-size: 0.75rem;
+}
+/* Four kinds of event, each a tint of its own with the colour carried on the
+   left edge. Classes rather than inline hexes, so the dark theme can restate
+   them -- and so "busy" stops looking like "error". */
+.fc .fc-event.cal-ev {
+  background-color: var(--ev-bg);
+  border-left: 3px solid var(--ev-edge);
+  /* FullCalendar paints the text on an inner element and defaults it to white,
+     which is invisible on these tints. Both the variable it reads and the
+     element it paints, because it uses whichever is available. */
+  --fc-event-text-color: var(--ev-ink);
+  color: var(--ev-ink);
+}
+.fc .fc-event.cal-ev .fc-event-main,
+.fc .fc-event.cal-ev .fc-event-main-frame,
+.fc .fc-event.cal-ev .fc-event-time,
+.fc .fc-event.cal-ev .fc-event-title {
+  color: var(--ev-ink);
+}
+.cal-ev-meeting {
+  --ev-bg: #dbeafe;
+  --ev-ink: #1e3a8a;
+  --ev-edge: #2563eb;
+}
+.cal-ev-mine {
+  --ev-bg: #fee2e2;
+  --ev-ink: #7f1d1d;
+  --ev-edge: #dc2626;
+}
+.cal-ev-theirs {
+  --ev-bg: #fef2f2;
+  --ev-ink: #9f1239;
+  --ev-edge: #fca5a5;
+}
+.cal-ev-google {
+  --ev-bg: #f1f5f9;
+  --ev-ink: #334155;
+  --ev-edge: #94a3b8;
+}
+.fc .fc-event:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
 .fc-event-title {
   white-space: normal !important;
   text-overflow: clip !important;
   overflow: visible !important;
+  font-weight: 500;
+  line-height: 1.35;
 }
-
 .fc-event-title-container {
   overflow: visible !important;
 }
+.fc .fc-event-time {
+  font-weight: 400;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
 
-/* On a phone the toolbar's three groups do not fit on one line: the view
-   buttons wrap under the title and collide with it. Stack the groups instead,
-   and shrink the type so a month name plus year still fits a 360px screen. */
+/* All-day events are whole-day markers from Google, and there can be several.
+   Left alone the row grows without limit and pushes the hours off the screen,
+   so it scrolls within a bound instead. */
+.fc .fc-daygrid-body .fc-daygrid-day-events {
+  max-height: 5.25rem;
+  overflow-y: auto;
+}
+.fc .fc-timegrid-divider {
+  padding: 0;
+  border-top: 1px solid var(--cal-line);
+  background: transparent;
+}
+
+/* Toolbar buttons, as the app's own segmented control rather than Bootstrap's. */
+.fc .fc-button {
+  background: transparent;
+  border: 1px solid var(--cal-line);
+  color: var(--cal-ink-soft);
+  font-weight: 500;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.7rem;
+  box-shadow: none !important;
+  text-transform: none;
+}
+.fc .fc-button:hover {
+  background: var(--cal-line-soft);
+  color: var(--cal-ink);
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+.fc .fc-button:disabled {
+  opacity: 0.4;
+}
+.fc .fc-button-group > .fc-button:not(:first-child) {
+  margin-left: -1px;
+}
+.fc .fc-toolbar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--cal-ink);
+}
+.fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 0.85rem;
+}
+
+/* A break day is not bookable, so it recedes rather than competing. */
+.fc .fc-day.bg-gray-100 {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 6px,
+    rgba(0, 0, 0, 0.035) 6px,
+    rgba(0, 0, 0, 0.035) 12px
+  );
+}
+
 @media (max-width: 640px) {
+  /* Two rows, not three. Stacking all three chunks cost about 150px of a
+     780px screen before a single hour was visible, so the title takes its own
+     line and the two button groups share the next one. */
   .fc .fc-toolbar.fc-header-toolbar {
-    flex-direction: column;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    gap: 0.4rem;
+    margin-bottom: 0.6rem;
   }
-
-  .fc .fc-toolbar-title {
-    font-size: 1.05rem;
+  .fc .fc-toolbar-chunk:nth-child(2) {
+    order: -1;
+    width: 100%;
+    text-align: center;
   }
-
+  .fc .fc-toolbar-chunk:nth-child(1) {
+    margin-right: auto;
+  }
+  .fc .fc-toolbar-chunk {
+    display: flex;
+    align-items: center;
+  }
   .fc .fc-button {
-    padding: 0.3em 0.55em;
-    font-size: 0.8rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    min-height: 2.5rem;
+  }
+  .fc .fc-toolbar-title {
+    font-size: 1rem;
+    text-align: center;
   }
 
-  /* The time gutter eats a quarter of a narrow screen at its default width. */
-  .fc .fc-timegrid-slot-label-cushion,
+  /* An hour of screen for an hour of the day: at the desktop height a phone
+     shows four hours, and picking a time means scrolling blind. */
+  .fc .fc-timegrid-slot {
+    height: 2.75rem;
+  }
+  .fc .fc-timegrid-slot-label-cushion {
+    font-size: 0.68rem;
+    padding-right: 0.25rem;
+  }
+  /* An empty all-day row still reserved about 90px of a phone screen -- a
+     label, a scroll track and nothing in it. It sizes to its contents now, so
+     a day with no all-day events costs a line instead of a sixth of the view. */
+  .fc .fc-daygrid-body .fc-daygrid-day-events {
+    max-height: 3.5rem;
+    min-height: 0;
+  }
+  .fc .fc-timegrid-axis-frame,
+  .fc .fc-daygrid-day-frame {
+    min-height: 1.5rem;
+  }
   .fc .fc-timegrid-axis-cushion {
-    font-size: 0.7rem;
-    padding: 0 2px;
+    font-size: 0.65rem;
+    line-height: 1.2;
+  }
+  .fc .fc-event {
+    font-size: 0.78rem;
+    padding: 2px 3px 2px 6px;
   }
 }
 
@@ -81,6 +326,47 @@ body {
   --background: #121212;
   --foreground: #ededed;
   color-scheme: dark;
+
+  /* The calendar is raw CSS, so the utility remap below cannot reach it. Its
+     colours are restated here instead -- one place, same names. */
+  --cal-line: #2f2f33;
+  --cal-line-soft: #232326;
+  --cal-ink: #e4e4e7;
+  --cal-ink-soft: #a1a1aa;
+  --cal-today: #1e2a3d;
+  --cal-surface: #1c1c1e;
+}
+
+/* Event tints restated for a dark ground: the light fills would have been four
+   bright cards on a near-black page. */
+:root[data-theme='dark'] .cal-ev-meeting {
+  --ev-bg: #1e3356;
+  --ev-ink: #bfdbfe;
+  --ev-edge: #3b82f6;
+}
+:root[data-theme='dark'] .cal-ev-mine {
+  --ev-bg: #4a1d1d;
+  --ev-ink: #fecaca;
+  --ev-edge: #ef4444;
+}
+:root[data-theme='dark'] .cal-ev-theirs {
+  --ev-bg: #35201f;
+  --ev-ink: #fca5a5;
+  --ev-edge: #b91c1c;
+}
+:root[data-theme='dark'] .cal-ev-google {
+  --ev-bg: #26262a;
+  --ev-ink: #cbd5e1;
+  --ev-edge: #64748b;
+}
+:root[data-theme='dark'] .fc .fc-day.bg-gray-100 {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 6px,
+    rgba(255, 255, 255, 0.05) 6px,
+    rgba(255, 255, 255, 0.05) 12px
+  );
 }
 
 :root[data-theme='dark'] body {

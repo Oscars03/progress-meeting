@@ -122,6 +122,7 @@ export default function CalendarView({
       start: m.start_at,
       end: m.end_at,
       url: safeHttpUrl(m.meet_link),
+      classNames: ['cal-ev', 'cal-ev-meeting'],
       extendedProps: { type: 'meeting' }
     });
   });
@@ -136,9 +137,11 @@ export default function CalendarView({
       title: pe.user_name ? `[${pe.user_name}] ${pe.title}` : pe.title,
       start: pe.start_at,
       end: pe.end_at,
-      backgroundColor: isMine ? '#ef4444' : '#f87171',
-      borderColor: isMine ? '#dc2626' : '#ef4444',
-      extendedProps: { 
+      // Colour by class, not inline: an inline hex cannot follow the theme, and
+      // a wall of saturated red for "somebody is busy" read as a page full of
+      // errors rather than a page full of ordinary commitments.
+      classNames: ['cal-ev', isMine ? 'cal-ev-mine' : 'cal-ev-theirs'],
+      extendedProps: {
         type: 'personal',
         isMine,
         rowVersion: pe.row_version 
@@ -153,8 +156,7 @@ export default function CalendarView({
       title: ge.owner_name ? `[${ge.owner_name}] ${ge.title}` : ge.title,
       start: ge.start,
       end: ge.end,
-      backgroundColor: '#9ca3af',
-      borderColor: '#6b7280',
+      classNames: ['cal-ev', 'cal-ev-google'],
       extendedProps: { type: 'google' }
     });
   });
@@ -245,25 +247,47 @@ export default function CalendarView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap justify-between items-stretch gap-4">
-        <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-sm flex items-start gap-3 flex-1">
-          <svg className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      {/* One row, and on a phone one line of plain text rather than a boxed
+          notice: the blue panel and the bordered checkbox together took about a
+          third of the screen before the calendar started. The instruction also
+          said "use your mouse" to people holding a phone, which is why nobody
+          discovered that press-and-drag works. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+        <p className="text-gray-500 flex items-start gap-2 flex-1 min-w-[16rem]">
+          <svg
+            className="w-4 h-4 shrink-0 mt-0.5 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
-          <p>ใช้เมาส์ คลิกหรือลากคลุมช่วงเวลา บนปฏิทินเพื่อเพิ่มช่วงเวลาที่คุณไม่ว่างได้ทันที</p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-200 whitespace-nowrap hover:bg-gray-50 transition">
-          <input 
-            type="checkbox" 
+          <span className="sm:hidden">แตะค้างแล้วลากบนปฏิทิน เพื่อเพิ่มช่วงเวลาที่คุณไม่ว่าง</span>
+          <span className="hidden sm:inline">
+            คลิกหรือลากคลุมช่วงเวลาบนปฏิทิน เพื่อเพิ่มช่วงเวลาที่คุณไม่ว่าง
+          </span>
+        </p>
+
+        <label className="flex items-center gap-2 text-gray-600 cursor-pointer whitespace-nowrap">
+          <input
+            type="checkbox"
             checked={showOthers}
             onChange={(e) => setShowOthers(e.target.checked)}
             className="rounded text-blue-600 focus:ring-blue-500"
           />
-          แสดงตารางส่วนตัวของสมาชิกคนอื่นด้วย
+          <span className="sm:hidden">แสดงของคนอื่น</span>
+          <span className="hidden sm:inline">แสดงตารางส่วนตัวของสมาชิกคนอื่นด้วย</span>
         </label>
       </div>
 
-      <div className="bg-white p-2 sm:p-6 rounded-xl shadow-sm border border-gray-100 h-[75dvh] min-h-[420px] sm:h-[700px]">
+      {/* Taller on a phone now that the chrome above it is gone, and no inner
+          card padding to give away -- the calendar is the page here. */}
+      <div className="bg-white p-0 sm:p-5 rounded-xl shadow-sm border border-gray-100 h-[calc(100dvh-13rem)] min-h-[460px] sm:h-[700px]">
         {/* initialView is read once per mount, so the key remounts the calendar
             when the viewport crosses the phone breakpoint. */}
         <FullCalendar
