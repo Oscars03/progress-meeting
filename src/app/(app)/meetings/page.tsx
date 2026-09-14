@@ -105,6 +105,15 @@ export default async function MeetingsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Hiding the status pill on a phone took the Connect button with it,
+              leaving no way to connect a calendar from the page the calendar is
+              on. The pill stays desktop-only -- "connected" is not news -- but
+              the one actionable part of it comes back when it is not done. */}
+          {!isCalendarSynced && (
+            <span className="lg:hidden">
+              <ConnectGoogleButton />
+            </span>
+          )}
           <Link
             href="/meetings/polls"
             className="inline-flex items-center justify-center h-10 px-3 sm:px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition whitespace-nowrap"

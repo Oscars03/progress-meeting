@@ -305,9 +305,14 @@ export default function CalendarView({
         </label>
       </div>
 
-      {/* Taller on a phone now that the chrome above it is gone, and no inner
-          card padding to give away -- the calendar is the page here. */}
-      <div className="bg-white p-0 sm:p-5 rounded-xl shadow-sm border border-gray-100 h-[calc(100dvh-13rem)] min-h-[460px] sm:h-[700px]">
+      {/* No fixed height, so the calendar is not a scrolling box inside a
+          scrolling page. It used to own its own scrollbar: reaching the
+          evening meant finding the inner one and dragging that, while the
+          outer one did nothing -- two scrolls competing for the same gesture,
+          which on a phone is close to unusable. The grid draws its full
+          08:00-22:00 at natural height now and the page scrolls it, so there
+          is one scrollbar and it is the one you expect. */}
+      <div className="bg-white p-0 sm:p-5 rounded-xl shadow-sm border border-gray-100">
         {/* initialView is read once per mount, so the key remounts the calendar
             when the viewport crosses the phone breakpoint. */}
         <FullCalendar
@@ -343,7 +348,10 @@ export default function CalendarView({
             right: isPhone ? 'timeGridDay,timeGridWeek,dayGridMonth' : 'dayGridMonth,timeGridWeek,timeGridDay'
           }}
           events={allEvents}
-          height="100%"
+          /* auto, not 100%: the grid takes the height its hours need and the
+             page scrolls it, instead of becoming its own scroll container. */
+          height="auto"
+          stickyHeaderDates={true}
           selectable={true}
           selectMirror={true}
           /**
