@@ -303,7 +303,11 @@ export default function CalendarView({
             const pad = (n: number) => String(n).padStart(2, '0');
             const dateStr = `${arg.date.getFullYear()}-${pad(arg.date.getMonth() + 1)}-${pad(arg.date.getDate())}`;
             if (breakCovering(termBreaks, dateStr)) {
-              return ['bg-gray-100', 'dark:bg-gray-800', 'opacity-50'];
+              // No `dark:` here: this project has no dark variant (only
+              // `collapsed`), so `dark:bg-gray-800` compiled to nothing at all.
+              // `bg-gray-100` is on the remap list in globals.css and is what
+              // was actually shading these cells in dark mode all along.
+              return ['bg-gray-100', 'opacity-50'];
             }
             return [];
           }}

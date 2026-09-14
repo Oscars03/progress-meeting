@@ -13,7 +13,7 @@ import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
 import PendingUsers from './pending-users';
 import { weekKey } from '@/lib/week';
-import { formatLabTime } from '@/lib/lab-time';
+import { formatLabTime, labDay } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
 import { breakForWeek } from '@/lib/term-breaks';
 import { intlLocale } from '@/lib/ui/i18n';
@@ -83,6 +83,7 @@ export default async function DashboardPage() {
   // Everyone else schedules by proposing times and confirming the winner.
   const canSchedule = actor.role === 'admin';
 
+  const today = labDay(new Date());
   const myOpenTasks = tasks
     .filter(task => {
       const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
@@ -132,14 +133,10 @@ export default async function DashboardPage() {
 
           <ul className="space-y-2">
             {myOpenTasks.map((task) => {
-              let overdue = false;
-              if (task.due_date) {
-                const due = new Date(task.due_date);
-                const now = new Date();
-                due.setHours(0,0,0,0);
-                now.setHours(0,0,0,0);
-                overdue = due < now;
-              }
+              // Both sides as lab days. Comparing a due date against the
+              // server's `new Date()` made the badge a day late every morning
+              // before 07:00, when UTC is still on yesterday.
+              const overdue = Boolean(task.due_date) && task.due_date < today;
               return (
                 <li key={task.id}>
                   <Link

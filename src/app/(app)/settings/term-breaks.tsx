@@ -19,18 +19,15 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
     e.preventDefault();
     setMessage(null);
     startTransition(async () => {
-      try {
-        await addTermBreakAction(name, start, end);
-        setName('');
-        setStart('');
-        setEnd('');
-        setMessage({ kind: 'ok', text: t('common.saved') });
-      } catch (err) {
-        setMessage({
-          kind: 'error',
-          text: err instanceof Error && err.message ? err.message : t('error.generic'),
-        });
+      const res = await addTermBreakAction(name, start, end);
+      if (!res.ok) {
+        setMessage({ kind: 'error', text: t(res.error, res.vars) });
+        return;
       }
+      setName('');
+      setStart('');
+      setEnd('');
+      setMessage({ kind: 'ok', text: t('common.saved') });
     });
   };
 
@@ -38,15 +35,12 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
     if (!confirm(t('common.confirmDelete'))) return;
     setMessage(null);
     startTransition(async () => {
-      try {
-        await deleteTermBreakAction(id, rowVersion);
-        setMessage({ kind: 'ok', text: t('common.saved') });
-      } catch (err) {
-        setMessage({
-          kind: 'error',
-          text: err instanceof Error && err.message ? err.message : t('error.generic'),
-        });
-      }
+      const res = await deleteTermBreakAction(id, rowVersion);
+      setMessage(
+        res.ok
+          ? { kind: 'ok', text: t('common.saved') }
+          : { kind: 'error', text: t(res.error, res.vars) }
+      );
     });
   };
 

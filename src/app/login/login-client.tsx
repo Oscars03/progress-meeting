@@ -3,11 +3,13 @@
 import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import Spinner from '@/lib/ui/spinner';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { registerAction } from './actions';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey } from '@/lib/ui/i18n';
+import { isPendingApproval } from '@/lib/auth-signals';
+import PendingCard from './pending-card';
 
 /** NextAuth's ?error= codes, including the ones our signIn callback returns. */
 const SIGNIN_ERRORS: Record<string, TranslationKey> = {
@@ -25,6 +27,7 @@ function LoginForm({
   const { t } = usePrefs();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
   const urlError = searchParams.get('error');
@@ -48,6 +51,11 @@ function LoginForm({
   const [regPassword, setRegPassword] = useState('');
   const [notice, setNotice] = useState('');
 
+  // Waiting to be let in is a state of this box, not another page. Google sends
+  // the browser back with ?pending=1 because its redirect cannot set state here;
+  // the password routes just set it.
+  const [pending, setPending] = useState(searchParams.get('pending') === '1');
+
   const switchMode = (next: 'login' | 'register') => {
     setMode(next);
     setError('');
@@ -67,10 +75,12 @@ function LoginForm({
         password: regPassword,
       });
       if (res.ok) {
-        setNotice(t(res.notice));
+        // The account now exists and is waiting. The same thing is shown for an
+        // address that was already registered, so this still gives nothing away.
         setRegName('');
         setRegEmail('');
         setRegPassword('');
+        setPending(true);
       } else {
         setError(t(res.error, res.vars));
       }
@@ -95,7 +105,9 @@ function LoginForm({
         callbackUrl,
       });
 
-      if (res?.error) {
+      if (isPendingApproval(res?.error)) {
+        setPending(true);
+      } else if (res?.error) {
         setError(t('login.failed'));
       } else {
         router.push(callbackUrl);
@@ -107,6 +119,23 @@ function LoginForm({
       setLoading(false);
     }
   };
+
+  if (pending) {
+    return (
+      <div className="w-full max-w-md">
+        <PendingCard
+          onBack={() => {
+            setPending(false);
+            setMode('login');
+            setError('');
+            setNotice('');
+            // Drop ?pending=1 so a refresh does not put the card back.
+            router.replace(pathname);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     // Sized to fit one screen without scrolling: the switchers sit in the

@@ -56,6 +56,17 @@ export function labWallClock(instant: Date = new Date()): Date {
   return new Date(instant.getTime() + LAB_OFFSET_MS);
 }
 
+/**
+ * Which calendar day an instant falls on **in the lab**, as YYYY-MM-DD.
+ *
+ * `instant.toISOString().slice(0, 10)` looks like this and is not: it gives the
+ * UTC day, so anything before 07:00 in Thailand reports the day before. That
+ * put a 06:00 meeting on the first day back from a term break into the break.
+ */
+export function labDay(instant: Date): string {
+  return labWallClock(instant).toISOString().slice(0, 10);
+}
+
 /** A stored instant as the lab reads it, e.g. "พฤ. 25 ก.ย. 08:00". */
 export function formatLabTime(iso: string, locale: string): string {
   const instant = new Date(iso);

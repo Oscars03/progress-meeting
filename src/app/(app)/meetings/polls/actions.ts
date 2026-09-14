@@ -6,7 +6,7 @@ import { requireSession } from '@/lib/auth-guard';
 import { isChoice, type Choice } from '@/lib/poll-tally';
 import { isWeekLead } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
-import { labInstant } from '@/lib/lab-time';
+import { labDay, labInstant } from '@/lib/lab-time';
 import { UserError } from '@/lib/user-error';
 import { toResult } from '@/lib/action-result';
 import type {
@@ -97,7 +97,7 @@ export async function createPollAction(input: {
 
   const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
   for (const s of slots) {
-    const coveringBreak = breakCovering(breaks, s.start.slice(0, 10));
+    const coveringBreak = breakCovering(breaks, labDay(new Date(s.start)));
     if (coveringBreak) throw new UserError('error.duringBreak', { name: coveringBreak.name });
   }
 
@@ -214,7 +214,8 @@ export async function confirmSlotAction(
   if (!slot) throw new UserError('polls.error.slotNotFound');
 
   const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
-  const coveringBreak = breakCovering(breaks, slot.start_at.slice(0, 10));
+  const slotStart = labInstant(slot.start_at);
+  const coveringBreak = slotStart ? breakCovering(breaks, labDay(slotStart)) : null;
   if (coveringBreak) throw new UserError('error.duringBreak', { name: coveringBreak.name });
 
   await assertRunsThePoll(actor, [slot]);
