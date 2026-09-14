@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { UserRecord } from '../lib/db/schema';
 import { hashPassword } from '../lib/password';
+import { PENDING_APPROVAL } from '../lib/auth-signals';
 
 const findMock = vi.fn();
 vi.mock('../lib/db/sheet-repo', () => ({
@@ -82,13 +83,26 @@ describe('credentials authorize', () => {
     expect(result).toBeNull();
   });
 
-  it('rejects an inactive account holding the correct password', async () => {
+  // Still refused -- but it says *why*, so the form can send the person to the
+  // waiting screen instead of "sign-in failed", which sent them off to register
+  // a second time. Safe to say out loud only because it comes after the
+  // password check: a stranger cannot use it to discover who has an account.
+  it('refuses an inactive account holding the correct password, as pending approval', async () => {
+    const password_hash = await hashPassword('correct-horse-battery');
+    findMock.mockResolvedValue([user({ password_hash, active: false })]);
+
+    await expect(
+      credentialsAuthorize()({ email: 'admin@test.com', password: 'correct-horse-battery' })
+    ).rejects.toThrow(PENDING_APPROVAL);
+  });
+
+  it('gives an inactive account the same blank refusal as anyone else when the password is wrong', async () => {
     const password_hash = await hashPassword('correct-horse-battery');
     findMock.mockResolvedValue([user({ password_hash, active: false })]);
 
     const result = await credentialsAuthorize()({
       email: 'admin@test.com',
-      password: 'correct-horse-battery',
+      password: 'not-the-password',
     });
 
     expect(result).toBeNull();

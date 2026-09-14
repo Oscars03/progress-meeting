@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { rotationMembers } from '@/lib/rotation';
-import { labInstant } from '@/lib/lab-time';
+import { labDay, labInstant } from '@/lib/lab-time';
 import type { UserRecord, WeekLeadRecord, TermBreakRecord } from '@/lib/db/schema';
 import { breakCovering, breakForWeek } from '@/lib/term-breaks';
 
@@ -49,7 +49,7 @@ export async function createMeeting(data: {
     if (end <= start) throw new UserError('error.endBeforeStart');
 
     const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
-    const coveringBreak = breakCovering(breaks, start.toISOString().slice(0, 10));
+    const coveringBreak = breakCovering(breaks, labDay(start));
     if (coveringBreak) {
       throw new UserError('error.duringBreak', { name: coveringBreak.name });
     }

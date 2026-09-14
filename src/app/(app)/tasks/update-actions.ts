@@ -95,7 +95,11 @@ async function saveWeeklyUpdate(input: {
     );
   }
 
-  if (clampPct(task.progress_pct) !== progress) {
+  // Only this week's figure is the task's *current* progress. Correcting an
+  // earlier week is history, and letting it write through would drag a task
+  // that has since reached 80% back to whatever it was in that week.
+  const isCurrentWeek = key === weekKey();
+  if (isCurrentWeek && clampPct(task.progress_pct) !== progress) {
     await SheetRepo.update<TaskRecord>(
       'tasks',
       taskId,

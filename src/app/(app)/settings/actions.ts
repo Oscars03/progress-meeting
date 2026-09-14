@@ -6,7 +6,16 @@ import { initDatabase, getPopulatedTabs } from '@/lib/db/init-db';
 import { clearDatabase } from '@/lib/db/clear-db';
 import { requireRole, canAssignRole, type Role } from '@/lib/auth-guard';
 import { hashPassword, validatePassword, verifyPassword, isHashed } from '@/lib/password';
-import type { UserRecord } from '@/lib/db/schema';
+import type {
+  MeetingRecord,
+  TermBreakRecord,
+  UserRecord,
+  WeekLeadRecord,
+} from '@/lib/db/schema';
+import { toResult, type ActionResult } from '@/lib/action-result';
+import { UserError } from '@/lib/user-error';
+import { labDay, labInstant } from '@/lib/lab-time';
+import { breakForWeek } from '@/lib/term-breaks';
 
 const ASSIGNABLE_ROLES: Role[] = ['admin', 'professor', 'student'];
 
@@ -276,30 +285,72 @@ export async function setRotationOrderAction(userIds: string[]) {
   revalidatePath('/dashboard');
 }
 
-export async function addTermBreakAction(name: string, start_date: string, end_date: string) {
-  const actor = await requireRole('admin');
-  
-  const trimmedName = name.trim();
-  if (!trimmedName) throw new Error('กรุณากรอกชื่อช่วงปิดเทอม');
-  if (!start_date || !end_date) throw new Error('กรุณาระบุวันเริ่มต้นและสิ้นสุด');
-  if (end_date < start_date) throw new Error('วันสิ้นสุดต้องอยู่หลังวันเริ่มต้น');
+/**
+ * Declare a stretch of term break.
+ *
+ * Reports failure as a value rather than throwing: a thrown message is redacted
+ * in production, so validation written as `throw new Error('...')` reaches the
+ * reader as "an unexpected error occurred" — and these messages were hardcoded
+ * Thai besides, which the English half of the UI does not want.
+ */
+export async function addTermBreakAction(
+  name: string,
+  start_date: string,
+  end_date: string
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('admin');
 
-  await SheetRepo.insert(
-    'term_breaks',
-    { name: trimmedName, start_date, end_date },
-    actor.id
-  );
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new UserError('termBreaks.error.nameRequired');
+    if (!start_date || !end_date) throw new UserError('termBreaks.error.datesRequired');
+    if (end_date < start_date) throw new UserError('termBreaks.error.endBeforeStart');
 
-  revalidatePath('/settings');
-  revalidatePath('/dashboard');
-  revalidatePath('/meetings');
+    // Two breaks over the same days make "which break is this?" unanswerable,
+    // and the calendar would shade the day twice for no extra meaning.
+    const existing = await SheetRepo.find<TermBreakRecord>('term_breaks');
+    const clash = existing.find((b) => start_date <= b.end_date && end_date >= b.start_date);
+    if (clash) throw new UserError('termBreaks.error.overlaps', { name: clash.name });
+
+    // A break declared over weeks that are already spoken for does not undo
+    // them -- it is refused, so nobody's meeting quietly becomes unreachable.
+    const [meetings, leads] = await Promise.all([
+      SheetRepo.find<MeetingRecord>('meetings'),
+      SheetRepo.find<WeekLeadRecord>('week_leads'),
+    ]);
+
+    const scheduled = meetings.find((m) => {
+      if (m.status === 'cancelled' || !m.start_at) return false;
+      const start = labInstant(m.start_at);
+      if (!start) return false;
+      const day = labDay(start);
+      return day >= start_date && day <= end_date;
+    });
+    if (scheduled) throw new UserError('termBreaks.error.hasMeeting', { name: scheduled.title });
+
+    const proposed = [{ name: trimmedName, start_date, end_date } as TermBreakRecord];
+    const heldWeek = leads.find((lead) => breakForWeek(proposed, lead.week_key));
+    if (heldWeek) throw new UserError('termBreaks.error.hasLead', { week: heldWeek.week_key });
+
+    await SheetRepo.insert(
+      'term_breaks',
+      { name: trimmedName, start_date, end_date },
+      actor.id
+    );
+
+    revalidatePath('/settings');
+    revalidatePath('/dashboard');
+    revalidatePath('/meetings');
+  });
 }
 
-export async function deleteTermBreakAction(id: string, rowVersion: number) {
-  const actor = await requireRole('admin');
-  await SheetRepo.delete('term_breaks', id, rowVersion, actor.id);
-  
-  revalidatePath('/settings');
-  revalidatePath('/dashboard');
-  revalidatePath('/meetings');
+export async function deleteTermBreakAction(id: string, rowVersion: number): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('admin');
+    await SheetRepo.delete('term_breaks', id, rowVersion, actor.id);
+
+    revalidatePath('/settings');
+    revalidatePath('/dashboard');
+    revalidatePath('/meetings');
+  });
 }

@@ -6,6 +6,7 @@ import { verifyPassword } from './password';
 import { allowedSignupDomains, normalizeEmail } from './signup-policy';
 import { CALENDAR_SCOPES, storeRefreshToken } from './google/tokens';
 import type { UserRecord } from './db/schema';
+import { PENDING_APPROVAL } from './auth-signals';
 
 async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const users = await SheetRepo.find<UserRecord>('users');
@@ -25,11 +26,16 @@ const providers: NextAuthOptions['providers'] = [
       if (!email || !password) return null;
 
       const user = await findUserByEmail(email);
-      if (!user || user.active !== true) return null;
+      if (!user) return null;
 
       // Fails closed for legacy plaintext rows -- see npm run db:migrate-passwords.
       const ok = await verifyPassword(password, user.password_hash);
       if (!ok) return null;
+
+      // Checked *after* the password, deliberately. "Waiting for approval" is
+      // told only to somebody who already proved the account is theirs, so it
+      // reveals nothing a stranger could use to find out who has registered.
+      if (user.active !== true) throw new Error(PENDING_APPROVAL);
 
       return { id: user.id, name: user.name, email: user.email, role: user.role };
     },
@@ -75,8 +81,11 @@ export const authOptions: NextAuthOptions = {
         const existing = await findUserByEmail(email);
 
         if (existing) {
-          // An account an admin has deactivated must not sign in through Google.
-          if (existing.active !== true) return '/login?error=AccountInactive';
+          // Not yet let in -- or let in and since deactivated. Either way the
+          // account exists and signing in again cannot help, which is what the
+          // waiting screen says. Sending them back to the form with an error
+          // invites the retry that is the one thing that cannot work.
+          if (existing.active !== true) return '/?pending=1';
           user.id = existing.id;
           user.role = existing.role;
 
@@ -116,7 +125,7 @@ export const authOptions: NextAuthOptions = {
           'google-signup'
         );
 
-        return '/pending';
+        return '/?pending=1';
       } catch (e) {
         console.error('Google sign-in error:', e);
         return false;

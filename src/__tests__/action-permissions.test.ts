@@ -239,6 +239,36 @@ describe('term breaks', () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
+  // The guards asked `toISOString().slice(0, 10)` which day an instant fell on,
+  // which is the UTC day: anything before 07:00 in Thailand reported the day
+  // before. The first morning back from a break was refused as if it were still
+  // the break, and the first morning *of* one would have been let through.
+  it('judges the break by the day in the lab, not the day in UTC', async () => {
+    signedInAs('boss', 'admin');
+
+    // 2026-10-05 is the Monday term resumes; the break ended the day before.
+    const result = await createMeeting({
+      title: 'First one back',
+      start_at: '2026-10-05T06:00',
+      end_at: '2026-10-05T07:00',
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('still refuses 06:00 on the last morning of the break', async () => {
+    signedInAs('boss', 'admin');
+
+    const result = await createMeeting({
+      title: 'One too early',
+      start_at: '2026-10-04T06:00',
+      end_at: '2026-10-04T07:00',
+    });
+
+    expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it('refuses to open a poll for slots during a break', async () => {
     signedInAs('boss', 'admin');
     const result = await createPollAction({ title: 'Progress', note: '', slots });

@@ -120,6 +120,13 @@ export const common = defineMessages({
     'pending.approving': 'กำลังอนุมัติ...',
     'pending.manage': 'จัดการผู้ใช้ทั้งหมด',
 
+    // The screen the person who is waiting sees. `pending.*` above is the
+    // admin's list of them; these two are not the same audience.
+    'waiting.title': 'รอการอนุมัติ',
+    'waiting.created': 'สร้างบัญชีให้แล้ว ไม่มีอะไรผิดพลาด',
+    'waiting.approve': 'ผู้ดูแลระบบต้องอนุมัติก่อนจึงเข้าใช้งานได้ และได้รับแจ้งแล้ว',
+    'waiting.checkAgain': 'ตรวจสอบอีกครั้ง',
+
     'rotation.title': 'ผู้รับผิดชอบประจำสัปดาห์',
     'rotation.duty': 'เตรียมการประชุมและสรุปผลของสัปดาห์นี้',
     'rotation.confirmed': 'ยืนยันแล้ว',
@@ -141,6 +148,12 @@ export const common = defineMessages({
     'termBreaks.name': 'ชื่อช่วงปิดเทอม',
     'termBreaks.start': 'วันเริ่มต้น',
     'termBreaks.end': 'วันสิ้นสุด',
+    'termBreaks.error.nameRequired': 'กรุณากรอกชื่อช่วงปิดเทอม',
+    'termBreaks.error.datesRequired': 'กรุณาระบุวันเริ่มต้นและวันสิ้นสุด',
+    'termBreaks.error.endBeforeStart': 'วันสิ้นสุดต้องอยู่หลังวันเริ่มต้น',
+    'termBreaks.error.overlaps': 'ช่วงเวลานี้ทับกับ "{name}" ที่มีอยู่แล้ว',
+    'termBreaks.error.hasMeeting': 'มีการประชุม "{name}" อยู่ในช่วงนี้แล้ว กรุณายกเลิกก่อน',
+    'termBreaks.error.hasLead': 'สัปดาห์ {week} มีผู้รับผิดชอบแล้ว กรุณาเอาออกก่อน',
 
     'report.title': 'รายงาน',
     'report.weeklyTitle': 'รายงานสรุปรายสัปดาห์',
@@ -267,6 +280,11 @@ export const common = defineMessages({
     'pending.approving': 'Approving...',
     'pending.manage': 'Manage all users',
 
+    'waiting.title': 'Waiting for approval',
+    'waiting.created': 'Your account was created. Nothing went wrong.',
+    'waiting.approve': 'An admin has to let you in first. They have been told.',
+    'waiting.checkAgain': 'Check again',
+
     'rotation.title': "This week's lead",
     'rotation.duty': "Prepares this week's meeting and writes the summary",
     'rotation.confirmed': 'Confirmed',
@@ -288,6 +306,12 @@ export const common = defineMessages({
     'termBreaks.name': 'Break name',
     'termBreaks.start': 'Start date',
     'termBreaks.end': 'End date',
+    'termBreaks.error.nameRequired': 'Give the break a name',
+    'termBreaks.error.datesRequired': 'Give a start and an end date',
+    'termBreaks.error.endBeforeStart': 'The end date must come after the start date',
+    'termBreaks.error.overlaps': 'These dates overlap "{name}", which is already declared',
+    'termBreaks.error.hasMeeting': 'The meeting "{name}" is already scheduled in this range — cancel it first',
+    'termBreaks.error.hasLead': 'Week {week} already has a lead — remove it first',
 
     'report.title': 'Report',
     'report.weeklyTitle': 'Weekly summary report',
