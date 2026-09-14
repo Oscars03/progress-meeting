@@ -12,7 +12,6 @@ import type { TranslationKey } from '@/lib/ui/i18n';
 /** NextAuth's ?error= codes, including the ones our signIn callback returns. */
 const SIGNIN_ERRORS: Record<string, TranslationKey> = {
   AccessDenied: 'login.accessDenied',
-  PendingApproval: 'login.pendingApproval',
   AccountInactive: 'login.accountInactive',
 };
 
@@ -34,14 +33,9 @@ function LoginForm({
     ? (SIGNIN_ERRORS[urlError] ?? 'login.signInFailed')
     : null;
 
-  // Signing up is not failing. The account was created; it is waiting. Shown in
-  // red beside a sign-in form, that reads as "something went wrong, try again"
-  // -- so people tried again, which is the one thing that cannot help.
-  const waiting = urlError === 'PendingApproval';
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(urlErrorKey && !waiting ? t(urlErrorKey) : '');
+  const [error, setError] = useState(urlErrorKey ? t(urlErrorKey) : '');
   const [loading, setLoading] = useState(false);
   // Google sends the browser away, so this never resets -- which is the point:
   // the button stays spent while the redirect is on its way.
@@ -52,7 +46,7 @@ function LoginForm({
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [notice, setNotice] = useState(waiting && urlErrorKey ? t(urlErrorKey) : '');
+  const [notice, setNotice] = useState('');
 
   const switchMode = (next: 'login' | 'register') => {
     setMode(next);
@@ -132,15 +126,13 @@ function LoginForm({
       )}
 
       {/* Amber, not green: the account exists but cannot be used yet, and green
-          reads as "done". Both routes here -- registering, and a first Google
-          sign-in -- end in the same wait, so both say what to do next: nothing. */}
+          reads as "done". Used for registration success notices. */}
       {notice && (
         <div
-          className="p-3 text-sm bg-amber-50 rounded-lg border border-amber-200 space-y-1"
+          className="p-3 text-sm bg-amber-50 rounded-lg border border-amber-200"
           role="status"
         >
           <p className="text-amber-900 font-medium">{notice}</p>
-          <p className="text-amber-800">{t('login.pendingNothingToDo')}</p>
         </div>
       )}
 

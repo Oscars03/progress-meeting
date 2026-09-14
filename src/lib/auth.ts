@@ -116,7 +116,7 @@ export const authOptions: NextAuthOptions = {
           'google-signup'
         );
 
-        return '/login?error=PendingApproval';
+        return '/pending';
       } catch (e) {
         console.error('Google sign-in error:', e);
         return false;
