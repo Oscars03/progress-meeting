@@ -114,7 +114,9 @@ export default function AppNav({ userName }: { userName: string }) {
     <>
       {/* Mobile Top Header */}
       <div className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 shrink-0 z-30">
-        <div className="flex items-center gap-3">
+        {/* The name is the way back to the dashboard, the way a site's logo
+            usually is. */}
+        <Link href="/dashboard" className="flex items-center gap-3 min-w-0 rounded-md">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/irish-mark.svg"
@@ -122,12 +124,12 @@ export default function AppNav({ userName }: { userName: string }) {
             aria-hidden="true"
             width={32}
             height={32}
-            className="brand-logo w-8 h-8"
+            className="brand-logo w-8 h-8 shrink-0"
           />
           <h1 className="font-bold text-gray-900 truncate max-w-[200px]">
             {t('app.name')}
           </h1>
-        </div>
+        </Link>
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
@@ -168,7 +170,11 @@ export default function AppNav({ userName }: { userName: string }) {
             line heights -- equal by construction, not by a pixel value. */}
         {/* pr-9 below md keeps the two-line name clear of the close button,
             which is positioned over this row. */}
-        <div className="grid grid-cols-[auto_auto] items-center gap-x-2 text-lg pr-9 md:pr-0 md:collapsed:hidden">
+        <Link
+          href="/dashboard"
+          onClick={closeMobileMenu}
+          className="grid grid-cols-[auto_auto] items-center gap-x-2 text-lg pr-9 md:pr-0 md:collapsed:hidden rounded-md"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
           <img
             src="/brand/irish-mark.svg"
@@ -191,17 +197,19 @@ export default function AppNav({ userName }: { userName: string }) {
           <p className="col-start-2 text-xs font-semibold tracking-[0.14em] text-blue-600">
             IRiSH Lab
           </p>
-        </div>
+        </Link>
 
         {/* Collapsed: a 40px rail has room for the mark alone. */}
-        {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
-        <img
-          src="/brand/irish-mark.svg"
-          alt="IRiSH Lab"
-          width={40}
-          height={40}
-          className="brand-logo hidden md:collapsed:block mx-auto"
-        />
+        <Link href="/dashboard" className="hidden md:collapsed:block mx-auto">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a vector mark gains nothing from next/image optimisation */}
+          <img
+            src="/brand/irish-mark.svg"
+            alt="IRiSH Lab"
+            width={40}
+            height={40}
+            className="brand-logo"
+          />
+        </Link>
 
         {/* Controls row. The collapse toggle lives up here, in the same 32px
             frame as the theme toggle. justify-end below md: the toggle is hidden
