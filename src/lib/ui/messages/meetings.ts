@@ -22,6 +22,9 @@ export const meetings = defineMessages({
 
     'meeting.back': '← กลับไปปฏิทิน',
     'meeting.noTime': 'ยังไม่ระบุเวลา',
+    'meeting.delete': 'ลบการประชุมนี้',
+    'meeting.deleteConfirm': 'ลบถาวร กู้คืนไม่ได้',
+    'meeting.deleteYes': 'ยืนยันลบ',
     'meeting.eventCreator': 'ผู้สร้างอีเวนต์',
 
     'agenda.attend.invited': 'เชิญแล้ว',
@@ -125,6 +128,9 @@ export const meetings = defineMessages({
 
     'meeting.back': '← Back to calendar',
     'meeting.noTime': 'No time set',
+    'meeting.delete': 'Delete this meeting',
+    'meeting.deleteConfirm': 'Deleted for good, with no way back',
+    'meeting.deleteYes': 'Yes, delete',
     'meeting.eventCreator': 'the event creator',
 
     'agenda.attend.invited': 'Invited',

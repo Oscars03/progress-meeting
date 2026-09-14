@@ -2,12 +2,24 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole } from '@/lib/auth-guard';
+import { requireRole, requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import { rotationMembers } from '@/lib/rotation';
+import { isWeekLead, rotationMembers } from '@/lib/rotation';
 import { labDay, labInstant } from '@/lib/lab-time';
-import type { UserRecord, WeekLeadRecord, TermBreakRecord } from '@/lib/db/schema';
+import { weekKey } from '@/lib/week';
+import { removeMeetingEvent } from '@/lib/google/meeting-sync';
+import type {
+  ActionItemRecord,
+  AvailabilityPollRecord,
+  MeetingAttendeeRecord,
+  MeetingRecord,
+  MinutesRecord,
+  TermBreakRecord,
+  TopicRecord,
+  UserRecord,
+  WeekLeadRecord,
+} from '@/lib/db/schema';
 import { breakCovering, breakForWeek } from '@/lib/term-breaks';
 
 function isHttpUrl(value: string): boolean {
@@ -125,5 +137,82 @@ export async function setWeekLead(weekKey: string, userId: string): Promise<Acti
 
     revalidatePath('/meetings');
     revalidatePath('/dashboard');
+  });
+}
+
+/**
+ * Remove a meeting for good.
+ *
+ * There was no way to do this at all: deleting the poll a meeting came from
+ * left the meeting itself behind, still on the dashboard and still holding the
+ * time in everyone's availability, with nothing in the UI able to shift it.
+ *
+ * Whoever runs the week owns its schedule, so the lead can undo their own
+ * booking; admin can always step in. The rows that exist only to describe this
+ * meeting go with it, while the things that outlive it -- a topic somebody
+ * proposed, a task, the poll that recorded the decision -- are merely detached.
+ */
+export async function deleteMeeting(meetingId: string, rowVersion: number): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+
+    const meeting = await SheetRepo.findOne<MeetingRecord>('meetings', meetingId);
+    if (!meeting) throw new UserError('error.notFound');
+
+    if (actor.role !== 'admin') {
+      const start = labInstant(meeting.start_at);
+      const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+      const week = start ? weekKey(start) : '';
+      if (!week || !isWeekLead(leads, week, actor.id)) {
+        throw new UserError('avail.leadOnly');
+      }
+    }
+
+    // Best effort, and deliberately before the row goes: once it is deleted
+    // there is nothing left to say which Google event belonged to it. A
+    // calendar that refuses must not strand the meeting in the app.
+    if (meeting.google_event_id) {
+      try {
+        await removeMeetingEvent(meeting, actor.id);
+      } catch (err) {
+        console.error('Could not remove the Google event for this meeting:', err);
+      }
+    }
+
+    // Only ever true of this meeting, so they have no meaning without it.
+    const [attendees, minutes, actionItems] = await Promise.all([
+      SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees'),
+      SheetRepo.find<MinutesRecord>('minutes'),
+      SheetRepo.find<ActionItemRecord>('action_items'),
+    ]);
+
+    for (const row of attendees.filter((r) => r.meeting_id === meetingId)) {
+      await SheetRepo.delete('meeting_attendees', row.id, row.row_version, actor.id);
+    }
+    for (const row of minutes.filter((r) => r.meeting_id === meetingId)) {
+      await SheetRepo.delete('minutes', row.id, row.row_version, actor.id);
+    }
+    for (const row of actionItems.filter((r) => r.meeting_id === meetingId)) {
+      await SheetRepo.delete('action_items', row.id, row.row_version, actor.id);
+    }
+
+    // These stand on their own; they just are not tied to this meeting now.
+    const [topics, polls] = await Promise.all([
+      SheetRepo.find<TopicRecord>('topics'),
+      SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
+    ]);
+
+    for (const row of topics.filter((r) => r.meeting_id === meetingId)) {
+      await SheetRepo.update('topics', row.id, { meeting_id: '' }, row.row_version, actor.id);
+    }
+    for (const row of polls.filter((r) => r.meeting_id === meetingId)) {
+      await SheetRepo.update('availability_polls', row.id, { meeting_id: '' }, row.row_version, actor.id);
+    }
+
+    await SheetRepo.delete('meetings', meetingId, rowVersion, actor.id);
+
+    revalidatePath('/meetings');
+    revalidatePath('/dashboard');
+    revalidatePath('/presentations');
   });
 }

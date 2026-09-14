@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePrefs } from '@/lib/ui/prefs';
 import {
   initDbAction,
   clearDatabaseAction,
@@ -9,6 +10,7 @@ import {
   addUserAction,
   setUserActiveAction,
   updateUserRoleAction,
+  updateUserNameAction,
   deleteUserAction,
 } from './actions';
 
@@ -49,12 +51,15 @@ export default function UserManager({
   populatedTabs?: string[];
 }) {
   const router = useRouter();
+  const { t } = usePrefs();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<Message | null>(null);
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [draftRole, setDraftRole] = useState('');
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
   const [showClearForm, setShowClearForm] = useState(false);
@@ -135,6 +140,27 @@ export default function UserManager({
       setMessage({ type: 'success', text: `ลบบัญชี ${res.email} แล้ว` });
     });
   };
+  // The name every other page shows this person by -- the rotation, the week's
+  // lead, "[name] event" on the calendar all read the same field.
+  const handleSaveName = (user: SafeUser) => {
+    const next = draftName.trim();
+    if (next === user.name) {
+      setEditingNameId(null);
+      return;
+    }
+    run(async () => {
+      const res = await updateUserNameAction(user.id, next, user.row_version);
+      if (!res.ok) {
+        // A key, not a sentence -- the rest of this file predates the
+        // translator and hardcodes Thai, so this one is translated properly.
+        setMessage({ type: 'error', text: t(res.error, res.vars) });
+        return;
+      }
+      setEditingNameId(null);
+      setMessage({ type: 'success', text: `เปลี่ยนชื่อ ${user.name} เป็น ${next} แล้ว` });
+    });
+  };
+
   const handleSaveRole = (user: SafeUser) => {
     if (draftRole === user.role) {
       setEditingRoleId(null);
@@ -434,7 +460,49 @@ export default function UserManager({
             <tbody className="divide-y divide-gray-100">
               {initialUsers.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50/50">
-                  <td className="py-3 px-3 font-medium text-gray-900">{u.name}</td>
+                  <td className="py-3 px-3 font-medium text-gray-900">
+                    {editingNameId === u.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={draftName}
+                          autoFocus
+                          maxLength={60}
+                          onChange={(e) => setDraftName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveName(u);
+                            if (e.key === 'Escape') setEditingNameId(null);
+                          }}
+                          aria-label={`ชื่อของ ${u.name}`}
+                          className="px-2 py-1 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white w-40"
+                        />
+                        <button
+                          onClick={() => handleSaveName(u)}
+                          disabled={isPending}
+                          className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+                        >
+                          บันทึก
+                        </button>
+                        <button
+                          onClick={() => setEditingNameId(null)}
+                          className="text-xs px-2 py-1 text-gray-600 hover:text-gray-800"
+                        >
+                          ยกเลิก
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingNameId(u.id);
+                          setDraftName(u.name);
+                        }}
+                        title="คลิกเพื่อเปลี่ยนชื่อที่แสดง"
+                        className="text-left transition hover:underline decoration-dotted underline-offset-4"
+                      >
+                        {u.name} <span className="text-gray-400">✎</span>
+                      </button>
+                    )}
+                  </td>
                   <td className="py-3 px-3 text-gray-600">{u.email}</td>
                   <td className="py-3 px-3">
                     {editingRoleId === u.id ? (

@@ -41,7 +41,7 @@ vi.mock('../lib/db/sheet-repo', () => ({
 const { createPollAction, closePollAction, confirmSlotAction, deletePollAction } = await import(
   '../app/(app)/meetings/polls/actions'
 );
-const { createMeeting } = await import('../app/(app)/meetings/actions');
+const { createMeeting, deleteMeeting } = await import('../app/(app)/meetings/actions');
 const { createTask, updateTaskStatus, updateTaskDetails } = await import('../app/(app)/tasks/actions');
 const { saveWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 
@@ -397,5 +397,80 @@ describe('weekly progress permissions', () => {
     const result = await saveWeeklyUpdateAction(input);
     expect(result.ok).toBe(true);
     expect(insert).toHaveBeenCalled();
+  });
+});
+
+// Deleting a poll left the meeting it created behind, on the dashboard and
+// holding the time in everyone's availability, with nothing in the UI able to
+// shift it. These pin who may now remove one.
+describe('removing a meeting', () => {
+  beforeEach(() => {
+    tables['meetings'] = [
+      {
+        id: 'm1',
+        title: 'Progress',
+        start_at: `${MONDAY}T03:00:00.000Z`, // inside WEEK, which 'lead' holds
+        end_at: `${MONDAY}T04:00:00.000Z`,
+        status: 'scheduled',
+        owner_id: 'lead',
+        google_event_id: '',
+        row_version: 1,
+      },
+    ];
+  });
+
+  it('lets the lead of the meeting\u2019s week remove it', async () => {
+    signedInAs('lead');
+    const result = await deleteMeeting('m1', 1);
+
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('meetings', 'm1', 1, 'lead');
+  });
+
+  it('lets an admin remove it', async () => {
+    signedInAs('boss', 'admin');
+    const result = await deleteMeeting('m1', 1);
+
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('meetings', 'm1', 1, 'boss');
+  });
+
+  it('refuses a member who does not hold that week, and removes nothing', async () => {
+    signedInAs('other');
+    const result = await deleteMeeting('m1', 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('refuses the lead of a different week', async () => {
+    tables['week_leads'] = [{ id: 'wl2', week_key: '2026-W41', user_id: 'other', row_version: 1 }];
+    signedInAs('other');
+
+    const result = await deleteMeeting('m1', 1);
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('reports a meeting that is already gone rather than pretending it worked', async () => {
+    signedInAs('boss', 'admin');
+    const result = await deleteMeeting('does-not-exist', 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'error.notFound' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('detaches a topic from the meeting instead of deleting it', async () => {
+    tables['topics'] = [
+      { id: 't1', title: 'My topic', meeting_id: 'm1', owner_id: 'other', row_version: 1 },
+    ];
+    signedInAs('boss', 'admin');
+
+    const result = await deleteMeeting('m1', 1);
+
+    expect(result.ok).toBe(true);
+    // The topic somebody proposed outlives the meeting it was going to be at.
+    expect(update).toHaveBeenCalledWith('topics', 't1', { meeting_id: '' }, 1, 'boss');
+    expect(remove).not.toHaveBeenCalledWith('topics', 't1', expect.anything(), expect.anything());
   });
 });

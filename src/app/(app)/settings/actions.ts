@@ -354,3 +354,39 @@ export async function deleteTermBreakAction(id: string, rowVersion: number): Pro
     revalidatePath('/meetings');
   });
 }
+
+/**
+ * Change the name a person is shown as.
+ *
+ * Names arrive from whatever Google had on the account, or from whatever
+ * somebody typed when registering, and the rotation, the week's lead and every
+ * "[name] event" on the calendar read from this one field. Admin owns it for
+ * the same reason it owns roles: the name is how everyone else identifies you,
+ * not a personal preference.
+ */
+export async function updateUserNameAction(
+  userId: string,
+  name: string,
+  rowVersion: number
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('admin');
+
+    const trimmed = name.trim().replace(/\s+/g, ' ');
+    if (!trimmed) throw new UserError('users.error.nameRequired');
+    if (trimmed.length > 60) throw new UserError('users.error.nameTooLong');
+
+    const target = await SheetRepo.findOne<UserRecord>('users', userId);
+    if (!target) throw new UserError('error.notFound');
+    if (target.name === trimmed) return;
+
+    await SheetRepo.update<UserRecord>('users', userId, { name: trimmed }, rowVersion, actor.id);
+
+    // The name is read on every page that names anybody.
+    revalidatePath('/settings');
+    revalidatePath('/dashboard');
+    revalidatePath('/meetings');
+    revalidatePath('/presentations');
+    revalidatePath('/tasks');
+  });
+}
