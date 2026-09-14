@@ -412,6 +412,84 @@ body {
     font-size: 0.84rem;
     padding: 2px 3px 2px 6px;
   }
+
+  /* ------------------------------------------------------------------
+     Week and month on a phone answer one question: is that hour taken.
+
+     Both were trying to print a name into a 45px column, which broke the
+     title to one character per line and left a week of vertical alphabet
+     soup -- unreadable, and no faster to read than the colour behind it.
+     So on a phone these two views drop the text and keep the colour. The
+     day view still shows everything, and is what the calendar opens on.
+     ------------------------------------------------------------------ */
+
+  /* Week: blocks become bars. The colour and the position say who is busy
+     and when, which is the whole job at this width. */
+  .fc-timeGridWeek-view .fc-timegrid-event .fc-event-time,
+  .fc-timeGridWeek-view .fc-timegrid-event .fc-event-title {
+    display: none;
+  }
+  .fc-timeGridWeek-view .fc-timegrid-event {
+    /* A bar reads as a bar: fill the column rather than leaving a hairline. */
+    padding: 0;
+    border-left-width: 4px;
+    border-radius: 3px;
+    min-height: 6px;
+  }
+  /* Overlapping blocks are inset to slivers by FullCalendar; at this width
+     that makes two people's hours indistinguishable from one. */
+  .fc-timeGridWeek-view .fc-timegrid-event-harness-inset .fc-timegrid-event {
+    box-shadow: none;
+  }
+
+  /* Month: a dot per event, so the date stays the biggest thing in the cell
+     and a glance still shows which days are full. */
+  .fc-dayGridMonth-view .fc-daygrid-event .fc-event-time,
+  .fc-dayGridMonth-view .fc-daygrid-event .fc-event-title {
+    display: none;
+  }
+  .fc-dayGridMonth-view .fc-daygrid-event {
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 999px;
+    width: 8px;
+    height: 8px;
+    background-color: var(--ev-edge);
+    opacity: 1;
+  }
+  .fc-dayGridMonth-view .fc-daygrid-event-dot {
+    display: none;
+  }
+  /* Dots sit in a row rather than stacking one per line. */
+  /* Specificity has to match the all-day cap further up (.fc .fc-daygrid-body
+     .fc-daygrid-day-events), or that rule keeps the overflow and the cells
+     keep their scrollbars. */
+  .fc .fc-dayGridMonth-view .fc-daygrid-day-events {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0 3px 2px;
+    /* Both needed: the all-day cap further up makes this a scroll container,
+       which drew scrollbar nubs inside the cells -- little grey arrows that
+       looked like broken UI. */
+    max-height: none;
+    overflow: visible;
+  }
+  /* "+3 more" does not fit a 50px cell and was cut mid-word. The count alone
+     carries it, and the dots beside it already say what they are. */
+  .fc-dayGridMonth-view .fc-daygrid-day-bottom {
+    font-size: 0.65rem;
+    padding: 0 3px;
+    line-height: 1.2;
+  }
+  .fc-dayGridMonth-view .fc-daygrid-more-link {
+    white-space: nowrap;
+  }
+  .fc-dayGridMonth-view .fc-daygrid-day-number {
+    font-size: 0.75rem;
+    padding: 2px 4px;
+  }
 }
 
 /* ==========================================================================
