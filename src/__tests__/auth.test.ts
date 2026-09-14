@@ -112,3 +112,14 @@ describe('credentials authorize', () => {
     expect(await credentialsAuthorize()(undefined)).toBeNull();
   });
 });
+
+describe('session configuration', () => {
+  it('expires the session and JWT after 2 days, updating the session daily', () => {
+    const twoDays = 60 * 60 * 24 * 2;
+    const oneDay = 60 * 60 * 24;
+
+    expect(authOptions.session?.maxAge).toBe(twoDays);
+    expect(authOptions.session?.updateAge).toBe(oneDay);
+    expect(authOptions.jwt?.maxAge).toBe(twoDays);
+  });
+});
