@@ -6,15 +6,14 @@
  * app, and hands them here.
  */
 
-export const LAB_TIME_ZONE = 'Asia/Bangkok';
-
 /**
- * Cells are wall-clock hours in the lab's zone, never the server's. On a host
- * running in UTC, "10:00" built from the server clock would land at 17:00 for
- * the people reading it. Thailand keeps no daylight saving, so a fixed offset
- * is exact all year.
+ * Cells are wall-clock hours in the lab's zone, never the server's. The clock
+ * itself now lives in lib/lab-time.ts, which every other path that accepts a
+ * typed-in time also uses; re-exported here so this module's callers are
+ * unchanged.
  */
-export const LAB_UTC_OFFSET = '+07:00';
+export { LAB_TIME_ZONE, LAB_UTC_OFFSET } from './lab-time';
+import { LAB_UTC_OFFSET } from './lab-time';
 
 export type Interval = { start: number; end: number };
 

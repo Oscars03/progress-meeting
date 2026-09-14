@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { closePollAction, confirmSlotAction, deletePollAction, voteAction } from '../actions';
 import { slotConflictsAction, type SlotBusy } from '../../../calendar-actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { LAB_TIME_ZONE } from '@/lib/lab-time';
 
 type Choice = 'yes' | 'maybe' | 'no';
 
@@ -50,20 +51,23 @@ function formatRange(startAt: string, endAt: string): string {
   const end = new Date(endAt);
   if (Number.isNaN(start.getTime())) return `${startAt} — ${endAt}`;
 
-  const date = start.toLocaleDateString('th-TH', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-  const from = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  // Pinned to the lab's zone rather than the reader's: this renders on the
+  // server first, where "local" is UTC, and a slot that moves seven hours
+  // between the first paint and hydration is both wrong and a mismatch.
+  const day = { weekday: 'short', day: 'numeric', month: 'short', timeZone: LAB_TIME_ZONE } as const;
+  const clock = { hour: '2-digit', minute: '2-digit', timeZone: LAB_TIME_ZONE } as const;
+
+  const date = start.toLocaleDateString('th-TH', day);
+  const from = start.toLocaleTimeString('th-TH', clock);
 
   if (Number.isNaN(end.getTime())) return `${date} ${from}`;
 
-  const sameDay = start.toDateString() === end.toDateString();
-  const to = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const labDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: LAB_TIME_ZONE });
+  const sameDay = labDay(start) === labDay(end);
+  const to = end.toLocaleTimeString('th-TH', clock);
   return sameDay
     ? `${date} ${from} — ${to}`
-    : `${date} ${from} — ${end.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} ${to}`;
+    : `${date} ${from} — ${end.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: LAB_TIME_ZONE })} ${to}`;
 }
 
 export default function PollGrid({

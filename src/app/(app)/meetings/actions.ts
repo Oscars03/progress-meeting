@@ -6,6 +6,7 @@ import { requireRole } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { rotationMembers } from '@/lib/rotation';
+import { labInstant } from '@/lib/lab-time';
 import type { UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 
 function isHttpUrl(value: string): boolean {
@@ -39,11 +40,11 @@ export async function createMeeting(data: {
     if (!title) throw new UserError('meetings.topicRequired');
     if (!data.start_at || !data.end_at) throw new UserError('meetings.timesRequired');
 
-    const start = new Date(data.start_at);
-    const end = new Date(data.end_at);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new UserError('error.dateInvalid');
-    }
+    // A datetime-local carries no zone, so these are read as Thailand rather
+    // than as the server's UTC -- 08:00 typed here means 08:00 here.
+    const start = labInstant(data.start_at);
+    const end = labInstant(data.end_at);
+    if (!start || !end) throw new UserError('error.dateInvalid');
     if (end <= start) throw new UserError('error.endBeforeStart');
 
     const meetLink = data.meet_link?.trim() ?? '';

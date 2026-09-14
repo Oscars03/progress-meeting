@@ -13,6 +13,7 @@ import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
 import PendingUsers from './pending-users';
 import { weekKey } from '@/lib/week';
+import { formatLabTime } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
 import type {
   AvailabilityPollRecord,
@@ -22,19 +23,6 @@ import type {
   UserRecord,
   WeekLeadRecord,
 } from '@/lib/db/schema';
-
-function formatWhen(iso: string, locale: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-
-  return date.toLocaleString(locale === 'th' ? 'th-TH' : 'en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export default async function DashboardPage() {
   const [actor, users, meetings, leads, polls, slots, votes, t, locale] = await Promise.all([
@@ -150,7 +138,7 @@ export default async function DashboardPage() {
           <>
             <p className="text-xl font-bold text-gray-900">{upcoming.title}</p>
             <p className="text-sm text-gray-600 tabular-nums">
-              {formatWhen(upcoming.start_at, locale)}
+              {formatLabTime(upcoming.start_at, locale)}
             </p>
             {upcoming.location && <p className="text-sm text-gray-500">{upcoming.location}</p>}
             <Link
@@ -259,7 +247,7 @@ export default async function DashboardPage() {
                       {meeting.title}
                     </span>
                     <span className="text-xs text-gray-500 tabular-nums">
-                      {formatWhen(meeting.start_at, locale)}
+                      {formatLabTime(meeting.start_at, locale)}
                     </span>
                   </div>
                 </Link>

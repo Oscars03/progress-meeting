@@ -18,6 +18,7 @@ import {
   type Interval,
   type PersonAvailability,
 } from '@/lib/availability-grid';
+import { labInstant } from '@/lib/lab-time';
 import type { MeetingAttendeeRecord, MeetingRecord, UserRecord, PersonalEventRecord } from '@/lib/db/schema';
 
 /**
@@ -87,28 +88,16 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     }
   }
 
-  // Add manual personal events to appBusy
+  // Hours a member blocked out by hand. `labInstant` reads both shapes these
+  // rows come in: instants, and the bare wall clocks written before the create
+  // action resolved the zone.
   for (const pe of personalEvents) {
-    const parseTime = (t: string) => {
-      if (t.includes('+') || t.endsWith('Z')) return Date.parse(t);
-      if (t.length === 16) return Date.parse(`${t}:00+07:00`);
-      return Date.parse(t);
-    };
-    const start = parseTime(pe.start_at);
-    const end = parseTime(pe.end_at);
-    console.log(`[DEBUG] PE: ${pe.title} start=${pe.start_at} end=${pe.end_at} parsedStart=${start} parsedEnd=${end} windowStart=${windowStart} windowEnd=${windowEnd}`);
-    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
-      console.log(`[DEBUG] PE: ${pe.title} skipped because invalid or end<=start`);
-      continue;
-    }
-    if (end <= windowStart || start >= windowEnd) {
-      console.log(`[DEBUG] PE: ${pe.title} skipped because out of window`);
-      continue;
-    }
-    
-    const id = pe.user_id;
-    appBusy.set(id, [...(appBusy.get(id) ?? []), { start, end }]);
-    console.log(`[DEBUG] PE: ${pe.title} added to appBusy for user ${id}`);
+    const start = labInstant(pe.start_at)?.getTime();
+    const end = labInstant(pe.end_at)?.getTime();
+    if (start === undefined || end === undefined || end <= start) continue;
+    if (end <= windowStart || start >= windowEnd) continue;
+
+    appBusy.set(pe.user_id, [...(appBusy.get(pe.user_id) ?? []), { start, end }]);
   }
 
   const timeMin = new Date(windowStart).toISOString();

@@ -7,8 +7,19 @@
  * this cannot be "week number of the month" arithmetic.
  */
 
+import { labWallClock } from './lab-time';
+
+/**
+ * Midnight of the day this instant falls on *in the lab*.
+ *
+ * Not the server's day: the server runs in UTC, where Monday 07:00 in Bangkok
+ * is still Monday 00:00 — but Monday 06:00 in Bangkok is Sunday 23:00, the
+ * previous ISO week. Every Monday morning would have been filed under the week
+ * before.
+ */
 function toUtcMidnight(date: Date): Date {
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const lab = labWallClock(date);
+  return new Date(Date.UTC(lab.getUTCFullYear(), lab.getUTCMonth(), lab.getUTCDate()));
 }
 
 export function weekKey(date: Date = new Date()): string {
