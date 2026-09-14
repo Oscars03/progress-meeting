@@ -244,3 +244,34 @@ export async function setUserActiveAction(userId: string, active: boolean, rowVe
   await SheetRepo.update<UserRecord>('users', userId, { active }, rowVersion, actor.id);
   revalidatePath('/settings');
 }
+
+/**
+ * Arrange the weekly rotation.
+ *
+ * Positions are written for the whole list at once: a partial write would leave
+ * some students placed and others not, and the unplaced ones would silently
+ * jump to the end of the queue rather than staying where the admin put them.
+ */
+export async function setRotationOrderAction(userIds: string[]) {
+  const actor = await requireRole('admin');
+
+  const users = await SheetRepo.find<UserRecord>('users');
+  const byId = new Map(users.map((u) => [u.id, u]));
+
+  for (const [index, id] of userIds.entries()) {
+    const user = byId.get(id);
+    if (!user) throw new Error(`ไม่พบผู้ใช้รายนี้: ${id}`);
+    if (Number(user.rotation_order) === index + 1) continue;
+
+    await SheetRepo.update<UserRecord>(
+      'users',
+      id,
+      { rotation_order: index + 1 },
+      user.row_version,
+      actor.id
+    );
+  }
+
+  revalidatePath('/settings');
+  revalidatePath('/dashboard');
+}

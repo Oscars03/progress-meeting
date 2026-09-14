@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession, hasManagerRights } from '@/lib/auth-guard';
+import { requireSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
+import { weeksLedBy } from '@/lib/rotation';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
   AvailabilityVoteRecord,
+  WeekLeadRecord,
 } from '@/lib/db/schema';
 import NewPollButton from './new-poll-button';
 import WeekAvailabilityGrid from './week-availability';
@@ -16,14 +18,18 @@ export default async function PollsPage() {
 
   // The current week is read on the server so the grid arrives filled in,
   // rather than rendering empty and fetching from an effect.
-  const [polls, slots, votes, availability] = await Promise.all([
+  const [polls, slots, votes, leads, availability] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
     SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
     weekAvailabilityAction(),
   ]);
 
-  const canManage = hasManagerRights(actor.role);
+  const isAdmin = actor.role === 'admin';
+  const leadWeeks = weeksLedBy(leads, actor.id);
+  // Asking is the lead's job, so the page offers it to whoever leads a week.
+  const canManage = isAdmin || leadWeeks.length > 0;
 
   const rows = polls
     .map((poll) => {
@@ -63,7 +69,7 @@ export default async function PollsPage() {
         </div>
       </div>
 
-      <WeekAvailabilityGrid initial={availability} canManage={canManage} />
+      <WeekAvailabilityGrid initial={availability} leadWeeks={leadWeeks} isAdmin={isAdmin} />
 
       {rows.length === 0 && (
         <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-100">

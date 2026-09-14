@@ -91,3 +91,30 @@ export function bestSlot(tallies: SlotTally[]): SlotTally | null {
   if (answered.length === 0) return null;
   return rankSlots(answered)[0];
 }
+
+/**
+ * Open polls that still need an answer from one person, newest first.
+ *
+ * The lead proposes a time; everyone else has to answer for it to mean
+ * anything. A poll the person has already answered in full is not waiting on
+ * them, so it is dropped -- the point is a list of things to act on, not a
+ * list of polls.
+ */
+export function pollsAwaiting<
+  P extends { id: string; status: string; title: string; created_at: string },
+  S extends { id: string; poll_id: string },
+  V extends { slot_id: string; user_id: string },
+>(polls: P[], slots: S[], votes: V[], userId: string): { poll: P; remaining: number }[] {
+  return polls
+    .filter((poll) => poll.status !== 'closed')
+    .map((poll) => {
+      const mySlots = slots.filter((slot) => slot.poll_id === poll.id);
+      const slotIds = new Set(mySlots.map((slot) => slot.id));
+      const answered = new Set(
+        votes.filter((v) => v.user_id === userId && slotIds.has(v.slot_id)).map((v) => v.slot_id),
+      );
+      return { poll, remaining: mySlots.length - answered.size };
+    })
+    .filter((row) => row.remaining > 0)
+    .sort((a, b) => b.poll.created_at.localeCompare(a.poll.created_at));
+}

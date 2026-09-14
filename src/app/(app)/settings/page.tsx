@@ -6,12 +6,15 @@ import CalendarCard from './calendar-card';
 import { requireSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
+import RotationOrder, { type RotationStudent } from './rotation-order';
+import { rotationMembers } from '@/lib/rotation';
 
 export default async function SettingsPage() {
   const actor = await requireSession();
   const isAdmin = actor.role === 'admin';
 
   let users: SafeUser[] = [];
+  let rotation: RotationStudent[] = [];
   let loadError = false;
   let populatedTabs: string[] = [];
 
@@ -40,6 +43,7 @@ export default async function SettingsPage() {
         active: u.active === true,
         row_version: u.row_version,
       }));
+      rotation = rotationMembers(rawUsers).map((u) => ({ id: u.id, name: u.name }));
     } catch {
       // Database may not be initialised yet.
       loadError = true;
@@ -68,6 +72,8 @@ export default async function SettingsPage() {
         connectedCount={connectedCount}
         activeCount={activeCount}
       />
+
+      {isAdmin && <RotationOrder students={rotation} />}
 
       {isAdmin ? (
         <UserManager initialUsers={users} loadError={loadError} populatedTabs={populatedTabs} />

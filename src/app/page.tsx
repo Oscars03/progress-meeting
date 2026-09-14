@@ -13,13 +13,20 @@ export default async function Home() {
     <div className="min-h-dvh bg-gray-50 flex flex-col relative">
       {/* Header */}
       <header className="w-full p-6 flex justify-between items-start z-10">
-        <div>
+        {/* The brand column below carries the name, but it is hidden under lg,
+            so on a phone the app would sit unnamed. The name rides beside the
+            mark instead -- inside the existing header row, so nothing else on
+            the page moves. */}
+        <div className="flex items-center gap-3 min-w-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/irish-mark.png"
             alt="IRiSH Logo"
-            className="brand-logo w-20 h-20 sm:w-24 sm:h-24 object-contain"
+            className="brand-logo w-20 h-20 sm:w-24 sm:h-24 object-contain shrink-0"
           />
+          <span className="lg:hidden min-w-0 text-lg sm:text-xl font-bold text-blue-600 leading-tight">
+            {t('app.name')}
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           <LocaleSwitcher />

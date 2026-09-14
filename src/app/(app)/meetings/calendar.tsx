@@ -246,7 +246,7 @@ export default function CalendarView({
           <svg className="w-5 h-5 shrink-0 mt-0.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p>ใช้เมาส์ คลิกหรือลากคลุมช่วงเวลา บนปฏิทินเพื่อเพิ่มช่วงเวลาที่คุณไม่ว่างได้ทันที (รายการที่คุณสร้างจะสามารถลบได้โดยการคลิกที่รายการนั้น)</p>
+          <p>ใช้เมาส์ คลิกหรือลากคลุมช่วงเวลา บนปฏิทินเพื่อเพิ่มช่วงเวลาที่คุณไม่ว่างได้ทันที</p>
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-200 whitespace-nowrap hover:bg-gray-50 transition">
           <input 
@@ -269,7 +269,7 @@ export default function CalendarView({
           key={isPhone ? 'phone' : 'wide'}
           initialView={isPhone ? 'timeGridDay' : 'timeGridWeek'}
           slotMinTime="08:00:00"
-          slotMaxTime="23:00:00"
+          slotMaxTime="22:00:00"
           views={{
             timeGridWeek: { dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true } },
             timeGridDay: { dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true } },
@@ -284,6 +284,15 @@ export default function CalendarView({
           height="100%"
           selectable={true}
           selectMirror={true}
+          /**
+           * On a touch screen a plain drag scrolls the page, so FullCalendar
+           * only starts a selection after a long press. The default is a full
+           * second, which reads as "dragging does nothing" -- long enough that
+           * people give up before it fires. A quarter second is past an
+           * accidental tap and still feels immediate.
+           */
+          longPressDelay={250}
+          selectLongPressDelay={250}
           select={handleSelect}
           eventClick={handleEventClick}
         />
@@ -320,8 +329,7 @@ export default function CalendarView({
                   required
                   value={createTitle}
                   onChange={(e) => setCreateTitle(e.target.value)}
-                  placeholder={t('settings.personalScheduleDesc')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                  className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                   autoFocus
                 />
               </div>
@@ -336,13 +344,13 @@ export default function CalendarView({
                       required
                       value={createStartDate}
                       onChange={(e) => setCreateStartDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                     />
                     <select
                       required
                       value={createStartTime}
                       onChange={(e) => setCreateStartTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                     >
                       {timeOptions.map((time) => (
                         <option key={time} value={time}>
@@ -362,13 +370,13 @@ export default function CalendarView({
                       required
                       value={createEndDate}
                       onChange={(e) => setCreateEndDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                     />
                     <select
                       required
                       value={createEndTime}
                       onChange={(e) => setCreateEndTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                     >
                       {timeOptions.map((time) => (
                         <option key={time} value={time}>

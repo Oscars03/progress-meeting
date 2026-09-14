@@ -50,3 +50,6 @@ next-env.d.ts
 # Kept last so it overrides the logo folder rules above for README.md too.
 *.md
 !README.md
+
+# Claude Code personal settings (not shared)
+.claude/settings.local.json

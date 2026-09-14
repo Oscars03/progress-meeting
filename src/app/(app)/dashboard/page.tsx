@@ -2,10 +2,26 @@ import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession, hasManagerRights } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
-import { meetingsInWeek, nextMeeting, rotationMembers, suggestNextHost } from '@/lib/rotation';
+import {
+  leadForWeek,
+  meetingsInWeek,
+  nextMeeting,
+  rotationMembers,
+  suggestNextHost,
+  weeksLedBy,
+} from '@/lib/rotation';
 import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
-import type { MeetingRecord, UserRecord } from '@/lib/db/schema';
+import { weekKey } from '@/lib/week';
+import { pollsAwaiting } from '@/lib/poll-tally';
+import type {
+  AvailabilityPollRecord,
+  AvailabilitySlotRecord,
+  AvailabilityVoteRecord,
+  MeetingRecord,
+  UserRecord,
+  WeekLeadRecord,
+} from '@/lib/db/schema';
 
 function formatWhen(iso: string, locale: string): string {
   const date = new Date(iso);
@@ -21,10 +37,14 @@ function formatWhen(iso: string, locale: string): string {
 }
 
 export default async function DashboardPage() {
-  const [actor, users, meetings, t, locale] = await Promise.all([
+  const [actor, users, meetings, leads, polls, slots, votes, t, locale] = await Promise.all([
     requireSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
+    SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
+    SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
+    SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
     getT(),
     getLocale(),
   ]);
@@ -34,19 +54,54 @@ export default async function DashboardPage() {
   const students = rotationMembers(users);
   const nameOf = (id: string) => users.find((user) => user.id === id)?.name ?? '';
 
-  // The duty belongs to a meeting, so it hangs off this week's first meeting;
-  // with none, the next one ahead is what there is to prepare for.
-  const dutyMeeting = thisWeek[0] ?? upcoming;
-  const confirmedHost = dutyMeeting?.host_id ? nameOf(dutyMeeting.host_id) : '';
-  const suggested = confirmedHost ? null : suggestNextHost(users, meetings);
+  // The duty belongs to the week itself, so it stands whether or not anything
+  // has been scheduled yet.
+  const thisWeekKey = weekKey();
+  const lead = leadForWeek(leads, thisWeekKey);
+  const confirmedHost = lead ? nameOf(lead.user_id) : '';
+  const suggested = confirmedHost ? null : suggestNextHost(users, leads);
+
+  // Asking is the lead's job, but answering is everyone's, and the ask is easy
+  // to miss on a page nobody opens. It sits at the top of the page they do.
+  const awaiting = pollsAwaiting(polls, slots, votes, actor.id);
   const canConfirm = hasManagerRights(actor.role);
+  // Same rule the action enforces: whoever leads a week may book its meeting.
+  const canSchedule = actor.role === 'admin' || weeksLedBy(leads, actor.id).length > 0;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
-        <NewMeetingButton />
+        {canSchedule && <NewMeetingButton />}
       </div>
+
+      {awaiting.length > 0 && (
+        <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+          <div>
+            <h3 className="font-semibold text-amber-900">{t('dashboard.awaitingYou')}</h3>
+            <p className="text-sm text-amber-800">{t('dashboard.awaitingHint')}</p>
+          </div>
+
+          <ul className="space-y-2">
+            {awaiting.map(({ poll, remaining }) => (
+              <li key={poll.id}>
+                <Link
+                  href={`/meetings/polls/${poll.id}`}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 bg-white rounded-lg border border-amber-200 hover:border-amber-400 transition"
+                >
+                  <span className="font-medium text-gray-900 flex-1 min-w-48">{poll.title}</span>
+                  <span className="text-xs text-gray-500 tabular-nums">
+                    {t('dashboard.awaitingSlots', { n: remaining })}
+                  </span>
+                  <span className="text-sm font-medium text-blue-600">
+                    {t('dashboard.answerNow')}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Next meeting -- scheduled, or plainly not */}
@@ -73,12 +128,14 @@ export default async function DashboardPage() {
             <>
               <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
               <p className="text-sm text-gray-500">{t('dashboard.notScheduledHint')}</p>
-              <Link
-                href="/meetings"
-                className="inline-block text-sm text-blue-600 hover:underline"
-              >
-                {t('dashboard.scheduleNow')}
-              </Link>
+              {canSchedule && (
+                <Link
+                  href="/meetings"
+                  className="inline-block text-sm text-blue-600 hover:underline"
+                >
+                  {t('dashboard.scheduleNow')}
+                </Link>
+              )}
             </>
           )}
         </section>
@@ -89,8 +146,6 @@ export default async function DashboardPage() {
 
           {students.length === 0 ? (
             <p className="text-sm text-gray-500">{t('rotation.noStudents')}</p>
-          ) : !dutyMeeting ? (
-            <p className="text-sm text-gray-500">{t('rotation.needMeeting')}</p>
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -112,10 +167,9 @@ export default async function DashboardPage() {
 
               {canConfirm && (
                 <HostPicker
-                  meetingId={dutyMeeting.id}
-                  rowVersion={dutyMeeting.row_version}
+                  weekKey={thisWeekKey}
                   students={students.map((student) => ({ id: student.id, name: student.name }))}
-                  hostId={dutyMeeting.host_id ?? ''}
+                  hostId={lead?.user_id ?? ''}
                   suggestedId={suggested?.id ?? ''}
                 />
               )}
@@ -149,11 +203,6 @@ export default async function DashboardPage() {
                     <span className="font-semibold text-gray-900 flex-1 min-w-48">
                       {meeting.title}
                     </span>
-                    {meeting.host_id && (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-700">
-                        {nameOf(meeting.host_id)}
-                      </span>
-                    )}
                     <span className="text-xs text-gray-500 tabular-nums">
                       {formatWhen(meeting.start_at, locale)}
                     </span>

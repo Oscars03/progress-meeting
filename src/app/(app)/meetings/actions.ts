@@ -2,11 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole } from '@/lib/auth-guard';
+import { requireRole, requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import { rotationMembers } from '@/lib/rotation';
-import type { MeetingRecord, UserRecord } from '@/lib/db/schema';
+import { isWeekLead, rotationMembers } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
+import type { UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 
 function isHttpUrl(value: string): boolean {
   try {
@@ -17,6 +18,15 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
+/**
+ * Book a meeting.
+ *
+ * Same rule as asking for confirmation: the week's lead is the one preparing
+ * that meeting, so scheduling it is their job. Creating a meeting outright is
+ * the stronger of the two actions -- it skips asking anyone -- so leaving it
+ * open to everybody while the poll was restricted made no sense. Admin remains
+ * the fallback for a week whose lead is not settled.
+ */
 export async function createMeeting(data: {
   title: string;
   start_at: string;
@@ -25,7 +35,7 @@ export async function createMeeting(data: {
   meet_link?: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('student');
+    const actor = await requireSession();
 
     const title = data.title?.trim();
     if (!title) throw new UserError('meetings.topicRequired');
@@ -41,6 +51,11 @@ export async function createMeeting(data: {
     const meetLink = data.meet_link?.trim() ?? '';
     if (meetLink && !isHttpUrl(meetLink)) {
       throw new UserError('meetings.linkInvalid');
+    }
+
+    if (actor.role !== 'admin') {
+      const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+      if (!isWeekLead(leads, weekKey(start), actor.id)) throw new UserError('meetings.leadOnly');
     }
 
     await SheetRepo.insert(
@@ -65,22 +80,22 @@ export async function createMeeting(data: {
 }
 
 /**
- * Confirm who runs a meeting. Writing host_id is what turns the rotation's
- * suggestion into a decision -- until then the dashboard only proposes.
+ * Confirm who is responsible for a week.
  *
- * Passing an empty userId clears the duty, so a wrong confirmation can be
+ * The duty is stored against the ISO week rather than a meeting, so it can be
+ * settled before anything is scheduled -- and a week that never got a meeting
+ * still records whose turn it was, which is what keeps the rotation honest.
+ *
+ * Passing an empty userId clears the week, so a wrong confirmation can be
  * undone without editing the sheet by hand.
  */
-export async function setMeetingHost(
-  meetingId: string,
-  userId: string,
-  rowVersion: number,
-): Promise<ActionResult> {
+export async function setWeekLead(weekKey: string, userId: string): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireRole('professor');
 
-    const meeting = await SheetRepo.findOne<MeetingRecord>('meetings', meetingId);
-    if (!meeting) throw new UserError('error.notFound');
+    if (!/^\d{4}-W\d{2}$/.test(weekKey)) {
+      throw new UserError('error.invalidValue', { value: weekKey });
+    }
 
     if (userId) {
       const users = await SheetRepo.find<UserRecord>('users');
@@ -88,10 +103,20 @@ export async function setMeetingHost(
       if (!eligible) throw new UserError('rotation.notEligible');
     }
 
-    await SheetRepo.update('meetings', meetingId, { host_id: userId }, rowVersion, actor.id);
+    // Read then write rather than taking a row_version from the client: the
+    // caller holds a week, not a row, and the row may not exist yet.
+    const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+    const existing = leads.find((lead) => lead.week_key === weekKey);
+
+    if (!existing) {
+      if (userId) await SheetRepo.insert('week_leads', { week_key: weekKey, user_id: userId }, actor.id);
+    } else if (!userId) {
+      await SheetRepo.delete('week_leads', existing.id, existing.row_version, actor.id);
+    } else if (existing.user_id !== userId) {
+      await SheetRepo.update('week_leads', existing.id, { user_id: userId }, existing.row_version, actor.id);
+    }
 
     revalidatePath('/meetings');
-    revalidatePath(`/meetings/${meetingId}`);
     revalidatePath('/dashboard');
   });
 }

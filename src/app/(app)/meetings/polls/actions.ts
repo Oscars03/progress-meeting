@@ -4,9 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession } from '@/lib/auth-guard';
 import { isChoice, type Choice } from '@/lib/poll-tally';
+import { isWeekLead } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
 import { UserError } from '@/lib/user-error';
 import { toResult } from '@/lib/action-result';
 import type {
+  WeekLeadRecord,
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
   AvailabilityVoteRecord,
@@ -24,13 +27,23 @@ function revalidate(pollId?: string) {
   revalidatePath('/meetings');
 }
 
+/**
+ * Open a poll asking everyone to confirm a time.
+ *
+ * Whoever holds the week is the one preparing that meeting, so arranging its
+ * time is their job -- not a rank. An admin can always step in, otherwise a
+ * week whose lead is not yet confirmed would have nobody able to act at all.
+ *
+ * Checked here rather than only in the page: a server action is reachable by
+ * anyone holding its id, so a hidden button protects nothing.
+ */
 export async function createPollAction(input: {
   title: string;
   note: string;
   slots: { start: string; end: string }[];
 }) {
   return toResult(async () => {
-  const actor = await requireRole('professor');
+  const actor = await requireSession();
 
   const title = input.title.trim();
   if (!title) throw new UserError('polls.error.titleRequired');
@@ -45,6 +58,12 @@ export async function createPollAction(input: {
     if (Date.parse(s.end) <= Date.parse(s.start)) {
       throw new UserError('polls.error.invalidTime');
     }
+  }
+
+  if (actor.role !== 'admin') {
+    const week = weekKey(new Date(slots[0].start));
+    const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+    if (!isWeekLead(leads, week, actor.id)) throw new UserError('avail.leadOnly');
   }
 
   const poll = await SheetRepo.insert(
