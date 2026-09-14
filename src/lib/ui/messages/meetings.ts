@@ -18,7 +18,6 @@ export const meetings = defineMessages({
     'meetings.save': 'บันทึกนัดหมาย',
     'meetings.topicRequired': 'กรุณากรอกหัวข้อการประชุม',
     'meetings.timesRequired': 'กรุณาระบุเวลาเริ่มและเวลาสิ้นสุด',
-    'meetings.leadOnly': 'เฉพาะผู้รับผิดชอบประจำสัปดาห์นั้น (หรือผู้ดูแลระบบ) จึงจะนัดหมายประชุมได้',
     'meetings.linkInvalid': 'ลิงก์ประชุมต้องขึ้นต้นด้วย http:// หรือ https://',
 
     'meeting.back': '← กลับไปปฏิทิน',
@@ -122,7 +121,6 @@ export const meetings = defineMessages({
     'meetings.save': 'Save meeting',
     'meetings.topicRequired': 'Please enter a meeting title',
     'meetings.timesRequired': 'Please set both a start and an end time',
-    'meetings.leadOnly': "Only that week's lead (or an admin) can schedule a meeting",
     'meetings.linkInvalid': 'The meeting link must start with http:// or https://',
 
     'meeting.back': '← Back to calendar',

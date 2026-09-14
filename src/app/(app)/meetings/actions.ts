@@ -2,11 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole, requireSession } from '@/lib/auth-guard';
+import { requireRole } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import { isWeekLead, rotationMembers } from '@/lib/rotation';
-import { weekKey } from '@/lib/week';
+import { rotationMembers } from '@/lib/rotation';
 import type { UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 
 function isHttpUrl(value: string): boolean {
@@ -19,13 +18,12 @@ function isHttpUrl(value: string): boolean {
 }
 
 /**
- * Book a meeting.
+ * Book a meeting directly, without asking anyone.
  *
- * Same rule as asking for confirmation: the week's lead is the one preparing
- * that meeting, so scheduling it is their job. Creating a meeting outright is
- * the stronger of the two actions -- it skips asking anyone -- so leaving it
- * open to everybody while the poll was restricted made no sense. Admin remains
- * the fallback for a week whose lead is not settled.
+ * Admin only, and deliberately so: the way a meeting is meant to come about is
+ * a poll -- propose times, everyone answers, the winning slot becomes the
+ * meeting. This skips all of that, so it is the escape hatch rather than the
+ * route, and the button for it is not shown to anyone else.
  */
 export async function createMeeting(data: {
   title: string;
@@ -35,7 +33,7 @@ export async function createMeeting(data: {
   meet_link?: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireSession();
+    const actor = await requireRole('admin');
 
     const title = data.title?.trim();
     if (!title) throw new UserError('meetings.topicRequired');
@@ -51,11 +49,6 @@ export async function createMeeting(data: {
     const meetLink = data.meet_link?.trim() ?? '';
     if (meetLink && !isHttpUrl(meetLink)) {
       throw new UserError('meetings.linkInvalid');
-    }
-
-    if (actor.role !== 'admin') {
-      const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
-      if (!isWeekLead(leads, weekKey(start), actor.id)) throw new UserError('meetings.leadOnly');
     }
 
     await SheetRepo.insert(

@@ -1,14 +1,17 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession, hasManagerRights } from '@/lib/auth-guard';
+import { requireSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { tallySlot, rankSlots, bestSlot, type Choice } from '@/lib/poll-tally';
+import { isWeekLead } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
   AvailabilityVoteRecord,
   UserRecord,
+  WeekLeadRecord,
 } from '@/lib/db/schema';
 import PollGrid, { type SlotView } from './poll-grid';
 
@@ -16,11 +19,12 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
   const { id } = await props.params;
   const [actor, t] = await Promise.all([requireSession(), getT()]);
 
-  const [polls, slots, votes, users] = await Promise.all([
+  const [polls, slots, votes, users, leads] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
     SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
     SheetRepo.find<UserRecord>('users'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
   ]);
 
   // A miss may just be a cached list from before another instance inserted the
@@ -73,7 +77,16 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     })),
   }));
 
-  const canManage = hasManagerRights(actor.role);
+  // Ordered by how well each slot suits the group -- fewest people blocked,
+  // then most free -- rather than by clock time, so the slot to pick is the one
+  // at the top instead of one you have to hunt for by comparing counts.
+  slotViews.sort((a, b) => a.rank - b.rank);
+
+  // Running the poll follows the week it would schedule, not rank: the same
+  // rule the actions enforce. Without a slot there is no week to ask about.
+  const pollWeek = mySlots[0] ? weekKey(new Date(mySlots[0].start_at)) : '';
+  const canManage =
+    actor.role === 'admin' || (pollWeek !== '' && isWeekLead(leads, pollWeek, actor.id));
   const closed = poll.status === 'closed';
 
   return (

@@ -87,7 +87,7 @@ export default function NewMeetingButton() {
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="w-full min-w-0 px-3 py-2 border rounded-md"
                   placeholder={t('meetings.topicPlaceholder')}
                 />
               </div>
@@ -103,7 +103,7 @@ export default function NewMeetingButton() {
                     required
                     value={startAt}
                     onChange={(e) => setStartAt(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full min-w-0 px-3 py-2 border rounded-md"
                   />
                 </div>
                 <div>
@@ -116,7 +116,7 @@ export default function NewMeetingButton() {
                     required
                     value={endAt}
                     onChange={(e) => setEndAt(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full min-w-0 px-3 py-2 border rounded-md"
                   />
                 </div>
               </div>
@@ -130,7 +130,7 @@ export default function NewMeetingButton() {
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="w-full min-w-0 px-3 py-2 border rounded-md"
                   placeholder={t('meetings.locationPlaceholder')}
                 />
               </div>
@@ -144,7 +144,7 @@ export default function NewMeetingButton() {
                   type="url"
                   value={meetLink}
                   onChange={(e) => setMeetLink(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="w-full min-w-0 px-3 py-2 border rounded-md"
                   placeholder="https://meet.google.com/..."
                 />
               </div>

@@ -150,7 +150,7 @@ export default function AppNav({ userName }: { userName: string }) {
       {/* md:w-max: the expanded rail is exactly as wide as its widest content --
           today the header -- with no fixed width to leave slack beside short
           menu labels. Collapsed overrides it with a fixed 64px rail. */}
-      <nav className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-300 motion-reduce:transition-none md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <nav className={`fixed inset-y-0 left-0 z-50 w-72 h-dvh md:h-auto overflow-y-auto bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-300 motion-reduce:transition-none md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Mobile close button */}
         <div className="md:hidden absolute top-4 right-4">
           <button

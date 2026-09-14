@@ -8,7 +8,6 @@ import {
   nextMeeting,
   rotationMembers,
   suggestNextHost,
-  weeksLedBy,
 } from '@/lib/rotation';
 import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
@@ -56,6 +55,10 @@ export default async function DashboardPage() {
 
   // The duty belongs to the week itself, so it stands whether or not anything
   // has been scheduled yet.
+  // The next meeting has its own card above, so listing it again under "this
+  // week" says the same thing twice. What is left is what the card does not
+  // already show.
+  const restOfWeek = thisWeek.filter((meeting) => meeting.id !== upcoming?.id);
   const thisWeekKey = weekKey();
   const lead = leadForWeek(leads, thisWeekKey);
   const confirmedHost = lead ? nameOf(lead.user_id) : '';
@@ -67,8 +70,9 @@ export default async function DashboardPage() {
   const awaiting = open.filter((row) => row.remaining > 0);
   const answered = open.filter((row) => row.remaining === 0);
   const canConfirm = hasManagerRights(actor.role);
-  // Same rule the action enforces: whoever leads a week may book its meeting.
-  const canSchedule = actor.role === 'admin' || weeksLedBy(leads, actor.id).length > 0;
+  // Booking a meeting outright skips the poll, so it is admin's escape hatch.
+  // Everyone else schedules by proposing times and confirming the winner.
+  const canSchedule = actor.role === 'admin';
 
   return (
     <div className="space-y-6">
@@ -208,22 +212,13 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* This week at a glance */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-gray-600">{t('dashboard.thisWeek')}</h3>
-          <Link href="/meetings" className="text-sm text-blue-600 hover:underline">
-            {t('dashboard.addEvent')}
-          </Link>
-        </div>
+      {/* What the card above does not already show */}
+      {restOfWeek.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-gray-600">{t('dashboard.restOfWeek')}</h3>
 
-        {thisWeek.length === 0 ? (
-          <p className="p-5 text-sm text-gray-500 bg-gray-50 rounded-xl border border-gray-100">
-            {t('dashboard.noMeetingsThisWeek')}
-          </p>
-        ) : (
           <ul className="space-y-2">
-            {thisWeek.map((meeting) => (
+            {restOfWeek.map((meeting) => (
               <li key={meeting.id}>
                 <Link
                   href={`/meetings/${meeting.id}`}
@@ -241,8 +236,9 @@ export default async function DashboardPage() {
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
+
     </div>
   );
 }
