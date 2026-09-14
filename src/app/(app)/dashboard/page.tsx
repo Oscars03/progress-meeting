@@ -13,7 +13,7 @@ import {
 import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
 import { weekKey } from '@/lib/week';
-import { pollsAwaiting } from '@/lib/poll-tally';
+import { openPolls } from '@/lib/poll-tally';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -63,7 +63,9 @@ export default async function DashboardPage() {
 
   // Asking is the lead's job, but answering is everyone's, and the ask is easy
   // to miss on a page nobody opens. It sits at the top of the page they do.
-  const awaiting = pollsAwaiting(polls, slots, votes, actor.id);
+  const open = openPolls(polls, slots, votes, actor.id);
+  const awaiting = open.filter((row) => row.remaining > 0);
+  const answered = open.filter((row) => row.remaining === 0);
   const canConfirm = hasManagerRights(actor.role);
   // Same rule the action enforces: whoever leads a week may book its meeting.
   const canSchedule = actor.role === 'admin' || weeksLedBy(leads, actor.id).length > 0;
@@ -103,55 +105,57 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Next meeting -- scheduled, or plainly not */}
-        <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.nextMeeting')}</h3>
+      {/* Next meeting -- scheduled, or plainly not -- with the week's lead
+          along the bottom. The duty is not a separate topic from the meeting
+          it prepares, and as its own card it took a whole column to say one
+          name. */}
+      <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
+        <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.nextMeeting')}</h3>
 
-          {upcoming ? (
-            <>
-              <p className="text-xl font-bold text-gray-900">{upcoming.title}</p>
-              <p className="text-sm text-gray-600 tabular-nums">
-                {formatWhen(upcoming.start_at, locale)}
-              </p>
-              {upcoming.location && (
-                <p className="text-sm text-gray-500">{upcoming.location}</p>
-              )}
+        {upcoming ? (
+          <>
+            <p className="text-xl font-bold text-gray-900">{upcoming.title}</p>
+            <p className="text-sm text-gray-600 tabular-nums">
+              {formatWhen(upcoming.start_at, locale)}
+            </p>
+            {upcoming.location && <p className="text-sm text-gray-500">{upcoming.location}</p>}
+            <Link
+              href={`/meetings/${upcoming.id}`}
+              className="inline-block text-sm text-blue-600 hover:underline"
+            >
+              {t('dashboard.openMeeting')}
+            </Link>
+          </>
+        ) : (
+          <>
+            <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
+            <p className="text-sm text-gray-500">{t('dashboard.notScheduledHint')}</p>
+            {canSchedule && (
               <Link
-                href={`/meetings/${upcoming.id}`}
+                href="/meetings"
                 className="inline-block text-sm text-blue-600 hover:underline"
               >
-                {t('dashboard.openMeeting')}
+                {t('dashboard.scheduleNow')}
               </Link>
-            </>
-          ) : (
-            <>
-              <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
-              <p className="text-sm text-gray-500">{t('dashboard.notScheduledHint')}</p>
-              {canSchedule && (
-                <Link
-                  href="/meetings"
-                  className="inline-block text-sm text-blue-600 hover:underline"
-                >
-                  {t('dashboard.scheduleNow')}
-                </Link>
-              )}
-            </>
-          )}
-        </section>
+            )}
+          </>
+        )}
 
-        {/* Whose turn it is */}
-        <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-500">{t('rotation.title')}</h3>
-
+        {/* The lead stands whether or not anything is scheduled, so this strip
+            shows in both states above. */}
+        <div className="pt-3 border-t border-gray-100 space-y-2">
           {students.length === 0 ? (
-            <p className="text-sm text-gray-500">{t('rotation.noStudents')}</p>
+            <p className="text-sm text-gray-500">
+              <span className="text-gray-400">{t('rotation.title')}: </span>
+              {t('rotation.noStudents')}
+            </p>
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <p className="text-xl font-bold text-gray-900">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <span className="text-gray-500">{t('rotation.title')}:</span>
+                <span className="font-semibold text-gray-900">
                   {confirmedHost || suggested?.name}
-                </p>
+                </span>
                 <span
                   className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     confirmedHost ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
@@ -159,10 +163,6 @@ export default async function DashboardPage() {
                 >
                   {confirmedHost ? t('rotation.confirmed') : t('rotation.suggested')}
                 </span>
-              </div>
-
-              <p className="text-sm text-gray-500">
-                {confirmedHost ? t('rotation.duty') : t('rotation.suggestedHint')}
               </p>
 
               {canConfirm && (
@@ -175,8 +175,38 @@ export default async function DashboardPage() {
               )}
             </>
           )}
+        </div>
+      </section>
+
+      {/* Answered, but still open: quieter than the amber card above, because
+          it is not something to do -- it is somewhere to go back to. */}
+      {answered.length > 0 && (
+        <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.answeredPolls')}</h3>
+            <p className="text-sm text-gray-500">{t('dashboard.answeredHint')}</p>
+          </div>
+
+          <ul className="space-y-2">
+            {answered.map(({ poll }) => (
+              <li key={poll.id}>
+                <Link
+                  href={`/meetings/polls/${poll.id}`}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 rounded-lg border border-gray-200 hover:border-gray-400 transition"
+                >
+                  <span className="font-medium text-gray-900 flex-1 min-w-48">{poll.title}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
+                    {t('polls.myDone')}
+                  </span>
+                  <span className="text-sm font-medium text-blue-600">
+                    {t('dashboard.editAnswer')}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
-      </div>
+      )}
 
       {/* This week at a glance */}
       <section className="space-y-3">

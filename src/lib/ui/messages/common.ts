@@ -106,6 +106,9 @@ export const common = defineMessages({
     'dashboard.awaitingHint': 'ผู้รับผิดชอบประจำสัปดาห์เสนอเวลามาแล้ว กรุณาตอบเพื่อยืนยัน',
     'dashboard.awaitingSlots': 'ยังไม่ได้ตอบ {n} ช่วงเวลา',
     'dashboard.answerNow': 'ตอบเลย',
+    'dashboard.answeredPolls': 'โพลที่คุณตอบแล้ว',
+    'dashboard.answeredHint': 'ยังเปิดอยู่ แก้คำตอบได้จนกว่าจะปิดโพล',
+    'dashboard.editAnswer': 'แก้คำตอบ',
 
     'rotation.title': 'ผู้รับผิดชอบประจำสัปดาห์',
     'rotation.duty': 'เตรียมการประชุมและสรุปผลของสัปดาห์นี้',
@@ -120,6 +123,7 @@ export const common = defineMessages({
     'rotationOrder.title': 'ลำดับการเวียนผู้รับผิดชอบ',
     'rotationOrder.desc': 'ระบบจะเสนอคนถัดไปตามลำดับนี้ ผู้ที่ยังไม่ถูกจัดลำดับจะต่อท้ายตามลำดับที่เข้าร่วม',
     'rotationOrder.save': 'บันทึกลำดับ',
+    'rotationOrder.drag': 'กดค้างแล้วลากเพื่อจัดลำดับ',
 
     'report.title': 'รายงาน',
     'report.weeklyTitle': 'รายงานสรุปรายสัปดาห์',
@@ -231,6 +235,9 @@ export const common = defineMessages({
     'dashboard.awaitingHint': "This week's lead proposed a time. Answer to confirm it.",
     'dashboard.awaitingSlots': '{n} time(s) left to answer',
     'dashboard.answerNow': 'Answer now',
+    'dashboard.answeredPolls': 'Polls you have answered',
+    'dashboard.answeredHint': 'Still open — you can change your answer until it closes',
+    'dashboard.editAnswer': 'Change answer',
 
     'rotation.title': "This week's lead",
     'rotation.duty': "Prepares this week's meeting and writes the summary",
@@ -245,6 +252,7 @@ export const common = defineMessages({
     'rotationOrder.title': 'Rotation order',
     'rotationOrder.desc': 'The next lead is suggested by stepping down this list. Anyone not placed follows in the order they joined.',
     'rotationOrder.save': 'Save order',
+    'rotationOrder.drag': 'Hold and drag to reorder',
 
     'report.title': 'Report',
     'report.weeklyTitle': 'Weekly summary report',

@@ -23,7 +23,11 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const [actor, t] = await Promise.all([requireSession(), getT()]);
 
   const meetings = await SheetRepo.find<MeetingRecord>('meetings');
-  const meeting = meetings.find((m) => m.id === id);
+  // A miss may just be a cached list from before another instance inserted the
+  // meeting, so check a fresh read before calling it gone. See SheetRepo.find.
+  const meeting =
+    meetings.find((m) => m.id === id) ??
+    (await SheetRepo.find<MeetingRecord>('meetings', { fresh: true })).find((m) => m.id === id);
   if (!meeting) notFound();
 
   const [users, allMinutes, allItems, tasks, leads] = await Promise.all([

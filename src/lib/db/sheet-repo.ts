@@ -126,11 +126,24 @@ export class SheetRepo {
     return (res.data.values ?? []) as RawRow[];
   }
 
-  static async find<T extends BaseRecord = AnyRecord>(tabName: TableName): Promise<T[]> {
+  /**
+   * `fresh` skips the read cache for this call, and refills it.
+   *
+   * For the one case where a stale read is indistinguishable from the truth:
+   * a row that is not in the list. On a multi-instance deploy the process
+   * serving a page may hold a list from before another process inserted the
+   * row, so "missing" can mean "created seconds ago somewhere else" -- which
+   * showed up as a 404 on a poll that plainly existed. A hit still comes from
+   * the cache; only a miss pays for a second read.
+   */
+  static async find<T extends BaseRecord = AnyRecord>(
+    tabName: TableName,
+    options: { fresh?: boolean } = {}
+  ): Promise<T[]> {
     assertHasCommonColumns(tabName);
 
     const cached = cache.get(tabName);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    if (!options.fresh && cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return clone(cached.data) as unknown as T[];
     }
 
@@ -155,7 +168,12 @@ export class SheetRepo {
     id: string
   ): Promise<T | null> {
     const all = await this.find<T>(tabName);
-    return all.find((r) => r.id === id) ?? null;
+    const hit = all.find((r) => r.id === id);
+    if (hit) return hit;
+
+    // Not in the cached list is not proof it does not exist -- see find().
+    const fresh = await this.find<T>(tabName, { fresh: true });
+    return fresh.find((r) => r.id === id) ?? null;
   }
 
   static async insert<T extends Record<string, CellValue>>(

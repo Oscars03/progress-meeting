@@ -20,9 +20,13 @@ import {
 } from '@/lib/availability-grid';
 import type { MeetingAttendeeRecord, MeetingRecord, UserRecord, PersonalEventRecord } from '@/lib/db/schema';
 
-/** The hours the grid covers each day, in the lab's zone. */
+/**
+ * The hours the grid covers each day, in the lab's zone. Kept in step with the
+ * calendar's slotMinTime/slotMaxTime, so a time you can pick on one is a time
+ * the other will show.
+ */
 const DAY_FROM_HOUR = 8;
-const DAY_TO_HOUR = 20;
+const DAY_TO_HOUR = 22;
 
 export type WeekAvailability = {
   weekStart: string;
