@@ -6,6 +6,7 @@ import { requireSession } from '@/lib/auth-guard';
 import { isChoice, type Choice } from '@/lib/poll-tally';
 import { isWeekLead } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
+import { labInstant } from '@/lib/lab-time';
 import { UserError } from '@/lib/user-error';
 import { toResult } from '@/lib/action-result';
 import type {
@@ -55,7 +56,7 @@ async function assertRunsThePoll(
   if (!earliest) throw new UserError('avail.leadOnly');
 
   const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
-  if (!isWeekLead(leads, weekKey(new Date(earliest.start_at)), actor.id)) {
+  if (!isWeekLead(leads, weekKey(labInstant(earliest.start_at) ?? new Date(NaN)), actor.id)) {
     throw new UserError('avail.leadOnly');
   }
 }
@@ -71,17 +72,20 @@ export async function createPollAction(input: {
   const title = input.title.trim();
   if (!title) throw new UserError('polls.error.titleRequired');
 
-  const slots = input.slots
-    .map((s) => ({ start: s.start?.trim() ?? '', end: s.end?.trim() ?? '' }))
-    .filter((s) => s.start && s.end);
+  // The slot pickers are datetime-locals, so what arrives is a bare wall clock.
+  // Resolve it against the lab's zone here, once, and carry instants from this
+  // point on: the winning slot is copied straight into the meeting it creates.
+  // A half-filled row is the form's spare slot, not a mistake, so it is dropped;
+  // a row that is filled in but unreadable is a mistake and says so.
+  const filled = input.slots.filter((s) => s.start?.trim() && s.end?.trim());
+  if (filled.length === 0) throw new UserError('polls.error.minSlots');
 
-  if (slots.length === 0) throw new UserError('polls.error.minSlots');
-
-  for (const s of slots) {
-    if (Date.parse(s.end) <= Date.parse(s.start)) {
-      throw new UserError('polls.error.invalidTime');
-    }
-  }
+  const slots = filled.map((s) => {
+    const start = labInstant(s.start);
+    const end = labInstant(s.end);
+    if (!start || !end || end <= start) throw new UserError('polls.error.invalidTime');
+    return { start: start.toISOString(), end: end.toISOString() };
+  });
 
   if (actor.role !== 'admin') {
     const week = weekKey(new Date(slots[0].start));

@@ -5,6 +5,7 @@ import { requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { PersonalEventRecord } from '@/lib/db/schema';
+import { labInstant } from '@/lib/lab-time';
 
 export async function createPersonalEventAction(data: {
   title: string;
@@ -18,9 +19,14 @@ export async function createPersonalEventAction(data: {
     if (!data.start_at) throw new Error('settings.error.startRequired');
     if (!data.end_at) throw new Error('settings.error.endRequired');
 
-    const s = Date.parse(data.start_at);
-    const e = Date.parse(data.end_at);
-    if (Number.isNaN(s) || Number.isNaN(e) || e <= s) {
+    // The form is a datetime-local, so these arrive with no zone. Read them as
+    // Thailand and store the instant, not the wall clock -- a bare wall clock
+    // in the sheet is read as UTC by the server and as Bangkok by the browser,
+    // which is how the calendar and the availability grid came to disagree by
+    // seven hours about the same row.
+    const start = labInstant(data.start_at);
+    const end = labInstant(data.end_at);
+    if (!start || !end || end <= start) {
       throw new Error('settings.error.invalidDate');
     }
 
@@ -28,8 +34,8 @@ export async function createPersonalEventAction(data: {
       created_by: actor.id,
       user_id: actor.id,
       title: data.title.trim(),
-      start_at: data.start_at,
-      end_at: data.end_at,
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
     };
 
     await SheetRepo.insert('personal_events', doc);

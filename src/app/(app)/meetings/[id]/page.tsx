@@ -16,11 +16,12 @@ import HostPicker from '../../dashboard/host-picker';
 import MinutesEditor from './minutes-editor';
 import ActionItems from './action-items';
 import CalendarSync from './calendar-sync';
-import { getT } from '@/lib/ui/server-i18n';
+import { getLocale, getT } from '@/lib/ui/server-i18n';
+import { formatLabTime } from '@/lib/lab-time';
 
 export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]'>) {
   const { id } = await props.params;
-  const [actor, t] = await Promise.all([requireSession(), getT()]);
+  const [actor, t, locale] = await Promise.all([requireSession(), getT(), getLocale()]);
 
   const meetings = await SheetRepo.find<MeetingRecord>('meetings');
   // A miss may just be a cached list from before another instance inserted the
@@ -59,7 +60,12 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const hostName = lead ? (users.find((u) => u.id === lead.user_id)?.name ?? '') : '';
   const suggestedHost = hostName ? null : suggestNextHost(users, leads);
   const calendarOwner = users.find((u) => u.id === meeting.google_calendar_owner_id);
-  const when = [meeting.start_at, meeting.end_at].filter(Boolean).join(' — ');
+  // This showed the two stored instants verbatim -- "2026-09-25T01:00:00.000Z"
+  // twice, on the page that is meant to tell you when the meeting is.
+  const when = [meeting.start_at, meeting.end_at]
+    .map((iso) => formatLabTime(iso, locale))
+    .filter(Boolean)
+    .join(' — ');
 
   return (
     <div className="space-y-6 max-w-4xl">
