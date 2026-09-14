@@ -17,6 +17,7 @@ type IconName = 'dashboard' | 'tasks' | 'meetings' | 'presentations' | 'report' 
  */
 const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
   { href: '/dashboard', key: 'nav.dashboard', icon: 'dashboard' },
+  { href: '/tasks', key: 'nav.tasks', icon: 'tasks' },
   { href: '/meetings', key: 'nav.meetings', icon: 'meetings' },
   { href: '/presentations', key: 'nav.presentations', icon: 'presentations' },
   { href: '/settings', key: 'nav.settings', icon: 'settings' },

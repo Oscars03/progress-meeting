@@ -42,6 +42,7 @@ const { createPollAction, closePollAction, confirmSlotAction, deletePollAction }
   '../app/(app)/meetings/polls/actions'
 );
 const { createMeeting } = await import('../app/(app)/meetings/actions');
+const { createTask, updateTaskStatus, updateTaskDetails } = await import('../app/(app)/tasks/actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
@@ -257,5 +258,59 @@ describe('term breaks', () => {
     const result = await setWeekLead(WEEK, 'lead');
     expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
     expect(insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('task permissions', () => {
+  beforeEach(() => {
+    tables['tasks'] = [
+      { id: 't1', title: 'Task 1', assignee_ids: ['student1'], status: 'draft', row_version: 1 }
+    ];
+  });
+
+  it('allows any signed-in user to change status if they are an assignee', async () => {
+    signedInAs('student1');
+    const result = await updateTaskStatus('t1', 'in_progress', 1);
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('allows a manager (professor/admin) to change status even if not assigned', async () => {
+    signedInAs('prof', 'professor');
+    const result = await updateTaskStatus('t1', 'in_progress', 1);
+    expect(result.ok).toBe(true);
+  });
+
+  it('refuses status change from a student who is not assigned', async () => {
+    signedInAs('student2');
+    const result = await updateTaskStatus('t1', 'in_progress', 1);
+    expect(result.ok).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('allows professor to create a task', async () => {
+    signedInAs('prof', 'professor');
+    const result = await createTask({ title: 'New Task' });
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalled();
+  });
+
+  it('refuses student from creating a task', async () => {
+    signedInAs('student1');
+    const result = await createTask({ title: 'New Task' });
+    expect(result.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('allows manager to edit task details', async () => {
+    signedInAs('admin1', 'admin');
+    const result = await updateTaskDetails('t1', { title: 'Updated' }, 1);
+    expect(result.ok).toBe(true);
+  });
+
+  it('refuses student from editing task details', async () => {
+    signedInAs('student1');
+    const result = await updateTaskDetails('t1', { title: 'Updated' }, 1);
+    expect(result.ok).toBe(false);
   });
 });
