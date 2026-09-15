@@ -11,12 +11,15 @@ export default function KanbanBoard({
   tasks,
   users = [],
   currentUserId = '',
-  canAssign = false
+  canAssign = false,
+  isLeadThisWeek = false
 }: { 
   tasks: TaskRecord[],
   users?: UserRecord[],
   currentUserId?: string,
-  canAssign?: boolean
+  canAssign?: boolean,
+  /** Whoever is running this week's meeting may clear the board for it. */
+  isLeadThisWeek?: boolean
 }) {
   const { t } = usePrefs();
   const router = useRouter();
@@ -85,7 +88,8 @@ export default function KanbanBoard({
                   const editable = canAssign || assignees.includes(currentUserId);
                   // Narrower than editing: work somebody else put on your list
                   // is not yours to make disappear.
-                  const removable = canAssign || task.owner_id === currentUserId;
+                  const removable =
+                    canAssign || isLeadThisWeek || task.owner_id === currentUserId;
                   const assigneeNames = assignees.map(id => userMap.get(id)).filter(Boolean).join(', ');
                   
                   let overdue = false;

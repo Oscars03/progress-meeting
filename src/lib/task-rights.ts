@@ -49,12 +49,23 @@ export function canRecordProgress(actor: SessionUser, task: Pick<TaskRecord, 'as
  * Narrower than editing it. An assignee may move their own work across the
  * board and report on it, but work somebody else put on their list is not
  * theirs to make disappear -- that would let a student answer an assignment
- * by deleting it. Whoever wrote it down can withdraw it, and an advisor or
- * admin can remove anything, which is the only way to clear a mistake.
+ * by deleting it.
+ *
+ * Three can: whoever wrote it down, because they can withdraw their own; the
+ * lead of the week, because tidying the board is part of preparing the meeting
+ * that reads from it; and an advisor or admin, which is the only way to clear
+ * somebody else's mistake.
+ *
+ * The lead is judged on the current week rather than any week they have ever
+ * held -- the claim is "I am running this week's meeting", not "I ran one once".
  */
 export function canRemoveWork(
   actor: SessionUser,
-  task: Pick<TaskRecord, 'owner_id'>
+  task: Pick<TaskRecord, 'owner_id'>,
+  thisWeek: string,
+  leads: WeekLeadRecord[]
 ): boolean {
-  return hasManagerRights(actor.role) || task.owner_id === actor.id;
+  if (hasManagerRights(actor.role)) return true;
+  if (task.owner_id === actor.id) return true;
+  return isWeekLead(leads, thisWeek, actor.id);
 }

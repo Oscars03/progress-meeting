@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { weekKey } from '../lib/week';
 
 const getServerSessionMock = vi.fn();
 vi.mock('next-auth', () => ({ getServerSession: () => getServerSessionMock() }));
@@ -859,6 +860,50 @@ describe('taking back a weekly progress report', () => {
     const result = await deleteWeeklyUpdateAction('up1', 2);
 
     expect(result).toMatchObject({ ok: false, error: 'error.forbidden' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+// Tidying the board is part of preparing the meeting that reads from it, so
+// this week's lead can clear work as well as its owner can.
+describe('the week lead removing work', () => {
+  // The action asks who leads *now*, so the fixture has to be this week rather
+  // than the far-future week the rest of this file uses.
+  const THIS_WEEK = weekKey();
+
+  beforeEach(() => {
+    tables['tasks'] = [
+      { id: 'tk1', title: 'Somebody else\u2019s', owner_id: 'someone', assignee_ids: ['someone'], status: 'in_progress', row_version: 1 },
+    ];
+    tables['task_updates'] = [];
+    tables['week_leads'] = [
+      { id: 'wl-now', week_key: THIS_WEEK, user_id: 'thisweek', row_version: 1 },
+      { id: 'wl-past', week_key: '2026-W01', user_id: 'lastterm', row_version: 1 },
+    ];
+  });
+
+  it("lets this week's lead clear work they did not write", async () => {
+    signedInAs('thisweek');
+    const result = await deleteTask('tk1', 1);
+
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('tasks', 'tk1', 1, 'thisweek');
+  });
+
+  // The claim is "I am running this week's meeting", not "I ran one once".
+  it('refuses somebody who led a different week', async () => {
+    signedInAs('lastterm');
+    const result = await deleteTask('tk1', 1);
+
+    expect(result).toMatchObject({ ok: false });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a member who holds no week at all', async () => {
+    signedInAs('nobody');
+    const result = await deleteTask('tk1', 1);
+
+    expect(result).toMatchObject({ ok: false });
     expect(remove).not.toHaveBeenCalled();
   });
 });
