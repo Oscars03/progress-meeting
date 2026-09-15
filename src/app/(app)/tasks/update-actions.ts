@@ -113,3 +113,45 @@ async function saveWeeklyUpdate(input: {
   revalidatePath('/tasks/weekly');
   revalidatePath('/dashboard');
 }
+
+/**
+ * Take back a week's progress report.
+ *
+ * One could be written and rewritten but never removed, so a report filed
+ * against the wrong task or the wrong week stayed in the record for good --
+ * and because there is one row per task per week, it also blocked the week
+ * from reading as "not reported yet".
+ *
+ * Whoever could have written it can withdraw it: the person the work belongs
+ * to, whoever led the week it covers, or an advisor. Judged on the week the
+ * report is *for*, like writing one.
+ */
+export async function deleteWeeklyUpdateAction(
+  updateId: string,
+  rowVersion: number
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+
+    const update = await SheetRepo.findOne<TaskUpdateRecord>('task_updates', updateId);
+    if (!update) throw new UserError('error.notFound');
+
+    const [tasks, leads] = await Promise.all([
+      SheetRepo.find<TaskRecord>('tasks'),
+      SheetRepo.find<WeekLeadRecord>('week_leads'),
+    ]);
+
+    const task = tasks.find((t) => t.id === update.task_id);
+    if (!task) throw new UserError('error.notFound');
+
+    if (!canRecordProgress(actor, task, update.week_key, leads)) {
+      throw new UserError('error.forbidden');
+    }
+
+    await SheetRepo.delete('task_updates', updateId, rowVersion, actor.id);
+
+    revalidatePath('/tasks');
+    revalidatePath('/tasks/weekly');
+    revalidatePath('/dashboard');
+  });
+}
