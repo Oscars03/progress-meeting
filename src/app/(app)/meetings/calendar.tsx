@@ -371,16 +371,16 @@ export default function CalendarView({
   };
 
   return (
-    <div className="space-y-4">
-      {/* One row, and on a phone one line of plain text rather than a boxed
-          notice: the blue panel and the bordered checkbox together took about a
-          third of the screen before the calendar started. The instruction also
-          said "use your mouse" to people holding a phone, which is why nobody
-          discovered that press-and-drag works. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
-        <p className="text-gray-500 flex items-start gap-2 flex-1 min-w-[16rem]">
+    <div className="space-y-2">
+      {/* Hint and toggle on one line, at every width. Two rows -- one of which
+          wrapped to three lines on a phone -- were most of what stood between
+          the nav bar and the calendar on the page whose point is the calendar.
+          The hint truncates rather than wrapping: three lines of instruction
+          above a grid is worse than one line finished on a wider screen. */}
+      <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+        <p className="text-gray-500 flex items-center gap-1.5 min-w-0">
           <svg
-            className="w-4 h-4 shrink-0 mt-0.5 text-gray-400"
+            className="w-3.5 h-3.5 shrink-0 text-gray-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -392,20 +392,20 @@ export default function CalendarView({
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <span className="sm:hidden">แตะค้างแล้วลากบนปฏิทิน เพื่อเพิ่มช่วงเวลาที่คุณไม่ว่าง</span>
+          <span className="truncate sm:hidden">แตะค้างแล้วลากเพื่อเพิ่มเวลาที่ไม่ว่าง</span>
           <span className="hidden sm:inline">
             คลิกหรือลากคลุมช่วงเวลาบนปฏิทิน เพื่อเพิ่มช่วงเวลาที่คุณไม่ว่าง
           </span>
         </p>
 
-        <label className="flex items-center gap-2 text-gray-600 cursor-pointer whitespace-nowrap">
+        <label className="flex items-center gap-1.5 text-gray-600 cursor-pointer whitespace-nowrap shrink-0">
           <input
             type="checkbox"
             checked={showOthers}
             onChange={(e) => setShowOthers(e.target.checked)}
             className="rounded text-blue-600 focus:ring-blue-500"
           />
-          <span className="sm:hidden">แสดงของคนอื่น</span>
+          <span className="sm:hidden">คนอื่น</span>
           <span className="hidden sm:inline">แสดงตารางส่วนตัวของสมาชิกคนอื่นด้วย</span>
         </label>
       </div>
