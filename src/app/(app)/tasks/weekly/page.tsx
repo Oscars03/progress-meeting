@@ -58,6 +58,8 @@ export default async function WeeklyPage() {
       editable: canRecordProgress(actor, task, thisWeek, leads),
       current: current
         ? {
+            id: current.id,
+            rowVersion: current.row_version,
             summary: current.summary ?? '',
             risks: current.risks ?? '',
             nextPlan: current.next_plan ?? '',

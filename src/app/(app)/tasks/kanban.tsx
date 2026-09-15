@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateTaskStatus } from './actions';
+import { deleteTask, updateTaskStatus } from './actions';
 import { TASK_STATUSES, readStatus } from './statuses';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TaskRecord, UserRecord } from '@/lib/db/schema';
@@ -26,6 +26,18 @@ export default function KanbanBoard({
 
   const columns = TASK_STATUSES.map((id) => ({ id, label: t(`tasks.status.${id}`) }));
   const userMap = new Map(users.map(u => [u.id, u.name]));
+
+  const handleDelete = (task: TaskRecord) => {
+    // The weekly reports written about it go too, so the confirm says so
+    // rather than letting that be a surprise.
+    if (!confirm(t('tasks.confirmDelete', { title: task.title }))) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteTask(task.id, task.row_version);
+      if (res.ok) router.refresh();
+      else setError(t(res.error, res.vars));
+    });
+  };
 
   const handleMove = (task: TaskRecord, newStatus: string) => {
     setError(null);
@@ -71,6 +83,9 @@ export default function KanbanBoard({
                 {inColumn.map((task) => {
                   const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
                   const editable = canAssign || assignees.includes(currentUserId);
+                  // Narrower than editing: work somebody else put on your list
+                  // is not yours to make disappear.
+                  const removable = canAssign || task.owner_id === currentUserId;
                   const assigneeNames = assignees.map(id => userMap.get(id)).filter(Boolean).join(', ');
                   
                   let overdue = false;
@@ -118,6 +133,17 @@ export default function KanbanBoard({
                           </option>
                         ))}
                       </select>
+
+                      {removable && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(task)}
+                          disabled={isPending}
+                          className="mt-2 text-xs text-red-600 hover:underline disabled:opacity-50"
+                        >
+                          {t('common.delete')}
+                        </button>
+                      )}
                     </div>
                   );
                 })}

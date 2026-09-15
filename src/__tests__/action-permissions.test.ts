@@ -42,8 +42,8 @@ const { createPollAction, closePollAction, confirmSlotAction, deletePollAction }
   '../app/(app)/meetings/polls/actions'
 );
 const { createMeeting, deleteMeeting } = await import('../app/(app)/meetings/actions');
-const { createTask, updateTaskStatus, updateTaskDetails } = await import('../app/(app)/tasks/actions');
-const { saveWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
+const { createTask, updateTaskStatus, updateTaskDetails, deleteTask } = await import('../app/(app)/tasks/actions');
+const { saveWeeklyUpdateAction, deleteWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 const { updateMyNameAction } = await import('../app/(app)/settings/actions');
 const { setTopicOrder, clearTopicOrder } = await import('../app/(app)/presentations/actions');
 const { updatePersonalEventAction } = await import('../app/(app)/settings/schedule-actions');
@@ -761,5 +761,104 @@ describe('editing your own busy hours', () => {
       4,
       'me'
     );
+  });
+});
+
+// Work could be created, moved and edited, then stayed on the board for good.
+describe('removing a piece of work', () => {
+  beforeEach(() => {
+    tables['tasks'] = [
+      { id: 'tk1', title: 'Mine', owner_id: 'me', assignee_ids: ['other'], status: 'in_progress', row_version: 3 },
+    ];
+    tables['task_updates'] = [
+      { id: 'up1', task_id: 'tk1', week_key: WEEK, summary: 'a', row_version: 1 },
+      { id: 'up2', task_id: 'tk1', week_key: '2026-W41', summary: 'b', row_version: 1 },
+      { id: 'other', task_id: 'tk-other', week_key: WEEK, summary: 'c', row_version: 1 },
+    ];
+  });
+
+  it('lets whoever wrote it down withdraw it', async () => {
+    signedInAs('me');
+    const result = await deleteTask('tk1', 3);
+
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('tasks', 'tk1', 3, 'me');
+  });
+
+  // A report is a statement about this task and means nothing without it --
+  // left behind it is the same orphan the calendar had with a deleted poll.
+  it('takes the weekly reports about it, and only those', async () => {
+    signedInAs('me');
+    await deleteTask('tk1', 3);
+
+    expect(remove).toHaveBeenCalledWith('task_updates', 'up1', 1, 'me');
+    expect(remove).toHaveBeenCalledWith('task_updates', 'up2', 1, 'me');
+    expect(remove).not.toHaveBeenCalledWith('task_updates', 'other', 1, 'me');
+  });
+
+  it('lets an advisor remove anything, which is the only way to clear a mistake', async () => {
+    signedInAs('prof', 'professor');
+    const result = await deleteTask('tk1', 3);
+    expect(result.ok).toBe(true);
+  });
+
+  // Otherwise a student could answer an assignment by deleting it.
+  it('refuses an assignee who did not write it down', async () => {
+    signedInAs('other');
+    const result = await deleteTask('tk1', 3);
+
+    expect(result).toMatchObject({ ok: false });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('reports work already gone rather than pretending it worked', async () => {
+    signedInAs('me');
+    const result = await deleteTask('missing', 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'error.notFound' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('taking back a weekly progress report', () => {
+  beforeEach(() => {
+    tables['tasks'] = [
+      { id: 'tk1', title: 'Work', owner_id: 'prof', assignee_ids: ['me'], status: 'in_progress', row_version: 1 },
+    ];
+    tables['task_updates'] = [
+      { id: 'up1', task_id: 'tk1', week_key: WEEK, summary: 'a', row_version: 2 },
+    ];
+  });
+
+  it('lets the person the work belongs to withdraw their own', async () => {
+    signedInAs('me');
+    const result = await deleteWeeklyUpdateAction('up1', 2);
+
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('task_updates', 'up1', 2, 'me');
+  });
+
+  it('lets the lead of the week it covers withdraw it', async () => {
+    signedInAs('lead');
+    const result = await deleteWeeklyUpdateAction('up1', 2);
+    expect(result.ok).toBe(true);
+  });
+
+  // Judged on the week the report is for, exactly as writing one is.
+  it('refuses the lead of a different week', async () => {
+    tables['week_leads'] = [{ id: 'wl2', week_key: '2026-W41', user_id: 'lead', row_version: 1 }];
+    signedInAs('lead');
+
+    const result = await deleteWeeklyUpdateAction('up1', 2);
+    expect(result).toMatchObject({ ok: false, error: 'error.forbidden' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('refuses somebody with no claim on it at all', async () => {
+    signedInAs('stranger');
+    const result = await deleteWeeklyUpdateAction('up1', 2);
+
+    expect(result).toMatchObject({ ok: false, error: 'error.forbidden' });
+    expect(remove).not.toHaveBeenCalled();
   });
 });

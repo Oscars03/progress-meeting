@@ -42,3 +42,19 @@ export function canRecordProgress(actor: SessionUser, task: Pick<TaskRecord, 'as
   if (canEditWork(actor, task)) return true;
   return isWeekLead(leads, weekKey, actor.id);
 }
+
+/**
+ * Who may remove a piece of work outright.
+ *
+ * Narrower than editing it. An assignee may move their own work across the
+ * board and report on it, but work somebody else put on their list is not
+ * theirs to make disappear -- that would let a student answer an assignment
+ * by deleting it. Whoever wrote it down can withdraw it, and an advisor or
+ * admin can remove anything, which is the only way to clear a mistake.
+ */
+export function canRemoveWork(
+  actor: SessionUser,
+  task: Pick<TaskRecord, 'owner_id'>
+): boolean {
+  return hasManagerRights(actor.role) || task.owner_id === actor.id;
+}

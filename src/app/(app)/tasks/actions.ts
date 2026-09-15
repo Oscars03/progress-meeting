@@ -3,11 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession, AuthorizationError } from '@/lib/auth-guard';
-import { canAddOwnWork, canAssignWork, canEditWork } from '@/lib/task-rights';
+import { canAddOwnWork, canAssignWork, canEditWork, canRemoveWork } from '@/lib/task-rights';
 import type { UserRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import type { TaskRecord } from '@/lib/db/schema';
+import type { TaskRecord, TaskUpdateRecord } from '@/lib/db/schema';
 import { TASK_STATUSES, type TaskStatus } from './statuses';
 
 function assertStatus(value: string): asserts value is TaskStatus {
@@ -147,6 +147,38 @@ export async function updateTaskDetails(
     );
 
     revalidatePath('/tasks');
+    revalidatePath('/dashboard');
+  });
+}
+
+/**
+ * Remove a piece of work, and the weekly reports written about it.
+ *
+ * There was no way to remove one at all: work could be created, moved and
+ * edited, and then stayed on the board for good. A list nobody can prune stops
+ * being read.
+ *
+ * Its progress reports go with it. They are statements *about this task* and
+ * mean nothing without it -- left behind they would be the same orphan the
+ * calendar had when a poll was deleted and its meeting stayed.
+ */
+export async function deleteTask(taskId: string, rowVersion: number): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+
+    const task = await SheetRepo.findOne<TaskRecord>('tasks', taskId);
+    if (!task) throw new UserError('error.notFound');
+    if (!canRemoveWork(actor, task)) throw new AuthorizationError();
+
+    const updates = await SheetRepo.find<TaskUpdateRecord>('task_updates');
+    for (const row of updates.filter((u) => u.task_id === taskId)) {
+      await SheetRepo.delete('task_updates', row.id, row.row_version, actor.id);
+    }
+
+    await SheetRepo.delete('tasks', taskId, rowVersion, actor.id);
+
+    revalidatePath('/tasks');
+    revalidatePath('/tasks/weekly');
     revalidatePath('/dashboard');
   });
 }

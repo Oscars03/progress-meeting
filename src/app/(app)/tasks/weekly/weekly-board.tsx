@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { saveWeeklyUpdateAction } from '../update-actions';
+import { deleteWeeklyUpdateAction, saveWeeklyUpdateAction } from '../update-actions';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey, TranslationVars } from '@/lib/ui/i18n';
 
@@ -17,6 +17,9 @@ export type TaskRow = {
   isMine: boolean;
   editable: boolean;
   current: {
+    /** The stored report, so it can be taken back as well as rewritten. */
+    id: string;
+    rowVersion: number;
     summary: string;
     risks: string;
     nextPlan: string;
@@ -64,6 +67,24 @@ export default function WeeklyBoard({
       summary: row.current?.summary ?? '',
       risks: row.current?.risks ?? '',
       nextPlan: row.current?.nextPlan ?? '',
+    });
+  };
+
+  const removeReport = (row: TaskRow) => {
+    if (!row.current) return;
+    if (!confirm(t('weekly.confirmDeleteReport'))) return;
+    setMessage(null);
+    startTransition(async () => {
+      try {
+        const res = await deleteWeeklyUpdateAction(row.current!.id, row.current!.rowVersion);
+        if (!res.ok) {
+          setMessage({ type: 'error', text: t(res.error, res.vars) });
+          return;
+        }
+        router.refresh();
+      } catch {
+        setMessage({ type: 'error', text: t('error.generic') });
+      }
     });
   };
 
@@ -206,7 +227,7 @@ export default function WeeklyBoard({
                 </div>
 
                 {row.current && !editing && (
-                  <dl className="text-sm space-y-1 pt-2 border-t border-gray-100">
+                  <dl className="text-sm space-y-1 pt-2 border-t border-gray-100" data-report>
                     <div className="flex gap-2">
                       <dt className="text-gray-500 shrink-0">{t('weekly.doneLabel')}</dt>
                       <dd className="text-gray-900">{row.current.summary}</dd>
@@ -221,6 +242,23 @@ export default function WeeklyBoard({
                       <div className="flex gap-2">
                         <dt className="text-gray-500 shrink-0">{t('weekly.nextWeekLabel')}</dt>
                         <dd className="text-gray-900">{row.current.nextPlan}</dd>
+                      </div>
+                    )}
+
+                    {/* A report filed against the wrong task or week could be
+                        rewritten but never taken back -- and since there is one
+                        row per task per week, it also kept the week from ever
+                        reading as "not reported yet". */}
+                    {row.editable && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => removeReport(row)}
+                          disabled={isPending}
+                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                        >
+                          {t('weekly.deleteReport')}
+                        </button>
                       </div>
                     )}
                   </dl>
