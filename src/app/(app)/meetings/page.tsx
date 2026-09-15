@@ -79,48 +79,56 @@ export default async function MeetingsPage() {
   );
 
   return (
-    <div className="space-y-4">
-      {/* On a phone this header used to run to roughly 370px before the
-          calendar began, so the thing the page is for started below the fold.
-          The descriptive line and the connection pill are desktop-only now --
-          the pill says nothing a member can act on from here, and Settings
-          carries the same status with the real explanation beside it. */}
-      <div className="flex flex-wrap justify-between items-center gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{t('meetings.title')}</h2>
-          <div className="hidden lg:flex items-center gap-3 text-sm">
-            <p className="text-gray-500">{t('meetings.hint')}</p>
-            {isCalendarSynced ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium bg-green-50 text-green-700 w-fit">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                Google Calendar: {t('calcard.connected')}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-600 w-fit">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                Google Calendar: {t('calcard.notConnected')}
-                <ConnectGoogleButton />
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Hiding the status pill on a phone took the Connect button with it,
-              leaving no way to connect a calendar from the page the calendar is
-              on. The pill stays desktop-only -- "connected" is not news -- but
-              the one actionable part of it comes back when it is not done. */}
-          {!isCalendarSynced && (
-            <span className="lg:hidden">
-              <ConnectGoogleButton />
-            </span>
-          )}
+    <div className="space-y-3">
+      {/* One row on a phone, and everything still on it: the name, whether
+          Google is connected, and the way to the availability grid. The two
+          lines this used to take -- a wrapped description and a status pill on
+          its own -- cost about 300px before the calendar began, on the page
+          whose whole point is the calendar. The descriptive line stays behind
+          a wider screen; the rest shrinks rather than disappearing. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="text-lg sm:text-2xl font-bold text-gray-900">{t('meetings.title')}</h2>
+
+        {/* Connected is a dot and a word on a phone, the whole sentence on a
+            desktop. Not connected keeps its button at every width, because
+            that is the one part of it anybody can act on. */}
+        {isCalendarSynced ? (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="lg:hidden">Google</span>
+            <span className="hidden lg:inline">Google Calendar: {t('calcard.connected')}</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span className="hidden lg:inline">Google Calendar: {t('calcard.notConnected')}</span>
+            <ConnectGoogleButton />
+          </span>
+        )}
+
+        <p className="hidden xl:block text-sm text-gray-500">{t('meetings.hint')}</p>
+
+        <div className="ml-auto flex items-center gap-2">
           <Link
             href="/meetings/polls"
-            className="inline-flex items-center justify-center h-10 px-3 sm:px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition whitespace-nowrap"
+            className="inline-flex items-center justify-center h-9 px-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition whitespace-nowrap"
           >
             {t('meetings.findTime')}
           </Link>
-          {canSchedule && <NewMeetingButton />}
+
+          {/* Booking outright is the admin's escape hatch around the poll, and
+              rare. It is not worth a row of a phone screen, so it waits for a
+              wider one -- the poll route, which is the normal one, is beside
+              it at every width. */}
+          {canSchedule && (
+            <span className="hidden sm:inline-flex">
+              <NewMeetingButton />
+            </span>
+          )}
         </div>
       </div>
 
