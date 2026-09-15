@@ -336,6 +336,11 @@ export default function CalendarView({
   const handleEventClick = (info: EventClickArg) => {
     info.jsEvent?.preventDefault();
     const props = info.event.extendedProps;
+
+    // The heat cells carry no kind. Without this a tap on one opened a detail
+    // dialog for a half hour that is not an event at all -- no title, and the
+    // type falling through to "from Google Calendar".
+    if (!props.type) return;
     
     setSelectedEventInfo({
       id: info.event.id,

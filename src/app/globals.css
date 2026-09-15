@@ -430,6 +430,15 @@ body {
   .fc-timeGridWeek-view .fc-bg-event {
     opacity: 1;
   }
+  /* A heat cell is a reading, not a thing to open. Left clickable it swallowed
+     the tap and answered with an event dialog for a half-hour nobody had
+     created -- blank title, and the fallback "from Google Calendar" label. The
+     tap belongs to the grid underneath, where it starts the selection that
+     adds your own busy time. */
+  .fc-timeGridWeek-view .fc-timegrid-bg-harness,
+  .fc-timeGridWeek-view .fc-bg-event {
+    pointer-events: none;
+  }
   .fc-timeGridWeek-view .fc-bg-event .cal-heat-n {
     display: block;
     text-align: center;
