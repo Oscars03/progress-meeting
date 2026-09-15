@@ -7,7 +7,8 @@ import { canAddOwnWork, canAssignWork, canEditWork, canRemoveWork } from '@/lib/
 import type { UserRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import type { TaskRecord, TaskUpdateRecord } from '@/lib/db/schema';
+import type { TaskRecord, TaskUpdateRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { weekKey } from '@/lib/week';
 import { TASK_STATUSES, type TaskStatus } from './statuses';
 
 function assertStatus(value: string): asserts value is TaskStatus {
@@ -168,7 +169,9 @@ export async function deleteTask(taskId: string, rowVersion: number): Promise<Ac
 
     const task = await SheetRepo.findOne<TaskRecord>('tasks', taskId);
     if (!task) throw new UserError('error.notFound');
-    if (!canRemoveWork(actor, task)) throw new AuthorizationError();
+
+    const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+    if (!canRemoveWork(actor, task, weekKey(), leads)) throw new AuthorizationError();
 
     const updates = await SheetRepo.find<TaskUpdateRecord>('task_updates');
     for (const row of updates.filter((u) => u.task_id === taskId)) {

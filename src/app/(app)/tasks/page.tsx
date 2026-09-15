@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import type { TaskRecord, UserRecord } from '@/lib/db/schema';
+import type { TaskRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { isWeekLead } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
 import KanbanBoard from './kanban';
 import NewTaskButton from './new-task-button';
 import { getT } from '@/lib/ui/server-i18n';
@@ -10,13 +12,17 @@ import { labMembers } from '@/lib/members';
 
 export default async function TasksPage() {
   const actor = await requireSession();
-  const [tasks, users, t] = await Promise.all([
+  const [tasks, users, leads, t] = await Promise.all([
     SheetRepo.find<TaskRecord>('tasks'),
     SheetRepo.find<UserRecord>('users'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
     getT()
   ]);
 
   const canAssign = canAssignWork(actor);
+  // Tidying the board is part of preparing the meeting that reads from it, so
+  // whoever is running this week can clear work as well as its owner can.
+  const isLeadThisWeek = isWeekLead(leads, weekKey(), actor.id);
 
   // Admin runs the app; it is not somebody work gets handed to, and it was
   // still in this picker after the same rule was applied everywhere else.
@@ -41,7 +47,13 @@ export default async function TasksPage() {
         </div>
       </div>
 
-      <KanbanBoard tasks={tasks} users={members} currentUserId={actor.id} canAssign={canAssign} />
+      <KanbanBoard
+        tasks={tasks}
+        users={members}
+        currentUserId={actor.id}
+        canAssign={canAssign}
+        isLeadThisWeek={isLeadThisWeek}
+      />
     </div>
   );
 }
