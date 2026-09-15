@@ -194,13 +194,22 @@ describe('readStatus', () => {
     expect(readStatus('done')).toBe('done');
   });
 
-  // Eight columns became five. Rows written before that still carry the old
-  // value, and a board that dropped them would lose work rather than move it.
+  // Eight columns became five, then three. Rows written before either change
+  // still carry the old value, and a board that dropped them would lose work
+  // rather than move it.
   it('lands a retired status in the column that replaced it', () => {
     expect(readStatus('draft')).toBe('not_started');
     expect(readStatus('assigned')).toBe('not_started');
     expect(readStatus('presented')).toBe('done');
     expect(readStatus('follow_up')).toBe('in_progress');
+  });
+
+  // Both of the ones just retired are about *why* work is in flight, not
+  // whether it is -- and "ready to present" is emphatically not finished:
+  // reading it as done would mark complete something nobody has seen.
+  it('reads stuck and awaiting-a-meeting as still under way, not done', () => {
+    expect(readStatus('blocked')).toBe('in_progress');
+    expect(readStatus('ready_to_present')).toBe('in_progress');
   });
 
   it('falls back rather than losing a row it cannot read at all', () => {

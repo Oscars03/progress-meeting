@@ -31,8 +31,6 @@ export const tasks = defineMessages({
     'tasks.noProfessors': 'ยังไม่มีบัญชีอาจารย์ในระบบ',
     'tasks.status.not_started': 'ยังไม่เริ่ม',
     'tasks.status.in_progress': 'กำลังทำ',
-    'tasks.status.blocked': 'ติดปัญหา',
-    'tasks.status.ready_to_present': 'พร้อมนำเสนอ',
     'tasks.status.done': 'เสร็จสิ้น',
 
     'weekly.title': 'รายงานรายสัปดาห์',
@@ -100,8 +98,6 @@ export const tasks = defineMessages({
     'tasks.noProfessors': 'No professor account exists yet',
     'tasks.status.not_started': 'Not started',
     'tasks.status.in_progress': 'In progress',
-    'tasks.status.blocked': 'Blocked',
-    'tasks.status.ready_to_present': 'Ready to present',
     'tasks.status.done': 'Done',
 
     'weekly.title': 'Weekly report',

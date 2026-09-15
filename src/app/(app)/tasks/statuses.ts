@@ -11,18 +11,13 @@
 /**
  * The only statuses a task may hold; mirrors the Kanban columns.
  *
- * Eight columns did not fit a screen and did not fit the way the lab works
- * either -- `draft` and `assigned` both meant nobody had started, `presented`
- * and `follow_up` both meant the meeting had moved on. Five is what is left
- * once each column has a distinct answer to "what happens next".
+ * Three, which is as few as can still answer "what happens next": nothing yet,
+ * somebody is on it, or it is finished. This started at eight and went to five;
+ * the two that have now gone were both about *why* work is in flight rather
+ * than whether it is -- and that belongs in the weekly report, which has a
+ * field for exactly it, not in a column somebody has to keep dragging between.
  */
-export const TASK_STATUSES = [
-  'not_started',
-  'in_progress',
-  'blocked',
-  'ready_to_present',
-  'done',
-] as const;
+export const TASK_STATUSES = ['not_started', 'in_progress', 'done'] as const;
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
@@ -38,6 +33,11 @@ const RETIRED: Record<string, TaskStatus> = {
   assigned: 'not_started',
   presented: 'done',
   follow_up: 'in_progress',
+  // Stuck is still under way, not finished.
+  blocked: 'in_progress',
+  // Ready to present is work waiting on a meeting, so it is not done yet --
+  // reading it as done would mark something complete that nobody has seen.
+  ready_to_present: 'in_progress',
 };
 
 /** The column a stored status belongs in today. */
