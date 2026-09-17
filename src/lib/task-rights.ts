@@ -1,6 +1,6 @@
 import { hasManagerRights, type SessionUser } from './auth-guard';
 import type { TaskRecord, WeekLeadRecord } from './db/schema';
-import { isWeekLead } from './rotation';
+import { actsAsWeekLead } from './rotation';
 
 /**
  * Who may give work to somebody else.
@@ -40,7 +40,7 @@ export function canEditWork(actor: SessionUser, task: Pick<TaskRecord, 'assignee
  */
 export function canRecordProgress(actor: SessionUser, task: Pick<TaskRecord, 'assignee_ids'>, weekKey: string, leads: WeekLeadRecord[]): boolean {
   if (canEditWork(actor, task)) return true;
-  return isWeekLead(leads, weekKey, actor.id);
+  return actsAsWeekLead(actor, leads, weekKey);
 }
 
 /**
@@ -67,5 +67,5 @@ export function canRemoveWork(
 ): boolean {
   if (hasManagerRights(actor.role)) return true;
   if (task.owner_id === actor.id) return true;
-  return isWeekLead(leads, thisWeek, actor.id);
+  return actsAsWeekLead(actor, leads, thisWeek);
 }

@@ -5,7 +5,8 @@ export const settings = {
     'preview.asAdmin': 'ผู้ดูแลระบบ (ตัวคุณเอง)',
     'preview.as.professor': 'มองแบบอาจารย์',
     'preview.as.student': 'มองแบบนักศึกษา',
-    'preview.note': 'ระหว่างนี้ปุ่มและเมนูของผู้ดูแลระบบจะถูกซ่อนจริง เพื่อให้เห็นตรงกับที่อีกฝ่ายเห็น',
+    'preview.as.lead': 'มองแบบผู้รับผิดชอบสัปดาห์นี้',
+    'preview.note': 'ระหว่างนี้ปุ่มและเมนูของผู้ดูแลระบบจะถูกซ่อนจริง เพื่อให้เห็นตรงกับที่อีกฝ่ายเห็น — มุมมองผู้รับผิดชอบคือนักศึกษาที่ถือสัปดาห์ปัจจุบัน',
     'preview.banner': 'กำลังดูในมุมมอง: {role}',
     'preview.stop': 'กลับไปเป็นผู้ดูแลระบบ',
 
@@ -31,8 +32,9 @@ export const settings = {
     'preview.asAdmin': 'Admin (yourself)',
     'preview.as.professor': 'As a professor',
     'preview.as.student': 'As a student',
+    'preview.as.lead': "As this week's lead",
     'preview.note':
-      "Admin buttons and menus really are hidden while this is on, so what you see is what they see.",
+      "Admin buttons and menus really are hidden while this is on, so what you see is what they see. The lead view is a student who holds the current week.",
     'preview.banner': 'Viewing as: {role}',
     'preview.stop': 'Back to admin',
 

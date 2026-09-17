@@ -19,7 +19,7 @@ import { brokenConnections } from '@/lib/google/tokens';
 import { breakForWeek } from '@/lib/term-breaks';
 import { intlLocale } from '@/lib/ui/i18n';
 import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from '@/lib/presentation-order';
-import { isWeekLead } from '@/lib/rotation';
+import { actsAsWeekLead } from '@/lib/rotation';
 import { labInstant } from '@/lib/lab-time';
 import type {
   AvailabilityPollRecord,
@@ -146,7 +146,7 @@ export default async function DashboardPage() {
   // Admin sees it as well: admin can already do all of this, and is the one who
   // steps in for a week whose lead has not been settled or has gone quiet.
   // Being able to do a job and being shown where it starts should not differ.
-  const amThisWeeksLead = !currentBreak && isWeekLead(leads, thisWeekKey, actor.id);
+  const amThisWeeksLead = !currentBreak && actsAsWeekLead(actor, leads, thisWeekKey);
   const iLeadThisWeek = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
 
   const today = labDay(new Date());

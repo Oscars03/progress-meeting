@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession, hasManagerRights, type SessionUser } from '@/lib/auth-guard';
-import { isWeekLead } from '@/lib/rotation';
+import { actsAsWeekLead } from '@/lib/rotation';
 import type { WeekLeadRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
@@ -114,7 +114,7 @@ async function assertMayArrange(weekKey: string): Promise<SessionUser> {
   if (hasManagerRights(actor.role)) return actor;
 
   const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
-  if (!isWeekLead(leads, weekKey, actor.id)) throw new UserError('avail.leadOnly');
+  if (!actsAsWeekLead(actor, leads, weekKey)) throw new UserError('avail.leadOnly');
   return actor;
 }
 

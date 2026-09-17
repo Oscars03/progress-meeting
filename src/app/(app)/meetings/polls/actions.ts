@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
 import { isChoice, type Choice } from '@/lib/poll-tally';
-import { isWeekLead } from '@/lib/rotation';
+import { actsAsWeekLead } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { UserError } from '@/lib/user-error';
@@ -60,7 +60,7 @@ async function assertRunsThePoll(
   if (!earliest) throw new UserError('avail.leadOnly');
 
   const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
-  if (!isWeekLead(leads, weekKey(labInstant(earliest.start_at) ?? new Date(NaN)), actor.id)) {
+  if (!actsAsWeekLead(actor, leads, weekKey(labInstant(earliest.start_at) ?? new Date(NaN)))) {
     throw new UserError('avail.leadOnly');
   }
 }
@@ -94,7 +94,7 @@ export async function createPollAction(input: {
   if (actor.role !== 'admin') {
     const week = weekKey(new Date(slots[0].start));
     const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
-    if (!isWeekLead(leads, week, actor.id)) throw new UserError('avail.leadOnly');
+    if (!actsAsWeekLead(actor, leads, week)) throw new UserError('avail.leadOnly');
   }
 
   const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');

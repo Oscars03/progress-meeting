@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import Spinner from '@/lib/ui/spinner';
-import { PREVIEWABLE_ROLES } from '@/lib/role-preview';
+import { PREVIEWABLE_VIEWS } from '@/lib/role-preview';
 import { setRolePreviewAction } from './role-preview-actions';
 
 /**
@@ -50,7 +50,7 @@ export default function RolePreview({ current }: { current: string }) {
           {t('preview.asAdmin')}
         </button>
 
-        {PREVIEWABLE_ROLES.map((role) => (
+        {PREVIEWABLE_VIEWS.map((role) => (
           <button
             key={role}
             type="button"

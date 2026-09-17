@@ -66,6 +66,43 @@ export function weeksLedBy(leads: WeekLeadRecord[], userId: string): string[] {
   return userId ? leads.filter((lead) => lead.user_id === userId).map((lead) => lead.week_key) : [];
 }
 
+/** Enough of the caller to answer the two questions below. */
+type LeadActor = { id: string; previewingLead?: boolean };
+
+/**
+ * Whether this caller runs `week` -- including an admin looking through the
+ * lead's eyes.
+ *
+ * Every page and every action asks this rather than `isWeekLead` directly, so
+ * that the preview is coherent: a view that shows the lead's buttons and then
+ * has the actions behind them refuse would be a worse lie than not offering
+ * them at all.
+ *
+ * It grants nothing. Only a real admin can be previewing, and leading a week
+ * is a subset of what an admin could already do -- so this can let an admin
+ * act as a lead, never anybody else.
+ *
+ * Bounded to the current week on purpose: the preview answers "what does this
+ * week's lead see", and is not a way to take over somebody else's week.
+ */
+export function actsAsWeekLead(
+  actor: LeadActor,
+  leads: WeekLeadRecord[],
+  week: string
+): boolean {
+  if (isWeekLead(leads, week, actor.id)) return true;
+  return Boolean(actor.previewingLead) && week === weekKey();
+}
+
+/** The weeks this caller runs, with the previewed one folded in. */
+export function weeksRunBy(actor: LeadActor, leads: WeekLeadRecord[]): string[] {
+  const held = weeksLedBy(leads, actor.id);
+  if (!actor.previewingLead) return held;
+
+  const current = weekKey();
+  return held.includes(current) ? held : [...held, current];
+}
+
 /** The most recently assigned week, or null when none has been. */
 function latestLead(leads: WeekLeadRecord[]): WeekLeadRecord | null {
   let latest: WeekLeadRecord | null = null;

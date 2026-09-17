@@ -5,7 +5,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { tallySlot, rankSlots, bestSlot, type Choice } from '@/lib/poll-tally';
-import { isWeekLead } from '@/lib/rotation';
+import { actsAsWeekLead } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import type {
   AvailabilityPollRecord,
@@ -87,7 +87,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
   // rule the actions enforce. Without a slot there is no week to ask about.
   const pollWeek = mySlots[0] ? weekKey(new Date(mySlots[0].start_at)) : '';
   const canManage =
-    actor.role === 'admin' || (pollWeek !== '' && isWeekLead(leads, pollWeek, actor.id));
+    actor.role === 'admin' || (pollWeek !== '' && actsAsWeekLead(actor, leads, pollWeek));
   const closed = poll.status === 'closed';
 
   return (
