@@ -56,6 +56,8 @@ type GoogleEvent = {
   start: string;
   end: string;
   owner_name?: string;
+  /** Whose calendar it came off. The name is for reading, this is for filtering. */
+  owner_id?: string;
   colorId?: string;
 };
 
@@ -83,7 +85,20 @@ export default function CalendarView({
 }) {
   const router = useRouter();
   const { locale, t } = usePrefs();
-  const [showOthers, setShowOthers] = useState(true);
+  /**
+   * Show nobody's entries but your own.
+   *
+   * This replaces a checkbox that claimed to hide other members and only ever
+   * hid half of them: it filtered the schedules people typed into the app, and
+   * left the "Busy" blocks read off their Google calendars in place. With four
+   * of seven connected, turning it off changed the screen and did not leave
+   * you looking at your own week, which is the one thing it was for.
+   *
+   * The lab's meetings stay either way. A meeting the whole lab attends is
+   * yours as much as anybody's, and a calendar that hid it while claiming to
+   * show your day would be the more misleading of the two.
+   */
+  const [onlyMine, setOnlyMine] = useState(false);
   const isPhone = useSyncExternalStore(subscribeToPhone, getPhoneSnapshot, getServerPhoneSnapshot);
 
   // Modals state
@@ -146,7 +161,7 @@ export default function CalendarView({
   // 2. Personal Events
   personalEvents.forEach(pe => {
     const isMine = pe.user_id === currentUserId;
-    if (!isMine && !showOthers) return;
+    if (!isMine && onlyMine) return;
     
     allEvents.push({
       id: pe.id,
@@ -174,6 +189,9 @@ export default function CalendarView({
 
   // 3. Google Calendar Events
   googleEvents.forEach((ge) => {
+    // The half the old filter missed.
+    if (onlyMine && ge.owner_id !== currentUserId) return;
+
     allEvents.push({
       id: ge.id,
       title: ge.owner_name ? `[${ge.owner_name}] ${ge.title}` : ge.title,
@@ -237,10 +255,13 @@ export default function CalendarView({
 
     meetings.forEach((m) => push(m.start_at, m.end_at, m.owner_name || 'meeting'));
     personalEvents.forEach((pe) => {
-      if (pe.user_id !== currentUserId && !showOthers) return;
+      if (onlyMine && pe.user_id !== currentUserId) return;
       push(pe.start_at, pe.end_at, pe.user_name || pe.user_id);
     });
-    googleEvents.forEach((ge) => push(ge.start, ge.end, ge.owner_name || ge.id));
+    googleEvents.forEach((ge) => {
+      if (onlyMine && ge.owner_id !== currentUserId) return;
+      push(ge.start, ge.end, ge.owner_name || ge.id);
+    });
 
     const SLOT = 30 * 60 * 1000;
     for (let day = new Date(range.start); day.getTime() < range.end; day.setDate(day.getDate() + 1)) {
@@ -398,15 +419,18 @@ export default function CalendarView({
           </span>
         </p>
 
+        {/* Stated as what it does rather than what it hides: "only mine" is
+            one idea, while "show other members' personal schedules too" asked
+            the reader to work out the negative. */}
         <label className="flex items-center gap-1.5 text-gray-600 cursor-pointer whitespace-nowrap shrink-0">
           <input
             type="checkbox"
-            checked={showOthers}
-            onChange={(e) => setShowOthers(e.target.checked)}
+            checked={onlyMine}
+            onChange={(e) => setOnlyMine(e.target.checked)}
             className="rounded text-blue-600 focus:ring-blue-500"
           />
-          <span className="sm:hidden">คนอื่น</span>
-          <span className="hidden sm:inline">แสดงตารางส่วนตัวของสมาชิกคนอื่นด้วย</span>
+          <span className="sm:hidden">{t('meetings.onlyMineShort')}</span>
+          <span className="hidden sm:inline">{t('meetings.onlyMine')}</span>
         </label>
       </div>
 
