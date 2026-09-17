@@ -133,6 +133,8 @@ export default function CalendarView({
     type: string;
     isMine?: boolean;
     rowVersion?: number;
+    /** A meeting's Meet link, when it has one. */
+    meetLink?: string;
   } | null>(null);
 
   // Generate 30-minute interval time options
@@ -147,14 +149,22 @@ export default function CalendarView({
 
   // 1. Regular Lab Meetings
   meetings.forEach(m => {
+    // Set only when there is one. FullCalendar renders the event as an anchor
+    // and writes whatever it is given straight into href, so passing undefined
+    // produced `href="undefined"` -- a relative link to a page called
+    // "undefined" on every meeting without a Meet link, which is most of them.
+    // Nothing followed it, because the click handler cancels the default, but
+    // it is there in the markup and a middle-click would have taken it.
+    const link = safeHttpUrl(m.meet_link);
+
     allEvents.push({
       id: m.id,
       title: m.owner_name ? `[${m.owner_name}] ${m.title}` : m.title,
       start: m.start_at,
       end: m.end_at,
-      url: safeHttpUrl(m.meet_link),
+      ...(link ? { url: link } : {}),
       classNames: ['cal-ev', 'cal-ev-meeting'],
-      extendedProps: { type: 'meeting' }
+      extendedProps: { type: 'meeting', meetLink: link ?? '' }
     });
   });
 
@@ -371,6 +381,7 @@ export default function CalendarView({
       type: props.type,
       isMine: props.isMine,
       rowVersion: props.rowVersion,
+      meetLink: props.meetLink,
     });
     setDetailModalOpen(true);
   };
@@ -791,6 +802,22 @@ export default function CalendarView({
                   ปิด
                 </button>
                 
+                {/* The Meet link had nowhere to go. It was set on the event so
+                    that clicking one would follow it, but the click handler
+                    cancels the default in order to open this dialog -- so the
+                    link was carried all the way to the browser and then never
+                    used. Here it is something you can actually press. */}
+                {selectedEventInfo.type === 'meeting' && selectedEventInfo.meetLink && (
+                  <a
+                    href={selectedEventInfo.meetLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition"
+                  >
+                    {t('meetings.join')}
+                  </a>
+                )}
+
                 {selectedEventInfo.type === 'meeting' && (
                   <button
                     onClick={() => {
