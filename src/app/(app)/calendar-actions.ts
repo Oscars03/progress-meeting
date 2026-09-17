@@ -15,6 +15,7 @@ import {
   mondayOf,
   slotStart,
   type AvailabilityDay,
+  type GridMeeting,
   type Interval,
   type PersonAvailability,
 } from '@/lib/availability-grid';
@@ -69,12 +70,26 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
   const active = labMembers(users);
 
   const appBusy = new Map<string, Interval[]>();
+
+  // The same meetings again, but as themselves rather than as somebody's busy
+  // interval: a slot the lab has already settled on is shown as that meeting,
+  // not as a count of who happened to be free before it was booked.
+  const bookedMeetings: GridMeeting[] = [];
+
   for (const meeting of meetings) {
     if (meeting.status === 'cancelled') continue;
     const start = Date.parse(meeting.start_at);
     const end = Date.parse(meeting.end_at);
     if (Number.isNaN(start) || Number.isNaN(end) || end <= start) continue;
     if (end <= windowStart || start >= windowEnd) continue;
+
+    bookedMeetings.push({
+      id: meeting.id,
+      title: meeting.title,
+      start,
+      end,
+      rowVersion: meeting.row_version,
+    });
 
     const ids = new Set(
       attendees
@@ -137,7 +152,13 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
 
   return {
     weekStart,
-    days: buildWeekGrid({ weekStart, fromHour: DAY_FROM_HOUR, toHour: DAY_TO_HOUR, people }),
+    days: buildWeekGrid({
+      weekStart,
+      fromHour: DAY_FROM_HOUR,
+      toHour: DAY_TO_HOUR,
+      people,
+      meetings: bookedMeetings,
+    }),
     activeCount: active.length,
     connectedCount: active.filter((u) => connected.has(u.id)).length,
     readCount,
