@@ -241,6 +241,20 @@ export class SheetRepo {
        * narrow window remains; row_version is the last line of defence.
        */
       uniqueBy?: Record<string, CellValue>;
+      /**
+       * What a `uniqueBy` match does.
+       *
+       * `keep` -- the default -- leaves the existing row alone and returns it.
+       * Right where the row IS the answer and a second attempt has nothing to
+       * add: signing up with an address that already has an account must not
+       * write anything, or registering again would overwrite somebody else's.
+       *
+       * `update` writes the new values onto the row it found, as update()
+       * would. For a value somebody is editing -- a vote, minutes, a weekly
+       * figure -- keeping the old row means the newer answer is dropped while
+       * the screen says it was saved, so the caller has to say which it meant.
+       */
+      onConflict?: 'keep' | 'update';
     }
   ): Promise<T & BaseRecord> {
     assertHasCommonColumns(tabName);
@@ -269,20 +283,82 @@ export class SheetRepo {
       const existing = await this.getRawValues(tabName);
       if (existing.slice(1).some((r) => r[0] === newId)) return;
 
-      // Business-key dedup: if a row already matches all uniqueBy columns, skip.
+      // Business-key dedup: if a row already matches all uniqueBy columns,
+      // keep it or write onto it, as the caller asked.
       if (options?.uniqueBy && existing.length > 1) {
         const headers = existing[0];
         const entries = Object.entries(options.uniqueBy);
-        const match = existing.slice(1).find((row) =>
-          entries.every(([col, val]) => {
-            const idx = headers.indexOf(col);
-            return idx !== -1 && row[idx] === toCell(val);
-          })
+        const matchIndex = existing.findIndex(
+          (row, i) =>
+            i > 0 &&
+            entries.every(([col, val]) => {
+              const idx = headers.indexOf(col);
+              return idx !== -1 && row[idx] === toCell(val);
+            })
         );
-        if (match) {
-          const obj: Record<string, CellValue> = {};
-          headers.forEach((h, i) => { obj[h] = fromCell(h, match[i]); });
-          existingHit = obj as unknown as T & BaseRecord;
+
+        if (matchIndex !== -1) {
+          const matched = existing[matchIndex];
+          const old: Record<string, CellValue> = {};
+          headers.forEach((h, i) => { old[h] = fromCell(h, matched[i]); });
+
+          if (options.onConflict !== 'update') {
+            existingHit = old as unknown as T & BaseRecord;
+            return;
+          }
+
+          // The row keeps its id, its version moves on by one, and the change
+          // reaches audit_log as the UPDATE it is -- the same contract as
+          // update(), minus the expectedVersion the caller never read,
+          // because the row it would have named is the one just found here.
+          const versionIdx = headers.indexOf('row_version');
+          const currentVersion = Number.parseInt(matched[versionIdx], 10);
+          const merged: Record<string, CellValue> = {};
+          headers.forEach((h, i) => {
+            if (h === 'row_version') merged[h] = (Number.isNaN(currentVersion) ? 0 : currentVersion) + 1;
+            else if (h === 'updated_at') merged[h] = now;
+            else if (h in record) merged[h] = (record as Record<string, CellValue>)[h];
+            else merged[h] = fromCell(h, matched[i]);
+          });
+
+          const mainSheetId = await getSheetId(sheets, spreadsheetId, tabName);
+          const auditSheetId = await getSheetId(sheets, spreadsheetId, 'audit_log');
+
+          await sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [
+                {
+                  updateCells: {
+                    // values[0] is the header at grid row 0, so the index into
+                    // the rows read above is already the grid row index.
+                    range: {
+                      sheetId: mainSheetId,
+                      startRowIndex: matchIndex,
+                      endRowIndex: matchIndex + 1,
+                      startColumnIndex: 0,
+                      endColumnIndex: headers.length,
+                    },
+                    rows: [makeRowData(headers.map((h) => toCell(merged[h])))],
+                    fields: '*',
+                  },
+                },
+                {
+                  appendCells: {
+                    sheetId: auditSheetId,
+                    rows: [
+                      makeRowData(
+                        buildAuditRow(actorId, tabName, String(old.id), 'UPDATE', old, merged, now)
+                      ),
+                    ],
+                    fields: '*',
+                  },
+                },
+              ],
+            },
+          });
+
+          existingHit = merged as unknown as T & BaseRecord;
           return;
         }
       }

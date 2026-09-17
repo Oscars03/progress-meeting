@@ -158,7 +158,10 @@ export async function voteAction(
       'availability_votes',
       { slot_id: slotId, user_id: actor.id, choice },
       actor.id,
-      { uniqueBy: { slot_id: slotId, user_id: actor.id } }
+      // A vote read a moment ago as absent can already be there -- another tab,
+      // another instance. The answer being cast now is the current one, so it
+      // replaces what is there rather than being dropped on the floor.
+      { uniqueBy: { slot_id: slotId, user_id: actor.id }, onConflict: 'update' }
     );
   }
 
