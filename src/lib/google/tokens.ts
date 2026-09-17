@@ -2,6 +2,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { decryptSecret, encryptSecret } from '@/lib/secret-box';
 import type { GoogleTokenRecord } from '@/lib/db/schema';
 import { grantsCalendar } from './scopes';
+import { forgetClient } from './client-cache';
 
 export { CALENDAR_SCOPES } from './scopes';
 
@@ -72,6 +73,11 @@ export async function storeRefreshToken(input: {
     last_error: '',
   };
 
+  // A new refresh token replaces whatever a cached client is holding, and may
+  // belong to a different Google account than the one connected before. Drop
+  // the client so the next call is made with the token just stored.
+  forgetClient(input.userId);
+
   if (existing) {
     await SheetRepo.update<GoogleTokenRecord>(
       'google_tokens',
@@ -136,6 +142,10 @@ export async function disconnect(userId: string): Promise<void> {
   const row = rows.find((r) => r.user_id === userId);
   if (!row) return;
   await SheetRepo.delete('google_tokens', row.id, row.row_version, userId);
+  // Deleting the row is not enough on its own: a client built from this token
+  // is cached in memory, and would go on reading the calendar of somebody who
+  // has just disconnected until it aged out.
+  forgetClient(userId);
 }
 
 /**

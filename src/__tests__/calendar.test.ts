@@ -58,6 +58,7 @@ vi.mock('../lib/google/tokens', () => ({
 
 const { busyTimes, createEvent, deleteEvent, fetchEvent, NotConnectedError } =
   await import('../lib/google/calendar');
+const { forgetClient } = await import('../lib/google/client-cache');
 
 const STORED = { refreshToken: 'fake-token' };
 
@@ -141,6 +142,45 @@ describe('fetchEvent error handling', () => {
     gcal.eventsGet.mockRejectedValue(new Error('Internal Server Error'));
 
     await expect(fetchEvent('user1', 'evt1')).rejects.toThrow('Internal Server Error');
+  });
+});
+
+/**
+ * A client is kept so a run of calls does not pay for a token exchange each
+ * time. The price is that the stored token is no longer consulted on every
+ * call, so anything that changes it has to say so -- see the disconnect test
+ * in tokens.test.ts.
+ */
+describe('client cache', () => {
+  const WINDOW = ['2026-09-01T00:00:00Z', '2026-09-07T00:00:00Z'] as const;
+
+  it('reuses a client, and builds a new one once the connection is forgotten', async () => {
+    forgetClient('cache-user');
+    gcal.freebusyQuery.mockResolvedValue({ data: { calendars: { primary: { busy: [] } } } });
+
+    await busyTimes('cache-user', ...WINDOW);
+    expect(tokens.getStoredToken).toHaveBeenCalledTimes(1);
+
+    await busyTimes('cache-user', ...WINDOW);
+    expect(tokens.getStoredToken).toHaveBeenCalledTimes(1);
+
+    forgetClient('cache-user');
+    await busyTimes('cache-user', ...WINDOW);
+    expect(tokens.getStoredToken).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops serving a cached client once the grant is rejected', async () => {
+    forgetClient('revoked-user');
+    gcal.freebusyQuery.mockResolvedValue({ data: { calendars: { primary: { busy: [] } } } });
+    await busyTimes('revoked-user', ...WINDOW);
+
+    gcal.freebusyQuery.mockRejectedValue(new Error('invalid_grant'));
+    await expect(busyTimes('revoked-user', ...WINDOW)).rejects.toThrow('invalid_grant');
+
+    // The grant is gone, so the next call must go back to the token store --
+    // which is where "not connected" is decided.
+    tokens.getStoredToken.mockResolvedValue(null);
+    await expect(busyTimes('revoked-user', ...WINDOW)).rejects.toThrow(NotConnectedError);
   });
 });
 
