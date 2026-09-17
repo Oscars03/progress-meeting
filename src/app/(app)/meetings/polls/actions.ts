@@ -15,8 +15,10 @@ import type {
   AvailabilitySlotRecord,
   AvailabilityVoteRecord,
   TermBreakRecord,
+  UserRecord,
 } from '@/lib/db/schema';
 import { breakCovering } from '@/lib/term-breaks';
+import { labMembers } from '@/lib/members';
 
 function assertChoice(value: string): asserts value is Choice {
   if (!isChoice(value)) {
@@ -216,6 +218,33 @@ export async function confirmSlotAction(
 
   const slot = slots.find((s) => s.id === slotId && s.poll_id === pollId);
   if (!slot) throw new UserError('polls.error.slotNotFound');
+
+  // Everybody entitled to an opinion has to have given one first.
+  //
+  // A time settled while three people had not answered is not an agreed time,
+  // it is a guess with a quorum -- and the grid then shows them "busy" for a
+  // meeting they were never asked about. Admin is not in this count: it is not
+  // a member of the lab and has no availability to state.
+  //
+  // This is not a deadlock. Somebody who will never answer can be waited out,
+  // chased, or the whole poll abandoned and the meeting booked outright, which
+  // is what an admin's direct booking is for.
+  const [users, allVotes] = await Promise.all([
+    SheetRepo.find<UserRecord>('users'),
+    SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
+  ]);
+
+  const answered = new Set(
+    allVotes.filter((v) => v.slot_id === slotId).map((v) => v.user_id)
+  );
+  const silent = labMembers(users).filter((u) => !answered.has(u.id));
+
+  if (silent.length > 0) {
+    throw new UserError('polls.error.notEveryoneAnswered', {
+      n: silent.length,
+      who: silent.map((u) => u.name).join(', '),
+    });
+  }
 
   const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
   const slotStart = labInstant(slot.start_at);

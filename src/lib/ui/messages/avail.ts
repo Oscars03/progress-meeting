@@ -4,7 +4,7 @@ import { defineMessages } from './define';
 export const avail = defineMessages({
   th: {
     'avail.title': 'ตารางเวลาว่างรายสัปดาห์',
-    'avail.subtitle': 'รวมเวลาว่างของทุกคนให้อัตโนมัติ ช่องละ 30 นาที',
+    'avail.subtitle': 'รวมเวลาว่างของทุกคนให้อัตโนมัติ ช่องละ 1 ชั่วโมง',
     'avail.prevWeek': 'สัปดาห์ก่อน',
     'avail.thisWeek': 'สัปดาห์นี้',
     'avail.nextWeek': 'สัปดาห์ถัดไป',
@@ -40,7 +40,7 @@ export const avail = defineMessages({
   },
   en: {
     'avail.title': 'Weekly availability',
-    'avail.subtitle': "Everyone's free time, gathered automatically, half an hour per cell",
+    'avail.subtitle': "Everyone's free time, gathered automatically, one hour per cell",
     'avail.prevWeek': 'Previous week',
     'avail.thisWeek': 'This week',
     'avail.nextWeek': 'Next week',

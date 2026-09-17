@@ -142,7 +142,12 @@ export default async function DashboardPage() {
   // Arranging the week's meeting is the lead's job, and the two things it
   // takes -- finding an hour everyone is free, and asking them to confirm it --
   // were both two pages away from where they start.
-  const iLeadThisWeek = !currentBreak && isWeekLead(leads, thisWeekKey, actor.id);
+  //
+  // Admin sees it as well: admin can already do all of this, and is the one who
+  // steps in for a week whose lead has not been settled or has gone quiet.
+  // Being able to do a job and being shown where it starts should not differ.
+  const amThisWeeksLead = !currentBreak && isWeekLead(leads, thisWeekKey, actor.id);
+  const iLeadThisWeek = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
 
   const today = labDay(new Date());
 
@@ -255,7 +260,11 @@ export default async function DashboardPage() {
       {iLeadThisWeek && (
         <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
           <div>
-            <h3 className="font-semibold text-blue-800">{t('dashboard.yourLeadTurn')}</h3>
+            {/* An admin is shown this because they can do it, not because it
+                is their turn -- so it does not tell them it is. */}
+            <h3 className="font-semibold text-blue-800">
+              {t(amThisWeeksLead ? 'dashboard.yourLeadTurn' : 'dashboard.runThisWeek')}
+            </h3>
             <p className="text-sm text-blue-700">{t('dashboard.yourLeadTurnHint')}</p>
           </div>
           <div className="flex flex-wrap gap-2">
