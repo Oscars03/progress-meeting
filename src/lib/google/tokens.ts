@@ -1,7 +1,7 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { decryptSecret, encryptSecret } from '@/lib/secret-box';
 import type { GoogleTokenRecord } from '@/lib/db/schema';
-import { grantsCalendar } from './scopes';
+import { grantsCalendar, grantsDrive } from './scopes';
 import { forgetClient } from './client-cache';
 
 export { CALENDAR_SCOPES } from './scopes';
@@ -46,7 +46,11 @@ export async function storeRefreshToken(input: {
   // sign-in would rewrite the stored scope to one with no calendar in it, and
   // a sign-in that happened to return a token would overwrite a working
   // connection with one that cannot read a calendar.
-  if (!grantsCalendar(input.scope)) return;
+  //
+  // Drive counts too: the press that connects the lab's Drive returns a token
+  // worth keeping even though there is no calendar in it, and without this it
+  // was silently dropped on the floor.
+  if (!grantsCalendar(input.scope) && !grantsDrive(input.scope)) return;
 
   const rows = await SheetRepo.find<GoogleTokenRecord>('google_tokens');
   const existing = rows.find((r) => r.user_id === input.userId);
@@ -113,6 +117,27 @@ export async function getStoredToken(userId: string): Promise<StoredToken | null
     rowVersion: row.row_version,
     lastError: row.last_error ?? '',
   };
+}
+
+/**
+ * The stored token belonging to a particular *Google* account, whoever in the
+ * app connected it.
+ *
+ * Files are stored on one nominated account -- the lab's -- and which app user
+ * happened to press the button is not the point. `account_email` records which
+ * Google account a token is for, so that is what this matches on.
+ */
+export async function tokenForGoogleAccount(email: string): Promise<StoredToken | null> {
+  const wanted = email.trim().toLowerCase();
+  if (!wanted) return null;
+
+  const rows = await SheetRepo.find<GoogleTokenRecord>('google_tokens');
+  const row = rows.find(
+    (r) => (r.account_email ?? '').trim().toLowerCase() === wanted && grantsDrive(r.scope ?? '')
+  );
+  if (!row) return null;
+
+  return getStoredToken(row.user_id);
 }
 
 /** Everyone with a usable connection, for free/busy across the group. */

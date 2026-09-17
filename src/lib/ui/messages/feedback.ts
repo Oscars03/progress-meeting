@@ -18,6 +18,24 @@ export const feedback = defineMessages({
     'feedback.category.other': 'อื่นๆ',
     'feedback.send': 'ส่งข้อเสนอแนะ',
     'feedback.thanks': 'ส่งแล้ว ขอบคุณครับ',
+    'feedback.addImage': '+ แนบรูปภาพ',
+    'feedback.removeImage': 'เอารูปออก',
+
+    'uploads.error.type': 'แนบได้เฉพาะไฟล์รูปภาพ (PNG, JPEG, WebP, GIF)',
+    'uploads.error.tooBig': 'ไฟล์ใหญ่เกินไป แนบได้ไม่เกิน 5MB',
+    'uploads.error.empty': 'ไฟล์นี้ว่างเปล่า',
+
+    'drive.title': 'ที่เก็บไฟล์ของแล็บ (Google Drive)',
+    'drive.subtitle': 'รูปที่แนบมากับข้อเสนอแนะจะถูกเก็บไว้ใน Drive ของบัญชีแล็บ ไม่ได้แชร์ให้ใครนอกระบบ',
+    'drive.account': 'บัญชีที่ใช้เก็บไฟล์:',
+    'drive.connected': 'เชื่อมต่อแล้ว — แนบรูปได้',
+    'drive.notConnected': 'ยังไม่ได้เชื่อมต่อ ตอนนี้จึงยังแนบรูปไม่ได้',
+    'drive.broke': 'การเชื่อมต่อใช้ไม่ได้แล้ว ต้องเชื่อมต่อใหม่',
+    'drive.connect': 'เชื่อมต่อ Drive ของแล็บ',
+    'drive.reconnect': 'เชื่อมต่อใหม่',
+    'drive.chooseAccountHint': 'Google จะให้เลือกบัญชี — ต้องเลือกบัญชีแล็บตามที่ระบุไว้ข้างบน',
+    'drive.noAccountConfigured': 'ยังไม่ได้ตั้งค่า LAB_DRIVE_EMAIL จึงยังไม่รู้ว่าจะเก็บไฟล์ไว้ที่บัญชีไหน',
+    'drive.notConnectedError': 'ยังไม่ได้เชื่อมต่อ Drive ของแล็บ จึงแนบรูปไม่ได้ (ผู้ดูแลระบบตั้งค่าได้ที่หน้าการตั้งค่า)',
 
     'feedback.openHeading': 'ยังไม่ได้จัดการ ({n})',
     'feedback.doneHeading': 'จัดการแล้ว ({n})',
@@ -52,6 +70,28 @@ export const feedback = defineMessages({
     'feedback.category.other': 'Something else',
     'feedback.send': 'Send',
     'feedback.thanks': 'Sent — thank you.',
+    'feedback.addImage': '+ Attach a picture',
+    'feedback.removeImage': 'Remove picture',
+
+    'uploads.error.type': 'Only images can be attached (PNG, JPEG, WebP, GIF)',
+    'uploads.error.tooBig': 'That file is too large — 5MB is the limit',
+    'uploads.error.empty': 'That file is empty',
+
+    'drive.title': "The lab's file storage (Google Drive)",
+    'drive.subtitle':
+      "Pictures sent with feedback are kept on the lab account's Drive. They are not shared outside the app.",
+    'drive.account': 'Files are kept on:',
+    'drive.connected': 'Connected — pictures can be attached.',
+    'drive.notConnected': 'Not connected, so pictures cannot be attached yet.',
+    'drive.broke': 'This connection has stopped working and needs reconnecting.',
+    'drive.connect': "Connect the lab's Drive",
+    'drive.reconnect': 'Reconnect',
+    'drive.chooseAccountHint':
+      'Google will ask which account to use — choose the lab account named above.',
+    'drive.noAccountConfigured':
+      'LAB_DRIVE_EMAIL is not set, so there is no account to keep files on yet.',
+    'drive.notConnectedError':
+      "The lab's Drive is not connected, so a picture cannot be attached. An admin can connect it in Settings.",
 
     'feedback.openHeading': 'Not dealt with yet ({n})',
     'feedback.doneHeading': 'Dealt with ({n})',

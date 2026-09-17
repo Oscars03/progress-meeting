@@ -16,6 +16,12 @@ export type FeedbackRow = {
   rowVersion: number;
   /** Whether the person looking at it may withdraw it. */
   canRemove: boolean;
+  /**
+   * Pictures sent with it. These are attachment row ids, not Drive ids -- the
+   * file itself is private to the lab's Drive and only /api/attachments can
+   * read it.
+   */
+  images: { id: string; name: string }[];
 };
 
 const CATEGORY_STYLE: Record<string, string> = {
@@ -78,6 +84,34 @@ export default function FeedbackList({
           {/* whitespace-pre-line: people write in paragraphs and a collapsed
               message reads as one run-on complaint. */}
           <p className="text-sm text-gray-900 whitespace-pre-line break-words">{row.body}</p>
+
+          {/* A thumbnail that opens the full picture in a tab. Not next/image:
+              these are served by an app route behind a session, so there is no
+              loader that could fetch or cache them, and the optimiser would
+              only put a second request in front of one that already needs the
+              viewer's cookies. */}
+          {row.images.length > 0 && (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {row.images.map((image) => (
+                <li key={image.id}>
+                  <a
+                    href={`/api/attachments/${image.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={image.name}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/attachments/${image.id}`}
+                      alt={image.name}
+                      loading="lazy"
+                      className="h-28 w-28 rounded-lg border border-gray-200 object-cover transition hover:brightness-95"
+                    />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {(canResolve || row.canRemove) && (
             <div className="flex flex-wrap gap-3 mt-3 text-sm">
