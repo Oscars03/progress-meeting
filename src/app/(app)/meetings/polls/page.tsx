@@ -14,8 +14,14 @@ import NewPollButton from './new-poll-button';
 import WeekAvailabilityGrid from './week-availability';
 import { weekAvailabilityAction } from '../../calendar-actions';
 
-export default async function PollsPage() {
-  const [actor, t] = await Promise.all([requireSession(), getT()]);
+export default async function PollsPage(props: {
+  searchParams: Promise<{ new?: string }>;
+}) {
+  const [{ new: openNew }, actor, t] = await Promise.all([
+    props.searchParams,
+    requireSession(),
+    getT(),
+  ]);
 
   // The current week is read on the server so the grid arrives filled in,
   // rather than rendering empty and fetching from an effect.
@@ -66,11 +72,15 @@ export default async function PollsPage() {
           <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">
             {t('polls.backToCalendar')}
           </BackLink>
-          {canManage && <NewPollButton />}
+          {canManage && <NewPollButton defaultOpen={openNew === '1' && canManage} />}
         </div>
       </div>
 
-      <WeekAvailabilityGrid initial={availability} leadWeeks={leadWeeks} isAdmin={isAdmin} />
+      {/* Anchored, so the dashboard's "find free time" lands on the grid
+          rather than at the top of a page of polls. */}
+      <div id="availability" className="scroll-mt-4">
+        <WeekAvailabilityGrid initial={availability} leadWeeks={leadWeeks} isAdmin={isAdmin} />
+      </div>
 
       {rows.length === 0 && (
         <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-100">

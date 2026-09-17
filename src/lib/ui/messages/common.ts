@@ -98,6 +98,23 @@ export const common = defineMessages({
     'dashboard.myTasks': 'งานของฉัน',
     'dashboard.myTasksHint': 'งานที่ได้รับมอบหมายและยังไม่เสร็จสิ้น',
 
+    'dashboard.yourTurn': 'ลำดับการนำเสนอของคุณ',
+    'dashboard.yourPosition': 'คุณนำเสนอเป็นลำดับที่ {n} จาก {of} คน',
+    'dashboard.seeFullOrder': 'ดูลำดับทั้งหมด',
+    'dashboard.noTopicYet': 'สัปดาห์นี้คุณยังไม่ได้เพิ่มหัวข้อที่จะนำเสนอ',
+
+    'dashboard.yourLeadTurn': 'สัปดาห์นี้คุณเป็นผู้รับผิดชอบ',
+    'dashboard.yourLeadTurnHint': 'หาเวลาที่ทุกคนว่าง ส่งให้ยืนยัน แล้วจัดลำดับผู้นำเสนอ',
+    'dashboard.findFreeTime': 'หาเวลาว่าง',
+    'dashboard.createPoll': 'สร้างโพลยืนยันเวลา',
+    'dashboard.arrangeOrder': 'จัดลำดับผู้นำเสนอ',
+
+    'dashboard.today': 'ตารางของคุณวันนี้',
+    'dashboard.todayHint': 'ประชุมของแล็บ และเวลาที่คุณบันทึกไว้เอง',
+    'dashboard.openCalendar': 'เปิดปฏิทิน',
+    'dashboard.kindMeeting': 'ประชุม',
+    'dashboard.kindPersonal': 'ตารางส่วนตัว',
+
     'dashboard.nextMeeting': 'การประชุมครั้งถัดไป',
     'dashboard.notScheduled': 'ยังไม่ได้นัดหมาย',
     'dashboard.notScheduledHint': 'ยังไม่มีการประชุมที่นัดไว้ล่วงหน้า',
@@ -264,6 +281,24 @@ export const common = defineMessages({
     'dashboard.overdue': 'Overdue tasks',
     'dashboard.myTasks': 'My Tasks',
     'dashboard.myTasksHint': 'Open tasks assigned to you',
+
+    'dashboard.yourTurn': 'Your slot in the running order',
+    'dashboard.yourPosition': 'You present {n} of {of}',
+    'dashboard.seeFullOrder': 'See the full order',
+    'dashboard.noTopicYet': "You have not put a topic down for this week yet",
+
+    'dashboard.yourLeadTurn': 'This week is yours to run',
+    'dashboard.yourLeadTurnHint':
+      'Find an hour everyone is free, ask them to confirm it, then arrange the order.',
+    'dashboard.findFreeTime': 'Find free time',
+    'dashboard.createPoll': 'Create a poll',
+    'dashboard.arrangeOrder': 'Arrange the order',
+
+    'dashboard.today': 'Your day',
+    'dashboard.todayHint': "The lab's meetings, and hours you blocked out yourself",
+    'dashboard.openCalendar': 'Open the calendar',
+    'dashboard.kindMeeting': 'Meeting',
+    'dashboard.kindPersonal': 'Personal',
 
     'dashboard.nextMeeting': 'Next meeting',
     'dashboard.notScheduled': 'Not scheduled yet',

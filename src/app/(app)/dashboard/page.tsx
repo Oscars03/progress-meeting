@@ -13,16 +13,21 @@ import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
 import PendingUsers from './pending-users';
 import { weekKey } from '@/lib/week';
-import { formatLabTime, labDay } from '@/lib/lab-time';
+import { formatLabClock, formatLabTime, labDay } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
 import { brokenConnections } from '@/lib/google/tokens';
 import { breakForWeek } from '@/lib/term-breaks';
 import { intlLocale } from '@/lib/ui/i18n';
+import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from '@/lib/presentation-order';
+import { isWeekLead } from '@/lib/rotation';
+import { labInstant } from '@/lib/lab-time';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
   AvailabilityVoteRecord,
   MeetingRecord,
+  PersonalEventRecord,
+  TopicRecord,
   UserRecord,
   WeekLeadRecord,
   TermBreakRecord,
@@ -31,7 +36,22 @@ import type {
 } from '@/lib/db/schema';
 
 export default async function DashboardPage() {
-  const [actor, users, meetings, leads, polls, slots, votes, termBreaks, tasks, feedback, t, locale] = await Promise.all([
+  const [
+    actor,
+    users,
+    meetings,
+    leads,
+    polls,
+    slots,
+    votes,
+    termBreaks,
+    tasks,
+    feedback,
+    allTopics,
+    personalEvents,
+    t,
+    locale,
+  ] = await Promise.all([
     requireSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
@@ -42,6 +62,8 @@ export default async function DashboardPage() {
     SheetRepo.find<TermBreakRecord>('term_breaks'),
     SheetRepo.find<TaskRecord>('tasks').catch(() => []),
     SheetRepo.find<FeedbackRecord>('feedback').catch(() => []),
+    SheetRepo.find<TopicRecord>('topics').catch(() => []),
+    SheetRepo.find<PersonalEventRecord>('personal_events').catch(() => []),
     getT(),
     getLocale(),
   ]);
@@ -101,7 +123,60 @@ export default async function DashboardPage() {
   // Everyone else schedules by proposing times and confirming the winner.
   const canSchedule = actor.role === 'admin';
 
+  // Where you come in this week's meeting, and what you are down to show.
+  // The order itself lives on /presentations; what belongs here is the one
+  // line about it that concerns the person reading -- being third is something
+  // you want to know without going to look.
+  const weekTopics = topicsForWeek(allTopics, thisWeekKey);
+  const presenters = groupByPresenter(effectiveTopicOrder(weekTopics).ordered);
+  const myPlaceIndex = presenters.findIndex((block) => block.ownerId === actor.id);
+  const myTurn =
+    myPlaceIndex >= 0
+      ? {
+          position: myPlaceIndex + 1,
+          outOf: presenters.length,
+          topics: presenters[myPlaceIndex].topics,
+        }
+      : null;
+
+  // Arranging the week's meeting is the lead's job, and the two things it
+  // takes -- finding an hour everyone is free, and asking them to confirm it --
+  // were both two pages away from where they start.
+  const iLeadThisWeek = !currentBreak && isWeekLead(leads, thisWeekKey, actor.id);
+
   const today = labDay(new Date());
+
+  /**
+   * What is on your own diary today: the lab's meetings you are part of, and
+   * the hours you blocked out yourself.
+   *
+   * Only today, and only yours. A dashboard that reprints the calendar is a
+   * worse calendar; what it can do that the calendar cannot is answer "is
+   * there anything I am supposed to be at today" without leaving the page.
+   */
+  const myDay = [
+    ...meetings
+      .filter((meeting) => meeting.status !== 'cancelled')
+      .map((meeting) => ({
+        id: meeting.id,
+        kind: 'meeting' as const,
+        title: meeting.title,
+        at: labInstant(meeting.start_at),
+        href: `/meetings/${meeting.id}`,
+      })),
+    ...personalEvents
+      .filter((event) => event.user_id === actor.id)
+      .map((event) => ({
+        id: event.id,
+        kind: 'personal' as const,
+        title: event.title,
+        at: labInstant(event.start_at),
+        href: '/meetings',
+      })),
+  ]
+    .filter((item): item is typeof item & { at: Date } => item.at !== null && labDay(item.at) === today)
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
+
   const myOpenTasks = tasks
     .filter(task => {
       const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
@@ -171,6 +246,116 @@ export default async function DashboardPage() {
           </div>
 
           <PendingUsers users={awaitingApproval} />
+        </section>
+      )}
+
+      {/* What the lead has to do this week, where they start the week rather
+          than two pages into it. Not shown during a term break: there is no
+          meeting to arrange. */}
+      {iLeadThisWeek && (
+        <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
+          <div>
+            <h3 className="font-semibold text-blue-800">{t('dashboard.yourLeadTurn')}</h3>
+            <p className="text-sm text-blue-700">{t('dashboard.yourLeadTurnHint')}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/meetings/polls#availability"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition"
+            >
+              {t('dashboard.findFreeTime')}
+            </Link>
+            <Link
+              href="/meetings/polls?new=1"
+              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
+            >
+              {t('dashboard.createPoll')}
+            </Link>
+            <Link
+              href="/presentations"
+              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
+            >
+              {t('dashboard.arrangeOrder')}
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Your place in the running order. Shown even when you have nothing
+          down, because "you have not added a topic" is the more useful of the
+          two answers in the days before a meeting. */}
+      {!currentBreak && (
+        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h3 className="font-semibold text-gray-900">{t('dashboard.yourTurn')}</h3>
+            <Link href="/presentations" className="text-sm text-blue-600 hover:underline">
+              {t('dashboard.seeFullOrder')}
+            </Link>
+          </div>
+
+          {myTurn ? (
+            <>
+              <p className="text-sm text-gray-700">
+                {t('dashboard.yourPosition', { n: myTurn.position, of: myTurn.outOf })}
+              </p>
+              <ul className="space-y-1.5">
+                {myTurn.topics.map((topic) => (
+                  <li
+                    key={topic.id}
+                    className="p-3 rounded-lg border border-gray-200 bg-gray-50"
+                  >
+                    <p className="font-medium text-gray-900">{topic.title}</p>
+                    {topic.details && (
+                      <p className="text-sm text-gray-500 whitespace-pre-line">{topic.details}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            /* Not a congratulation: nothing is down, which is different from
+               everything being ready -- see CLAUDE.md. */
+            <p className="text-sm text-gray-500">{t('dashboard.noTopicYet')}</p>
+          )}
+        </section>
+      )}
+
+      {myDay.length > 0 && (
+        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('dashboard.today')}</h3>
+              <p className="text-sm text-gray-500">{t('dashboard.todayHint')}</p>
+            </div>
+            <Link href="/meetings" className="text-sm text-blue-600 hover:underline">
+              {t('dashboard.openCalendar')}
+            </Link>
+          </div>
+
+          <ul className="space-y-2">
+            {myDay.map((item) => (
+              <li key={`${item.kind}-${item.id}`}>
+                <Link
+                  href={item.href}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 rounded-lg border border-gray-200 bg-gray-50 hover:border-gray-300 transition"
+                >
+                  <span className="text-sm font-semibold text-gray-700 tabular-nums">
+                    {formatLabClock(item.at.toISOString(), locale)}
+                  </span>
+                  <span className="flex-1 min-w-40 text-gray-900">{item.title}</span>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                      item.kind === 'meeting'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : 'bg-gray-100 text-gray-600 border-gray-200'
+                    }`}
+                  >
+                    {t(item.kind === 'meeting' ? 'dashboard.kindMeeting' : 'dashboard.kindPersonal')}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

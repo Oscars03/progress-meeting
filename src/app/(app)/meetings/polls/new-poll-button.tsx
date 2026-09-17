@@ -9,11 +9,16 @@ type SlotDraft = { start: string; end: string };
 
 const EMPTY: SlotDraft = { start: '', end: '' };
 
-export default function NewPollButton() {
+/**
+ * `defaultOpen` lets the dashboard's "create a poll" button land on the form
+ * rather than on a page holding another button to press. Read once as the
+ * initial state, so closing it does not have to fight the URL.
+ */
+export default function NewPollButton({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const { t } = usePrefs();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [error, setError] = useState('');
 
   const [title, setTitle] = useState('');
