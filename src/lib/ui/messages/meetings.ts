@@ -3,6 +3,8 @@ import { defineMessages } from './define';
 /** Calendar, a meeting's page, and Google Calendar sync. */
 export const meetings = defineMessages({
   th: {
+    'meetings.onlyMine': 'แสดงเฉพาะของฉัน',
+    'meetings.onlyMineShort': 'เฉพาะฉัน',
     'meetings.title': 'ปฏิทิน',
     'meetings.findTime': 'หาเวลาที่ตรงกัน',
     'meetings.hint': 'คลิกที่การประชุมเพื่อเปิดวาระ บันทึกการประชุม และงานที่มอบหมาย',
@@ -109,6 +111,8 @@ export const meetings = defineMessages({
     'calcard.privacy': 'ระบบอ่านเฉพาะช่วงเวลาที่ไม่ว่าง ไม่เห็นหัวข้อหรือรายละเอียดนัดของคุณ และคนที่ยังไม่เชื่อมจะยังได้รับคำเชิญทางอีเมลตามปกติ',
   },
   en: {
+    'meetings.onlyMine': 'Only mine',
+    'meetings.onlyMineShort': 'Mine',
     'meetings.title': 'Calendar',
     'meetings.findTime': 'Find a time',
     'meetings.hint': 'Select a meeting to open its agenda, minutes and action items',

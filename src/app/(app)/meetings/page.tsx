@@ -61,7 +61,9 @@ export default async function MeetingsPage() {
   const timeMax = new Date();
   timeMax.setDate(timeMax.getDate() + 30);
 
-  const allGoogleEvents: (GoogleEvent & { owner_name?: string })[] = [];
+  // owner_id as well as the name: the calendar's "only mine" filter has to
+  // compare ids, and a display name is not an identity.
+  const allGoogleEvents: (GoogleEvent & { owner_name?: string; owner_id?: string })[] = [];
   
   await Promise.all(
     Array.from(connectedUserIds).filter(showsOnCalendar).map(async (uId) => {
@@ -70,7 +72,7 @@ export default async function MeetingsPage() {
         if (uId === actor.id) {
           // Own events: full titles visible
           const events = await myEvents(uId, timeMin.toISOString(), timeMax.toISOString());
-          events.forEach(e => { allGoogleEvents.push({ ...e, owner_name: userName }); });
+          events.forEach(e => { allGoogleEvents.push({ ...e, owner_name: userName, owner_id: uId }); });
         } else {
           // Others: freebusy only — no titles, no privacy leak
           const intervals = await busyTimes(uId, timeMin.toISOString(), timeMax.toISOString());
@@ -81,6 +83,7 @@ export default async function MeetingsPage() {
               start: b.start,
               end: b.end,
               owner_name: userName,
+              owner_id: uId,
             });
           });
         }
