@@ -39,6 +39,11 @@ body {
 :root {
   --cal-line: #eceef1;
   --cal-line-soft: #f4f5f7;
+  /* The hour rule in the time grid, and the only line there meant to be read
+     as structure. A step darker than --cal-line because it now has the half
+     hour drawn under it: at the same weight the two were indistinguishable and
+     the grid went back to looking like an undifferentiated dotted fill. */
+  --cal-line-hour: #dde1e6;
   --cal-ink: #111827;
   --cal-ink-soft: #6b7280;
   --cal-today: #eff6ff;
@@ -93,13 +98,17 @@ body {
    fits a desktop screen. At the previous 3rem a slot, a week showed five hours
    and picking a time meant scrolling blind through the other nine. */
 .fc .fc-timegrid-slot {
-  border-bottom: 1px solid var(--cal-line-soft);
+  border-bottom: 1px solid var(--cal-line-hour);
   height: 1.5rem;
 }
-/* The half hour gets a line too, but a dashed, fainter one -- you cannot aim
-   at 11:30 on a surface that gives no sign of where it is, and a slot you can
-   drop an event on with nothing drawn there reads as broken. Dashed rather
-   than solid so it still says "half", not "hour". */
+/* The half hour gets a line too -- you cannot aim at 11:30 on a surface that
+   gives no sign of where it is, and a slot you can drop an event on with
+   nothing drawn there reads as broken.
+   It has to be clearly *weaker* than the hour, not merely a different dash
+   pattern. Drawn dashed in the same colour as the hour it was invisible as a
+   distinction and visible as clutter: twice as many lines, all alike, which is
+   the dotted fill this rule was written to get rid of in the first place.
+   Dashed *and* a step lighter reads as a subdivision. */
 .fc .fc-timegrid-slot.fc-timegrid-slot-minor {
   border-top: none;
   border-bottom: 1px dashed var(--cal-line-soft);
@@ -532,6 +541,9 @@ body {
      colours are restated here instead -- one place, same names. */
   --cal-line: #2f2f33;
   --cal-line-soft: #232326;
+  /* Lighter than --cal-line here, not darker: on a dark ground the stronger
+     line is the one closer to the foreground. */
+  --cal-line-hour: #3c3c42;
   --cal-ink: #e4e4e7;
   --cal-ink-soft: #a1a1aa;
   --cal-today: #1e2a3d;
