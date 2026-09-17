@@ -3,7 +3,7 @@ import BackLink from '@/lib/ui/back-link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
-import { weeksLedBy } from '@/lib/rotation';
+import { weeksRunBy } from '@/lib/rotation';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -34,7 +34,7 @@ export default async function PollsPage(props: {
   ]);
 
   const isAdmin = actor.role === 'admin';
-  const leadWeeks = weeksLedBy(leads, actor.id);
+  const leadWeeks = weeksRunBy(actor, leads);
   // Asking is the lead's job, so the page offers it to whoever leads a week.
   const canManage = isAdmin || leadWeeks.length > 0;
 

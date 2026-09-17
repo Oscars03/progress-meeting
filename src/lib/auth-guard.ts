@@ -2,7 +2,7 @@ import { getServerSession } from 'next-auth';
 import { cookies } from 'next/headers';
 import { authOptions } from './auth';
 import { UserError } from './user-error';
-import { ROLE_PREVIEW_COOKIE, effectiveRole } from './role-preview';
+import { ROLE_PREVIEW_COOKIE, effectiveRole, previewsLead } from './role-preview';
 import type { TranslationKey, TranslationVars } from './ui/i18n';
 
 export type Role = 'admin' | 'professor' | 'student';
@@ -38,6 +38,11 @@ export type SessionUser = {
   realRole: Role;
   /** Set only while `role` differs from `realRole`. */
   previewing: boolean;
+  /**
+   * Set while an admin is looking through the week lead's eyes. Leading a week
+   * is a duty rather than a rank, so it cannot be carried by `role`.
+   */
+  previewingLead: boolean;
 };
 
 export class AuthorizationError extends UserError {
@@ -82,7 +87,9 @@ export async function requireSession(): Promise<SessionUser> {
   // Honoured for admins only, and never able to select admin, so it can lower
   // what somebody sees and never raise it. For everybody else the cookie is
   // not even read.
-  const role = effectiveRole(realRole, await previewCookie());
+  const preview = await previewCookie();
+  const role = effectiveRole(realRole, preview);
+  const previewingLead = previewsLead(realRole, preview);
 
   return {
     id: user.id,
@@ -90,7 +97,10 @@ export async function requireSession(): Promise<SessionUser> {
     email: user.email,
     role,
     realRole,
-    previewing: role !== realRole,
+    // The lead view lowers the role to student as well, but a preview that
+    // happened to leave the role alone would still be a preview.
+    previewing: role !== realRole || previewingLead,
+    previewingLead,
   };
 }
 

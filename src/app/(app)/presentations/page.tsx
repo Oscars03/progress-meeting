@@ -5,7 +5,7 @@ import { weekKey } from '@/lib/week';
 import { effectiveTopicOrder, topicsForWeek } from '@/lib/presentation-order';
 import OrderBoard from './order-board';
 import type { TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
-import { isWeekLead } from '@/lib/rotation';
+import { actsAsWeekLead } from '@/lib/rotation';
 
 export default async function PresentationsPage(props: {
   searchParams: Promise<{ week?: string }>;
@@ -38,7 +38,7 @@ export default async function PresentationsPage(props: {
       <OrderBoard
         weekKey={activeWeek}
         custom={custom}
-        canArrange={hasManagerRights(actor.role) || isWeekLead(leads, activeWeek, actor.id)}
+        canArrange={hasManagerRights(actor.role) || actsAsWeekLead(actor, leads, activeWeek)}
         currentUserId={actor.id}
         topics={ordered.map((topic) => ({
           id: topic.id,

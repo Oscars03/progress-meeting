@@ -89,7 +89,11 @@ export default async function SettingsPage() {
       {/* On realRole, not isAdmin: previewing as a student makes isAdmin
           false, and gating this on that would hide the only control that can
           end the preview from inside Settings. */}
-      {actor.realRole === 'admin' && <RolePreview current={actor.role} />}
+      {/* The view, not the role: the lead view is a student who holds the
+          week, so the role alone could not tell the two apart. */}
+      {actor.realRole === 'admin' && (
+        <RolePreview current={actor.previewingLead ? 'lead' : actor.role} />
+      )}
 
       <CalendarCard
         status={{

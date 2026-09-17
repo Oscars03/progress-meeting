@@ -5,7 +5,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import { isWeekLead, rotationMembers } from '@/lib/rotation';
+import { actsAsWeekLead, rotationMembers } from '@/lib/rotation';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
 import { pushMeeting, removeMeetingEvent } from '@/lib/google/meeting-sync';
@@ -126,7 +126,7 @@ export async function rescheduleMeetingAction(
       const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
       const wasAt = labInstant(meeting.start_at);
       const weeks = [wasAt ? weekKey(wasAt) : '', weekKey(start)];
-      if (weeks.some((w) => !w || !isWeekLead(leads, w, actor.id))) {
+      if (weeks.some((w) => !w || !actsAsWeekLead(actor, leads, w))) {
         throw new UserError('avail.leadOnly');
       }
     }
@@ -231,7 +231,7 @@ export async function deleteMeeting(meetingId: string, rowVersion: number): Prom
       const start = labInstant(meeting.start_at);
       const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
       const week = start ? weekKey(start) : '';
-      if (!week || !isWeekLead(leads, week, actor.id)) {
+      if (!week || !actsAsWeekLead(actor, leads, week)) {
         throw new UserError('avail.leadOnly');
       }
     }

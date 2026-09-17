@@ -46,7 +46,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           what is being looked at, and pinning it over the nav would cover the
           one thing that still works normally. */}
       <main className="flex-1 overflow-y-auto">
-        {actor?.previewing && <PreviewBanner role={actor.role} />}
+        {actor?.previewing && (
+          <PreviewBanner role={actor.previewingLead ? 'lead' : actor.role} />
+        )}
         <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>

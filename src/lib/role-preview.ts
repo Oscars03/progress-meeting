@@ -19,11 +19,27 @@ import type { Role } from './auth-guard';
  */
 export const ROLE_PREVIEW_COOKIE = 'role-preview';
 
-/** The roles an admin may look through. Admin itself means "stop previewing". */
-export const PREVIEWABLE_ROLES: Role[] = ['professor', 'student'];
+/**
+ * Leading a week is not a role -- it is a duty that rotates, recorded per week
+ * in `week_leads` and held by an ordinary student. But it is the viewpoint that
+ * differs most from everyone else's, so it is the one most worth being able to
+ * look at, and "which role am I previewing" is the wrong question for it.
+ *
+ * Previewing it means: a student, who happens to hold the current week.
+ */
+export const LEAD_VIEW = 'lead';
 
-export function isPreviewableRole(value: unknown): value is Role {
-  return typeof value === 'string' && (PREVIEWABLE_ROLES as string[]).includes(value);
+/**
+ * What an admin may look through. Admin itself is absent on purpose: stopping
+ * is how you get back to it, which is what makes this incapable of raising
+ * anybody.
+ */
+export const PREVIEWABLE_VIEWS = ['professor', 'student', LEAD_VIEW] as const;
+
+export type PreviewView = (typeof PREVIEWABLE_VIEWS)[number];
+
+export function isPreviewableView(value: unknown): value is PreviewView {
+  return typeof value === 'string' && (PREVIEWABLE_VIEWS as readonly string[]).includes(value);
 }
 
 /**
@@ -38,5 +54,21 @@ export function isPreviewableRole(value: unknown): value is Role {
  */
 export function effectiveRole(realRole: Role, previewValue: string | undefined): Role {
   if (realRole !== 'admin') return realRole;
-  return isPreviewableRole(previewValue) ? previewValue : realRole;
+  if (!isPreviewableView(previewValue)) return realRole;
+  // The lead is a student who holds the week, so that is the role it carries.
+  // What makes the view different is the duty, not the rank.
+  return previewValue === LEAD_VIEW ? 'student' : previewValue;
+}
+
+/**
+ * Whether this preview means "and I hold the current week".
+ *
+ * Same guard as `effectiveRole`, for the same reason: honoured for an admin
+ * alone, so a cookie set by anybody else carries no duty either. It grants
+ * nothing an admin did not already have -- leading a week is a subset of what
+ * admin can do -- which is what makes it safe to let the actions honour it
+ * rather than only the pages.
+ */
+export function previewsLead(realRole: Role, previewValue: string | undefined): boolean {
+  return realRole === 'admin' && previewValue === LEAD_VIEW;
 }

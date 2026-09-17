@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { requireRealAdmin } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import { ROLE_PREVIEW_COOKIE, isPreviewableRole } from '@/lib/role-preview';
+import { ROLE_PREVIEW_COOKIE, isPreviewableView } from '@/lib/role-preview';
 
 /**
  * Look at the app as another role, or stop.
@@ -29,7 +29,7 @@ export async function setRolePreviewAction(role: string): Promise<ActionResult> 
     } else {
       // Admin is not in the previewable list, so it can never be selected here
       // -- stopping is how you get back to it.
-      if (!isPreviewableRole(role)) throw new UserError('error.invalidValue', { value: role });
+      if (!isPreviewableView(role)) throw new UserError('error.invalidValue', { value: role });
 
       jar.set(ROLE_PREVIEW_COOKIE, role, {
         httpOnly: true,

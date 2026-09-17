@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { TaskRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
-import { isWeekLead } from '@/lib/rotation';
+import { actsAsWeekLead } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import KanbanBoard from './kanban';
 import NewTaskButton from './new-task-button';
@@ -22,7 +22,7 @@ export default async function TasksPage() {
   const canAssign = canAssignWork(actor);
   // Tidying the board is part of preparing the meeting that reads from it, so
   // whoever is running this week can clear work as well as its owner can.
-  const isLeadThisWeek = isWeekLead(leads, weekKey(), actor.id);
+  const isLeadThisWeek = actsAsWeekLead(actor, leads, weekKey());
 
   // Admin runs the app; it is not somebody work gets handed to, and it was
   // still in this picker after the same rule was applied everywhere else.

@@ -11,7 +11,7 @@ import type {
   UserRecord,
   WeekLeadRecord,
 } from '@/lib/db/schema';
-import { isWeekLead, leadForWeek, rotationMembers, suggestNextHost } from '@/lib/rotation';
+import { actsAsWeekLead, leadForWeek, rotationMembers, suggestNextHost } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import { isMember } from '@/lib/members';
 import HostPicker from '../../dashboard/host-picker';
@@ -63,7 +63,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const hostName = lead ? (users.find((u) => u.id === lead.user_id)?.name ?? '') : '';
   // Whoever runs the week owns its schedule, so the lead can undo their own
   // booking. Admin can always step in.
-  const canRemove = actor.role === 'admin' || isWeekLead(leads, meetingWeek, actor.id);
+  const canRemove = actor.role === 'admin' || actsAsWeekLead(actor, leads, meetingWeek);
   const suggestedHost = hostName ? null : suggestNextHost(users, leads);
   const calendarOwner = users.find((u) => u.id === meeting.google_calendar_owner_id);
   // This showed the two stored instants verbatim -- "2026-09-25T01:00:00.000Z"

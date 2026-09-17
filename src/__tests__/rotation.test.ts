@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
+  actsAsWeekLead,
   rotationMembers,
   suggestNextHost,
   leadForWeek,
   meetingsInWeek,
   nextMeeting,
+  weeksRunBy,
 } from '../lib/rotation';
+import { weekKey } from '../lib/week';
 import type { MeetingRecord, UserRecord, WeekLeadRecord } from '../lib/db/schema';
 
 function user(
@@ -154,6 +157,56 @@ describe('leadForWeek', () => {
     const leads = [lead('2026-W37', 'stu1'), lead('2026-W38', 'stu2')];
     expect(leadForWeek(leads, '2026-W38')?.user_id).toBe('stu2');
     expect(leadForWeek(leads, '2026-W39')).toBeNull();
+  });
+});
+
+/**
+ * Who runs a week, including an admin looking through the lead's eyes.
+ *
+ * Every page and every action asks this rather than isWeekLead, so that the
+ * preview is coherent: showing the lead's buttons and then refusing behind
+ * them would be worse than not offering them.
+ */
+describe('actsAsWeekLead', () => {
+  const thisWeek = weekKey();
+  const nextWeek = '2099-W01';
+
+  it('is true for whoever actually holds the week', () => {
+    const leads = [lead(nextWeek, 'stu1')];
+    expect(actsAsWeekLead({ id: 'stu1' }, leads, nextWeek)).toBe(true);
+    expect(actsAsWeekLead({ id: 'stu2' }, leads, nextWeek)).toBe(false);
+  });
+
+  it('is true for somebody previewing the lead view, for this week', () => {
+    expect(actsAsWeekLead({ id: 'boss', previewingLead: true }, [], thisWeek)).toBe(true);
+  });
+
+  // The preview answers "what does this week's lead see". It is not a way to
+  // take over a week somebody else holds.
+  it('does not reach any other week', () => {
+    const leads = [lead(nextWeek, 'stu1')];
+    expect(actsAsWeekLead({ id: 'boss', previewingLead: true }, leads, nextWeek)).toBe(false);
+  });
+
+  it('is false for anybody not previewing, with no week of their own', () => {
+    expect(actsAsWeekLead({ id: 'boss' }, [], thisWeek)).toBe(false);
+    expect(actsAsWeekLead({ id: 'boss', previewingLead: false }, [], thisWeek)).toBe(false);
+  });
+});
+
+describe('weeksRunBy', () => {
+  it('is the weeks they hold when not previewing', () => {
+    const leads = [lead('2026-W37', 'stu1'), lead('2026-W38', 'stu2')];
+    expect(weeksRunBy({ id: 'stu1' }, leads)).toEqual(['2026-W37']);
+  });
+
+  it('folds the current week in while previewing the lead view', () => {
+    expect(weeksRunBy({ id: 'boss', previewingLead: true }, [])).toEqual([weekKey()]);
+  });
+
+  it('does not list the current week twice for a lead previewing their own week', () => {
+    const leads = [lead(weekKey(), 'stu1')];
+    expect(weeksRunBy({ id: 'stu1', previewingLead: true }, leads)).toEqual([weekKey()]);
   });
 });
 
