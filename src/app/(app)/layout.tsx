@@ -22,6 +22,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const me = session.user?.id
     ? await SheetRepo.findOne<UserRecord>('users', session.user.id).catch(() => null)
     : null;
+  // ponytail: fail-open when sheet read fails (me===null from .catch) so a
+  // transient API error doesn't lock everyone out. Server actions re-check anyway.
+  if (me && me.active !== true) redirect('/login');
+
   const userName = me?.name || session.user?.name || '';
 
   // h-dvh, not h-screen: on a phone or tablet 100vh is the height the page

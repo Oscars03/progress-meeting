@@ -9,7 +9,7 @@ import ConnectGoogleButton from './connect-google-button';
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requireSession } from '@/lib/auth-guard';
 import { labMembers } from '@/lib/members';
-import { myEvents, type GoogleEvent } from '@/lib/google/calendar';
+import { myEvents, busyTimes, type GoogleEvent } from '@/lib/google/calendar';
 import type { PersonalEventRecord, UserRecord, TermBreakRecord } from '@/lib/db/schema';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
@@ -52,7 +52,9 @@ export default async function MeetingsPage() {
 
   const isCalendarSynced = Boolean(storedToken);
   
-  // Fetch Google events (for next 30 days) for ALL connected users
+  // Fetch calendar data for the shared view.
+  // Privacy: other people's events show only as "Busy" blocks (freebusy API).
+  // Only the current user's own events carry their real titles.
   const connectedUserIds = await getConnectedUserIds();
   const timeMin = new Date();
   timeMin.setDate(timeMin.getDate() - 7);
@@ -64,14 +66,24 @@ export default async function MeetingsPage() {
   await Promise.all(
     Array.from(connectedUserIds).filter(showsOnCalendar).map(async (uId) => {
       try {
-        const events = await myEvents(uId, timeMin.toISOString(), timeMax.toISOString());
         const userName = userMap.get(uId) || 'Unknown';
-        events.forEach(e => {
-          allGoogleEvents.push({
-            ...e,
-            owner_name: userName
+        if (uId === actor.id) {
+          // Own events: full titles visible
+          const events = await myEvents(uId, timeMin.toISOString(), timeMax.toISOString());
+          events.forEach(e => { allGoogleEvents.push({ ...e, owner_name: userName }); });
+        } else {
+          // Others: freebusy only — no titles, no privacy leak
+          const intervals = await busyTimes(uId, timeMin.toISOString(), timeMax.toISOString());
+          intervals.forEach(b => {
+            allGoogleEvents.push({
+              id: `busy-${uId}-${b.start}`,
+              title: 'Busy',
+              start: b.start,
+              end: b.end,
+              owner_name: userName,
+            });
           });
-        });
+        }
       } catch (err) {
         console.error(`Failed to fetch Google events for user ${uId}:`, err);
       }

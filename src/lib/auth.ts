@@ -116,7 +116,8 @@ export const authOptions: NextAuthOptions = {
             line_id: '',
             active: false,
           },
-          'google-signup'
+          'google-signup',
+          { uniqueBy: { email } }
         );
 
         return '/?pending=1';

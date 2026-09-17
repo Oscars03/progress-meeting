@@ -157,7 +157,8 @@ export async function voteAction(
     await SheetRepo.insert(
       'availability_votes',
       { slot_id: slotId, user_id: actor.id, choice },
-      actor.id
+      actor.id,
+      { uniqueBy: { slot_id: slotId, user_id: actor.id } }
     );
   }
 
@@ -262,14 +263,16 @@ export async function deletePollAction(pollId: string, rowVersion: number) {
   await assertRunsThePoll(actor, mySlots);
   const slotIds = new Set(mySlots.map((s) => s.id));
 
-  // Votes first, then slots, then the poll: deleting top-down would leave rows
-  // pointing at a parent that no longer exists if a later step failed.
-  for (const vote of votes.filter((v) => slotIds.has(v.slot_id))) {
-    await SheetRepo.delete('availability_votes', vote.id, vote.row_version, actor.id);
-  }
-  for (const slot of mySlots) {
-    await SheetRepo.delete('availability_slots', slot.id, slot.row_version, actor.id);
-  }
+  // Batch delete: 1 API call per tab instead of N sequential calls.
+  // Votes first, then slots, then the poll (children before parents).
+  const voteItems = votes
+    .filter((v) => slotIds.has(v.slot_id))
+    .map((v) => ({ id: v.id, expectedVersion: v.row_version }));
+  await SheetRepo.deleteMany('availability_votes', voteItems, actor.id);
+
+  const slotItems = mySlots.map((s) => ({ id: s.id, expectedVersion: s.row_version }));
+  await SheetRepo.deleteMany('availability_slots', slotItems, actor.id);
+
   await SheetRepo.delete('availability_polls', pollId, rowVersion, actor.id);
 
   revalidate();

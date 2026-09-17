@@ -14,8 +14,15 @@ class Mutex {
     return () => {
       if (released) return;
       released = true;
-      this.locked = false;
-      this.queue.shift()?.();
+      
+      const next = this.queue.shift();
+      if (next) {
+        // Hand lock directly to next without setting locked = false,
+        // preventing a new caller from stealing it before next wakes up.
+        next();
+      } else {
+        this.locked = false;
+      }
     };
   }
 

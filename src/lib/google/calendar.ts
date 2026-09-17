@@ -23,7 +23,18 @@ export class NotConnectedError extends UserError {
 /** The calendar the person sees as theirs. */
 export const PRIMARY = 'primary';
 
+// ponytail: per-process cache only. On Vercel each instance caches its own
+// clients — acceptable because the alternative is a fresh token exchange every
+// single call (+200-500ms). TTL 50 min < Google's 60 min access token lifetime.
+const CLIENT_TTL = 50 * 60 * 1000;
+const clientCache = new Map<string, { calendar: calendar_v3.Calendar; ts: number }>();
+
 async function clientFor(userId: string) {
+  const cached = clientCache.get(userId);
+  if (cached && Date.now() - cached.ts < CLIENT_TTL) {
+    return { calendar: cached.calendar };
+  }
+
   const stored = await getStoredToken(userId);
   if (!stored) throw new NotConnectedError(userId);
 
@@ -32,7 +43,9 @@ async function clientFor(userId: string) {
     process.env.GOOGLE_CLIENT_SECRET
   );
   auth.setCredentials({ refresh_token: stored.refreshToken });
-  return { calendar: google.calendar({ version: 'v3', auth }), stored };
+  const calendar = google.calendar({ version: 'v3', auth });
+  clientCache.set(userId, { calendar, ts: Date.now() });
+  return { calendar, stored };
 }
 
 /**
@@ -52,6 +65,7 @@ async function asUser<T>(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (/invalid_grant|unauthorized|invalid credentials/i.test(message)) {
+      clientCache.delete(userId);
       await recordTokenError(userId, message);
     }
     throw err;

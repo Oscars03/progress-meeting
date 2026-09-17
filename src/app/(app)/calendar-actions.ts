@@ -246,22 +246,23 @@ export async function slotConflictsAction(
   const byName = new Map<string, { start: string; end: string }[]>();
   let checked = 0;
 
-  // One freebusy call per person rather than per slot: the window covers every
-  // slot, so a second call would ask the same question again.
-  for (const user of candidates) {
+  // Run freebusy checks in parallel. A revoked grant for one person leaves
+  // them unknown rather than failing the whole check.
+  const google = await Promise.allSettled(
+    candidates.map(async (user) => (connected.has(user.id) ? busyTimes(user.id, timeMin, timeMax) : null))
+  );
+
+  for (const [index, user] of candidates.entries()) {
     let busy: { start: string; end: string }[] = [];
     
     // 1. Google Calendar busy times
-    if (connected.has(user.id)) {
-      try {
-        busy = await busyTimes(user.id, timeMin, timeMax);
-        checked++;
-      } catch (err) {
-        if (!(err instanceof NotConnectedError)) {
-          console.error(`freebusy failed for ${user.id}:`, err);
-        }
-      }
-    } else {
+    const result = google[index];
+    if (result.status === 'fulfilled' && result.value) {
+      busy = result.value;
+      checked++;
+    } else if (result.status === 'rejected' && !(result.reason instanceof NotConnectedError)) {
+      console.error(`freebusy failed for ${user.id}:`, result.reason);
+    } else if (!connected.has(user.id)) {
       // Manual schedule user
       checked++;
     }

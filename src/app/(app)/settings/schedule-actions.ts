@@ -7,6 +7,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { PersonalEventRecord } from '@/lib/db/schema';
 import { labInstant } from '@/lib/lab-time';
 import { isEventCategory, isEventColor } from '@/lib/event-colors';
+import { UserError } from '@/lib/user-error';
 
 /**
  * Read the two ends of a block of hours.
@@ -17,12 +18,12 @@ import { isEventCategory, isEventColor } from '@/lib/event-colors';
  * and the availability grid came to disagree by seven hours about one row.
  */
 function readSpan(start_at: string, end_at: string): { start: string; end: string } {
-  if (!start_at) throw new Error('settings.error.startRequired');
-  if (!end_at) throw new Error('settings.error.endRequired');
+  if (!start_at) throw new UserError('settings.error.startRequired');
+  if (!end_at) throw new UserError('settings.error.endRequired');
 
   const start = labInstant(start_at);
   const end = labInstant(end_at);
-  if (!start || !end || end <= start) throw new Error('settings.error.invalidDate');
+  if (!start || !end || end <= start) throw new UserError('settings.error.invalidDate');
 
   return { start: start.toISOString(), end: end.toISOString() };
 }
@@ -45,7 +46,7 @@ export async function createPersonalEventAction(data: {
   return toResult(async () => {
     const actor = await requireSession();
 
-    if (!data.title.trim()) throw new Error('settings.error.titleRequired');
+    if (!data.title.trim()) throw new UserError('settings.error.titleRequired');
     const { start, end } = readSpan(data.start_at, data.end_at);
     const look = readLook(data.color, data.category);
 
@@ -90,10 +91,10 @@ export async function updatePersonalEventAction(
     const actor = await requireSession();
 
     const event = await SheetRepo.findOne<PersonalEventRecord>('personal_events', id);
-    if (!event) throw new Error('error.notFound');
-    if (event.user_id !== actor.id) throw new Error('error.forbidden');
+    if (!event) throw new UserError('error.notFound');
+    if (event.user_id !== actor.id) throw new UserError('error.forbidden');
 
-    if (!data.title.trim()) throw new Error('settings.error.titleRequired');
+    if (!data.title.trim()) throw new UserError('settings.error.titleRequired');
     const { start, end } = readSpan(data.start_at, data.end_at);
     const look = readLook(data.color, data.category);
 
