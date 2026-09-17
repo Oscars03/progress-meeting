@@ -92,7 +92,11 @@ async function saveWeeklyUpdate(input: {
       'task_updates',
       { task_id: taskId, week_key: key, ...fields },
       actor.id,
-      { uniqueBy: { task_id: taskId, week_key: key } }
+      // One row per task per week. If this week's row turns out to exist
+      // already, what was just written is the newer account of the week and
+      // belongs in it -- silently keeping the older one would lose the report
+      // while the screen said it was saved.
+      { uniqueBy: { task_id: taskId, week_key: key }, onConflict: 'update' }
     );
   }
 

@@ -70,7 +70,10 @@ export async function registerAction(input: {
         active: false,
       },
       'self-signup',
-      { uniqueBy: { email } }
+      // keep, never update: an address that already has an account belongs to
+      // whoever holds it, and registering again must not write over their
+      // password or their approval.
+      { uniqueBy: { email }, onConflict: 'keep' }
     );
 
     return { ok: true, notice: PENDING };

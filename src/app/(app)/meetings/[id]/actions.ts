@@ -58,7 +58,10 @@ export async function saveMinutesAction(
         'minutes',
         { meeting_id: meetingId, content, recorded_by: actor.id },
         actor.id,
-        { uniqueBy: { meeting_id: meetingId } }
+        // One agreed record per meeting. Two people opening the blank minutes
+        // at once must not end with one of them typing into a row nobody will
+        // ever read, so the second save writes onto the first.
+        { uniqueBy: { meeting_id: meetingId }, onConflict: 'update' }
       );
     }
 

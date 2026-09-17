@@ -93,6 +93,63 @@ describe('SheetRepo.find', () => {
   });
 });
 
+/**
+ * The mock sheet holds one meta row: key "test_key", value "test_value",
+ * row_version 1. Inserting against a uniqueBy of that key is the case where
+ * the caller read the tab a moment ago and did not see the row.
+ */
+describe('SheetRepo.insert uniqueBy', () => {
+  it('keeps the existing row by default, writing nothing', async () => {
+    const result = await SheetRepo.insert(
+      'meta',
+      { key: 'test_key', value: 'second_value' },
+      'someone',
+      { uniqueBy: { key: 'test_key' } }
+    );
+
+    expect(result.id).toBe('1');
+    expect(result.value).toBe('test_value');
+    expect(result.row_version).toBe(1);
+    expect(batchUpdateCalls).toHaveLength(0);
+  });
+
+  it('writes the new values onto the row it found when asked to update', async () => {
+    const result = await SheetRepo.insert(
+      'meta',
+      { key: 'test_key', value: 'second_value' },
+      'someone',
+      { uniqueBy: { key: 'test_key' }, onConflict: 'update' }
+    );
+
+    // The row it found, moved on -- not a second row, and not the old value.
+    expect(result.id).toBe('1');
+    expect(result.value).toBe('second_value');
+    expect(result.row_version).toBe(2);
+    expect(result.created_at).toBe('2023-01-01');
+
+    const requests = (batchUpdateCalls[0] as { requests: Record<string, unknown>[] }).requests;
+    expect(requests[0]).toHaveProperty('updateCells');
+    // The change is recorded as what it is, against the row that already existed.
+    const audit = requests[1] as { appendCells: { rows: [{ values: { userEnteredValue: { stringValue: string } }[] }] } };
+    const cells = audit.appendCells.rows[0].values.map((v) => v.userEnteredValue?.stringValue);
+    expect(cells).toContain('UPDATE');
+    expect(cells).toContain('1');
+  });
+
+  it('inserts normally when nothing matches', async () => {
+    const result = await SheetRepo.insert(
+      'meta',
+      { key: 'brand_new', value: 'v' },
+      'someone',
+      { uniqueBy: { key: 'brand_new' }, onConflict: 'update' }
+    );
+
+    expect(result.row_version).toBe(1);
+    const requests = (batchUpdateCalls[0] as { requests: Record<string, unknown>[] }).requests;
+    expect(requests[0]).toHaveProperty('appendCells');
+  });
+});
+
 describe('SheetRepo.update optimistic concurrency', () => {
   it('rejects a stale row_version', async () => {
     await expect(SheetRepo.update('meta', '1', { key: 'new_val' }, 99)).rejects.toThrow(

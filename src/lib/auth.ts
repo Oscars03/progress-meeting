@@ -117,7 +117,8 @@ export const authOptions: NextAuthOptions = {
             active: false,
           },
           'google-signup',
-          { uniqueBy: { email } }
+          // keep, never update -- see the same call in login/actions.ts.
+          { uniqueBy: { email }, onConflict: 'keep' }
         );
 
         return '/?pending=1';
