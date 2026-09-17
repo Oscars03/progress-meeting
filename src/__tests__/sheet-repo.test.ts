@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { setupServer } from 'msw/node';
+import { http, HttpResponse } from 'msw';
 import { handlers, batchUpdateCalls } from '../mocks/handlers';
 import { SheetRepo, ConflictError, NotFoundError } from '../lib/db/sheet-repo';
 
@@ -64,6 +65,31 @@ describe('SheetRepo.find', () => {
 
     const second = await SheetRepo.find('meta');
     expect(second[0].key).toBe('test_key');
+  });
+
+  /**
+   * Code deployed ahead of the migration. Answering "there are no rows" would
+   * show a page that has lost everything, when the rows are all still there --
+   * so the missing column is named, and the tab is left uncached so a sheet
+   * migrated in the meantime is picked up on the next read rather than a
+   * minute later.
+   */
+  it('refuses a sheet missing a column SCHEMAS declares', async () => {
+    const shortHeaders = [
+      ['id', 'created_at', 'updated_at', 'row_version', 'created_by', 'key'],
+      ['1', '2023-01-01', '2023-01-01', '1', 'system', 'test_key'],
+    ];
+    server.use(
+      http.get('https://sheets.googleapis.com/v4/spreadsheets/:id/values:batchGet', () =>
+        HttpResponse.json({ valueRanges: [{ values: shortHeaders }] })
+      )
+    );
+
+    await expect(SheetRepo.find('meta')).rejects.toThrow(/no value.*db:migrate-schema/);
+
+    server.resetHandlers();
+    const recovered = await SheetRepo.find('meta');
+    expect(recovered[0].value).toBe('test_value');
   });
 });
 

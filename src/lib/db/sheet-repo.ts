@@ -145,6 +145,8 @@ export class SheetRepo {
     });
 
     const valueRanges = res.data.valueRanges ?? [];
+    const behind: string[] = [];
+
     valueRanges.forEach((vr, i) => {
       const tabName = missing[i];
       const rawRows = (vr.values ?? []) as RawRow[];
@@ -155,10 +157,12 @@ export class SheetRepo {
 
       const headers = rawRows[0];
       const expected = SCHEMAS[tabName] as readonly string[];
-      if (expected.some((h) => !headers.includes(h))) {
-        // Log rather than throw, so one broken sheet doesn't crash the whole batch
-        console.error(`Schema mismatch in ${tabName}: expected ${expected.join(',')}, got ${headers.join(',')}`);
-        cache.set(tabName, { data: [], timestamp: Date.now() });
+      const absent = expected.filter((h) => !headers.includes(h));
+      if (absent.length > 0) {
+        // Nothing is cached for this tab: an empty entry would answer every
+        // read for the next minute with "there is nothing here", and a sheet
+        // repaired in the meantime would not be picked up.
+        behind.push(`${tabName} (no ${absent.join(', ')})`);
         return;
       }
 
@@ -173,6 +177,16 @@ export class SheetRepo {
 
       cache.set(tabName, { data: parsed, timestamp: Date.now() });
     });
+
+    // A column in SCHEMAS that the sheet does not have means code has been
+    // deployed ahead of the migration. Say so, loudly. Reading the tab as
+    // empty instead would show a page that has lost all its rows, with only a
+    // line in the server log to explain it -- and the rows are all still there.
+    if (behind.length > 0) {
+      throw new Error(
+        `Sheet is behind SCHEMAS: ${behind.join('; ')}. Run npm run db:migrate-schema.`
+      );
+    }
   }
 
   /**
