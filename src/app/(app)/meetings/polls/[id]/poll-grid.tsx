@@ -6,6 +6,7 @@ import { closePollAction, confirmSlotAction, deletePollAction, voteAction } from
 import { slotConflictsAction, type SlotBusy } from '../../../calendar-actions';
 import { usePrefs } from '@/lib/ui/prefs';
 import { LAB_TIME_ZONE } from '@/lib/lab-time';
+import type { ActionFailure } from '@/lib/action-result';
 
 type Choice = 'yes' | 'no';
 
@@ -108,11 +109,29 @@ export default function PollGrid({
     });
   };
 
+  /**
+   * Run one of the poll actions and say so when it refuses.
+   *
+   * These actions report an expected failure as a *value* rather than by
+   * throwing -- see lib/action-result.ts -- so catching was never going to see
+   * one. Every refusal here landed in the `ok` path and the screen simply did
+   * not change: press confirm, nothing happens, no reason given. Found the
+   * moment the "everyone must answer first" rule started refusing.
+   */
   const run = (work: () => Promise<unknown>) => {
     setError('');
     startTransition(async () => {
       try {
-        await work();
+        const result = await work();
+        const failure =
+          result && typeof result === 'object' && 'ok' in result && result.ok === false
+            ? (result as ActionFailure)
+            : null;
+
+        if (failure) {
+          setError(t(failure.error, failure.vars));
+          return;
+        }
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : t('error.generic'));
@@ -255,9 +274,10 @@ export default function PollGrid({
                     onClick={() => {
                       if (!confirm(t('polls.confirmSlot', { range: formatRange(slot.startAt, slot.endAt) })))
                         return;
-                      run(async () => {
-                        await confirmSlotAction(pollId, pollRowVersion, slot.id);
-                      });
+                      // Returned, not just awaited: `run` reads the refusal
+                      // out of the value, and a swallowed result is a refusal
+                      // nobody is told about.
+                      run(() => confirmSlotAction(pollId, pollRowVersion, slot.id));
                     }}
                     disabled={isPending}
                     className="ml-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
@@ -292,8 +312,11 @@ export default function PollGrid({
             onClick={() => {
               if (!confirm(t('polls.confirmDelete'))) return;
               run(async () => {
-                await deletePollAction(pollId, pollRowVersion);
-                router.push('/meetings/polls');
+                const result = await deletePollAction(pollId, pollRowVersion);
+                // Only leave the page if it actually went; navigating away
+                // from a refusal takes the message with it.
+                if (result.ok) router.push('/meetings/polls');
+                return result;
               });
             }}
             disabled={isPending}

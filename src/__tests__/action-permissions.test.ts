@@ -204,6 +204,96 @@ describe('closing, confirming and deleting a poll', () => {
   });
 });
 
+/**
+ * A time is not agreed until everyone entitled to an opinion has given one.
+ *
+ * Confirming over the top of people who never answered produces a meeting they
+ * were not asked about -- and the availability grid then shows them "busy" for
+ * it, which is how it looked settled when it was not.
+ */
+describe('confirming only once everyone has answered', () => {
+  beforeEach(() => {
+    seedPoll();
+    tables['users'] = [
+      { id: 'lead', name: 'Lead', role: 'student', active: true, row_version: 1 },
+      { id: 'other', name: 'Other', role: 'student', active: true, row_version: 1 },
+      { id: 'prof', name: 'Prof', role: 'professor', active: true, row_version: 1 },
+      // Not a member of the lab and has no availability to state.
+      { id: 'boss', name: 'Boss', role: 'admin', active: true, row_version: 1 },
+      // Not approved yet, so not somebody the meeting waits for.
+      { id: 'pending', name: 'Pending', role: 'student', active: false, row_version: 1 },
+    ];
+  });
+
+  const voted = (...userIds: string[]) =>
+    userIds.map((id, i) => ({
+      id: `v${i}`,
+      slot_id: 's1',
+      user_id: id,
+      choice: 'free',
+      row_version: 1,
+    }));
+
+  it('refuses while somebody has not answered, and names them', async () => {
+    tables['availability_votes'] = voted('lead', 'other');
+    signedInAs('lead');
+
+    const result = await confirmSlotAction('p1', 1, 's1');
+
+    expect(result).toMatchObject({ ok: false, error: 'polls.error.notEveryoneAnswered' });
+    expect(result).toMatchObject({ vars: { n: 1, who: 'Prof' } });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('confirms once every member has', async () => {
+    tables['availability_votes'] = voted('lead', 'other', 'prof');
+    signedInAs('lead');
+
+    const result = await confirmSlotAction('p1', 1, 's1');
+
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith('meetings', expect.anything(), 'lead');
+  });
+
+  it('does not wait for admin, which is not a member', async () => {
+    tables['availability_votes'] = voted('lead', 'other', 'prof');
+    signedInAs('boss', 'admin');
+
+    // 'boss' never voted and the confirm still goes through.
+    await expect(confirmSlotAction('p1', 1, 's1')).resolves.toMatchObject({ ok: true });
+  });
+
+  it('does not wait for somebody still awaiting approval', async () => {
+    tables['availability_votes'] = voted('lead', 'other', 'prof');
+    signedInAs('lead');
+
+    await expect(confirmSlotAction('p1', 1, 's1')).resolves.toMatchObject({ ok: true });
+  });
+
+  // The rule is about this time, not about the poll's other options: whether
+  // somebody liked a slot nobody chose says nothing about the one that won.
+  it('judges the slot being confirmed, not the whole poll', async () => {
+    tables['availability_slots'] = [
+      ...(tables['availability_slots'] as object[]),
+      { id: 's2', poll_id: 'p1', start_at: `${MONDAY}T05:00:00.000Z`, end_at: `${MONDAY}T06:00:00.000Z`, row_version: 1 },
+    ];
+    tables['availability_votes'] = voted('lead', 'other', 'prof');
+    signedInAs('lead');
+
+    await expect(confirmSlotAction('p1', 1, 's1')).resolves.toMatchObject({ ok: true });
+  });
+
+  it('holds an admin to it too, so the rule is not one anybody can step around', async () => {
+    tables['availability_votes'] = voted('lead');
+    signedInAs('boss', 'admin');
+
+    const result = await confirmSlotAction('p1', 1, 's1');
+
+    expect(result).toMatchObject({ ok: false, error: 'polls.error.notEveryoneAnswered' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+});
+
 describe('booking a meeting outright', () => {
   const meeting = {
     title: 'Progress',

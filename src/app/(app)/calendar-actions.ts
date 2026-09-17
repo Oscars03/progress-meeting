@@ -31,6 +31,13 @@ import type { MeetingAttendeeRecord, MeetingRecord, UserRecord, PersonalEventRec
 const DAY_FROM_HOUR = 8;
 const DAY_TO_HOUR = 22;
 
+/**
+ * One cell an hour. Half-hour cells were tried and made a week of seven
+ * columns 28 rows of mostly repeated numbers; picking a half hour belongs on
+ * the calendar, while this grid is for reading a week at a glance.
+ */
+const GRID_STEP_MINUTES = 60;
+
 export type WeekAvailability = {
   weekStart: string;
   days: AvailabilityDay[];
@@ -100,7 +107,9 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     if (meeting.owner_id) ids.add(meeting.owner_id);
 
     for (const id of ids) {
-      appBusy.set(id, [...(appBusy.get(id) ?? []), { start, end }]);
+      // Tagged, so the grid can tell this commitment apart from a genuine
+      // clash: a meeting must not mark its own attendees busy for itself.
+      appBusy.set(id, [...(appBusy.get(id) ?? []), { start, end, meetingId: meeting.id }]);
     }
   }
 
@@ -156,6 +165,7 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
       weekStart,
       fromHour: DAY_FROM_HOUR,
       toHour: DAY_TO_HOUR,
+      stepMinutes: GRID_STEP_MINUTES,
       people,
       meetings: bookedMeetings,
     }),

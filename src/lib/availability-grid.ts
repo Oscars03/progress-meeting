@@ -15,7 +15,16 @@
 export { LAB_TIME_ZONE, LAB_UTC_OFFSET } from './lab-time';
 import { LAB_UTC_OFFSET } from './lab-time';
 
-export type Interval = { start: number; end: number };
+export type Interval = {
+  start: number;
+  end: number;
+  /**
+   * Set when this busy time is a meeting in the app rather than something read
+   * off somebody's calendar. A meeting must not make its own attendees look
+   * unavailable for itself -- see buildWeekGrid.
+   */
+  meetingId?: string;
+};
 
 export type PersonAvailability = {
   id: string;
@@ -161,10 +170,13 @@ export function cellStatus(busy: number, unknown: number, people: number): CellS
 }
 
 /**
- * `stepMinutes` is how long one cell is. Half an hour, because a lab meeting
- * that starts at 11:30 is an ordinary thing to want and a grid of whole hours
- * could not express it -- the hour was the only reason 11:30 was unpickable,
- * never a property of anyone's calendar.
+ * `stepMinutes` is how long one cell is, and an hour by default.
+ *
+ * It was briefly half an hour, so that 11:30 could be picked here as well as on
+ * the calendar. On a week of seven columns that is 28 rows of mostly identical
+ * numbers -- people's commitments are hour-shaped, so each pair of rows said
+ * the same thing twice -- and reading it got harder, not easier. The calendar
+ * is where a half hour is chosen; this is where a week is read at a glance.
  */
 export function buildWeekGrid(input: {
   weekStart: string;
@@ -177,7 +189,7 @@ export function buildWeekGrid(input: {
   meetings?: GridMeeting[];
 }): AvailabilityDay[] {
   const offset = input.offset ?? LAB_UTC_OFFSET;
-  const step = input.stepMinutes ?? 30;
+  const step = input.stepMinutes ?? 60;
   const stepMs = step * 60_000;
   const meetings = input.meetings ?? [];
 
@@ -194,17 +206,43 @@ export function buildWeekGrid(input: {
       const startMs = Date.parse(start);
       const endMs = startMs + stepMs;
 
+      const meeting = meetings.find((m) => overlaps(startMs, endMs, m)) ?? null;
+
+      /**
+       * A meeting cannot be the reason nobody can attend it.
+       *
+       * Once a time is confirmed the meeting is written into everyone's diary:
+       * into the app as a commitment for its attendees, and onto the Google
+       * calendars of whoever connected one. Both then came back as "busy" for
+       * the very hour the meeting occupies, so a settled meeting read as three
+       * people unavailable for it -- an answer that is circular rather than
+       * wrong, and useless either way.
+       *
+       * Two ways to recognise it. The app's own entries carry the meeting id.
+       * A Google free/busy reply carries no ids at all, only intervals, so what
+       * identifies the meeting there is that it sits entirely inside it.
+       *
+       * That second rule also swallows a genuinely different commitment lying
+       * wholly within the meeting -- a fifteen minute call at 18:15. Treating
+       * it as the meeting is the lesser error: the alternative marks everybody
+       * busy for their own meeting, every time.
+       */
+      const isTheMeetingItself = (b: Interval) =>
+        meeting !== null &&
+        (b.meetingId === meeting.id || (b.start >= meeting.start && b.end <= meeting.end));
+
       const free: string[] = [];
       const busy: string[] = [];
       const unknown: string[] = [];
 
       for (const person of input.people) {
-        if (person.busy.some((b) => overlaps(startMs, endMs, b))) busy.push(person.name);
+        const clash = person.busy.some(
+          (b) => !isTheMeetingItself(b) && overlaps(startMs, endMs, b)
+        );
+        if (clash) busy.push(person.name);
         else if (person.known) free.push(person.name);
         else unknown.push(person.name);
       }
-
-      const meeting = meetings.find((m) => overlaps(startMs, endMs, m)) ?? null;
 
       return {
         start,

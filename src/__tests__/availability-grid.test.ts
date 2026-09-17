@@ -8,6 +8,7 @@ import {
   mondayOf,
   slotStart,
   weekDates,
+  type Interval,
   type PersonAvailability,
 } from '../lib/availability-grid';
 
@@ -90,31 +91,33 @@ describe('buildWeekGrid', () => {
   const cellAt = (grid: ReturnType<typeof buildWeekGrid>, date: string, time: string) =>
     grid.find((d) => d.date === date)!.cells.find((c) => c.start.slice(11, 16) === time)!;
 
-  it('builds one cell per half hour per day', () => {
+  it('builds one cell per hour per day', () => {
     const grid = buildWeekGrid({ weekStart: '2026-09-14', fromHour: 8, toHour: 20, people: [] });
     expect(grid).toHaveLength(7);
-    expect(grid[0].cells).toHaveLength(24);
+    expect(grid[0].cells).toHaveLength(12);
     expect(grid[0].cells[0].start).toBe('2026-09-14T08:00:00+07:00');
-    expect(grid[0].cells[1].start).toBe('2026-09-14T08:30:00+07:00');
-    expect(grid[0].cells[23].end).toBe('2026-09-14T20:00:00+07:00');
+    expect(grid[0].cells[1].start).toBe('2026-09-14T09:00:00+07:00');
+    expect(grid[0].cells[11].end).toBe('2026-09-14T20:00:00+07:00');
   });
 
   it('carries the last slot of the day into the next one', () => {
     const grid = buildWeekGrid({ weekStart: '2026-09-14', fromHour: 23, toHour: 24, people: [] });
-    expect(grid[0].cells[1].start).toBe('2026-09-14T23:30:00+07:00');
-    expect(grid[0].cells[1].end).toBe('2026-09-15T00:00:00+07:00');
+    expect(grid[0].cells[0].start).toBe('2026-09-14T23:00:00+07:00');
+    expect(grid[0].cells[0].end).toBe('2026-09-15T00:00:00+07:00');
   });
 
-  it('can still be built in whole hours', () => {
+  // The machinery is still there; the grid just does not ask for it. A half
+  // hour is picked on the calendar, not here.
+  it('can still be built in half hours', () => {
     const grid = buildWeekGrid({
       weekStart: '2026-09-14',
       fromHour: 8,
       toHour: 20,
-      stepMinutes: 60,
+      stepMinutes: 30,
       people: [],
     });
-    expect(grid[0].cells).toHaveLength(12);
-    expect(grid[0].cells[1].start).toBe('2026-09-14T09:00:00+07:00');
+    expect(grid[0].cells).toHaveLength(24);
+    expect(grid[0].cells[1].start).toBe('2026-09-14T08:30:00+07:00');
   });
 
   it('sorts each person into free, busy or unknown', () => {
@@ -129,14 +132,9 @@ describe('buildWeekGrid', () => {
       ],
     });
 
-    const halfPastTen = cellAt(grid, '2026-09-14', '10:30');
-    expect(halfPastTen).toMatchObject({ busy: ['Ann'], free: ['Bo'], unknown: ['Cy'], status: 'some-busy' });
-
-    // The half hour before Ann leaves is hers, and the grid now says so. On
-    // whole-hour cells this was the same cell as the one above, so a meeting
-    // starting at 10:30 made all of 10:00 unusable.
+    // Ann is away for part of 10:00, which is enough to hold the hour.
     const tenOClock = cellAt(grid, '2026-09-14', '10:00');
-    expect(tenOClock).toMatchObject({ busy: [], free: ['Ann', 'Bo'], unknown: ['Cy'] });
+    expect(tenOClock).toMatchObject({ busy: ['Ann'], free: ['Bo'], unknown: ['Cy'], status: 'some-busy' });
 
     const nineOClock = cellAt(grid, '2026-09-14', '09:00');
     expect(nineOClock).toMatchObject({ busy: [], free: ['Ann', 'Bo'], unknown: ['Cy'], status: 'incomplete' });
@@ -162,15 +160,14 @@ describe('buildWeekGrid', () => {
     expect(cellAt(grid, '2026-09-14', '11:00').status).toBe('all-free');
   });
 
-  it('counts someone busy only for the half hours they are away', () => {
+  it('counts someone busy for the part of an hour they are away', () => {
     const grid = buildWeekGrid({
       weekStart: '2026-09-14',
       fromHour: 14,
       toHour: 15,
       people: [person('Ann', true, [['2026-09-14T14:50:00+07:00', '2026-09-14T15:10:00+07:00']])],
     });
-    expect(cellAt(grid, '2026-09-14', '14:00').busy).toEqual([]);
-    expect(cellAt(grid, '2026-09-14', '14:30').busy).toEqual(['Ann']);
+    expect(cellAt(grid, '2026-09-14', '14:00').busy).toEqual(['Ann']);
   });
 
   it('places busy time given in UTC into the right lab hour', () => {
@@ -209,12 +206,11 @@ describe('buildWeekGrid', () => {
       expect(cell.meeting).toMatchObject({ id: 'm1', title: 'Progress meeting', rowVersion: 7 });
     });
 
-    it('covers every half hour the meeting spans, and no more', () => {
+    it('covers the hours the meeting spans, and no more', () => {
       const day = grid();
-      expect(cellAt(day, '2026-09-14', '13:30').status).toBe('meeting');
       // Touching is not overlapping: a meeting ending at 14:00 leaves it free.
       expect(cellAt(day, '2026-09-14', '14:00').status).toBe('all-free');
-      expect(cellAt(day, '2026-09-14', '12:30').status).toBe('all-free');
+      expect(cellAt(day, '2026-09-14', '12:00').status).toBe('all-free');
     });
 
     it('carries the version that was read, so the slot can be moved', () => {
@@ -224,6 +220,75 @@ describe('buildWeekGrid', () => {
 
     it('leaves every other slot without a meeting', () => {
       expect(cellAt(grid(), '2026-09-14', '12:00').meeting).toBeNull();
+    });
+
+    /**
+     * A meeting cannot be the reason nobody can attend it.
+     *
+     * Once confirmed, the meeting is written into the diary of everyone it
+     * holds -- into the app, and onto the Google calendar of anybody who
+     * connected one. Both came back as "busy" for the hour the meeting
+     * occupies, so a settled meeting read as its own attendees being
+     * unavailable for it.
+     */
+    describe('does not make its own attendees busy for it', () => {
+      const attending = (name: string, busy: Interval[]): PersonAvailability => ({
+        id: name,
+        name,
+        known: true,
+        busy,
+      });
+
+      const gridWith = (people: PersonAvailability[]) =>
+        buildWeekGrid({
+          weekStart: '2026-09-14',
+          fromHour: 12,
+          toHour: 15,
+          people,
+          meetings: [booked],
+        });
+
+      it('ignores the commitment the app recorded for this meeting', () => {
+        const day = gridWith([
+          attending('Ann', [{ start: booked.start, end: booked.end, meetingId: 'm1' }]),
+        ]);
+        expect(cellAt(day, '2026-09-14', '13:00').busy).toEqual([]);
+        expect(cellAt(day, '2026-09-14', '13:00').free).toEqual(['Ann']);
+      });
+
+      it('ignores the same hour coming back from Google, which carries no id', () => {
+        const day = gridWith([attending('Bo', [{ start: booked.start, end: booked.end }])]);
+        expect(cellAt(day, '2026-09-14', '13:00').busy).toEqual([]);
+      });
+
+      it('ignores a different meeting only where that meeting is', () => {
+        // Somebody held by a *different* meeting during this one is still
+        // held by it as far as any other hour is concerned.
+        const other = { start: at('2026-09-14T12:00:00+07:00'), end: at('2026-09-14T13:00:00+07:00'), meetingId: 'm2' };
+        const day = gridWith([attending('Cy', [other])]);
+        expect(cellAt(day, '2026-09-14', '12:00').busy).toEqual(['Cy']);
+        expect(cellAt(day, '2026-09-14', '13:00').busy).toEqual([]);
+      });
+
+      it('still reports a clash that runs past the meeting', () => {
+        // Not contained in it, so it is plainly something else -- an afternoon
+        // out that happens to start when the meeting does.
+        const day = gridWith([
+          attending('Di', [
+            { start: at('2026-09-14T13:00:00+07:00'), end: at('2026-09-14T17:00:00+07:00') },
+          ]),
+        ]);
+        expect(cellAt(day, '2026-09-14', '13:00').busy).toEqual(['Di']);
+      });
+
+      it('leaves hours with no meeting judged exactly as before', () => {
+        const day = gridWith([
+          attending('Ed', [
+            { start: at('2026-09-14T12:00:00+07:00'), end: at('2026-09-14T12:30:00+07:00') },
+          ]),
+        ]);
+        expect(cellAt(day, '2026-09-14', '12:00').busy).toEqual(['Ed']);
+      });
     });
   });
 });
