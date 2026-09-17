@@ -1,5 +1,14 @@
 export const settings = {
   th: {
+    'preview.title': 'ดูหน้าเว็บในมุมมองของสิทธิ์อื่น',
+    'preview.subtitle': 'ดูว่าหน้าเว็บแสดงอะไรให้แต่ละสิทธิ์เห็น โดยไม่ได้เปลี่ยนสิทธิ์จริงของคุณ',
+    'preview.asAdmin': 'ผู้ดูแลระบบ (ตัวคุณเอง)',
+    'preview.as.professor': 'มองแบบอาจารย์',
+    'preview.as.student': 'มองแบบนักศึกษา',
+    'preview.note': 'ระหว่างนี้ปุ่มและเมนูของผู้ดูแลระบบจะถูกซ่อนจริง เพื่อให้เห็นตรงกับที่อีกฝ่ายเห็น',
+    'preview.banner': 'กำลังดูในมุมมอง: {role}',
+    'preview.stop': 'กลับไปเป็นผู้ดูแลระบบ',
+
     'settings.dbAlreadyInitialized': 'ฐานข้อมูลมีข้อมูลอยู่แล้วใน: {tabs}',
     'settings.personalSchedule': 'เพิ่มเวลาไม่ว่างเอง',
     'settings.personalScheduleDesc': 'หากคุณไม่เชื่อม Google Calendar สามารถเพิ่มช่วงเวลาที่คุณไม่ว่างด้วยตัวเองได้ที่นี่ เพื่อให้ระบบคำนวณตารางเวลาที่ตรงกันได้อย่างถูกต้อง',
@@ -17,6 +26,16 @@ export const settings = {
     'settings.error.deleteFailed': 'ไม่สามารถลบข้อมูลได้',
   },
   en: {
+    'preview.title': 'See the app as another role',
+    'preview.subtitle': 'Look at what each role is shown. Your own role is not changed.',
+    'preview.asAdmin': 'Admin (yourself)',
+    'preview.as.professor': 'As a professor',
+    'preview.as.student': 'As a student',
+    'preview.note':
+      "Admin buttons and menus really are hidden while this is on, so what you see is what they see.",
+    'preview.banner': 'Viewing as: {role}',
+    'preview.stop': 'Back to admin',
+
     'settings.dbAlreadyInitialized': 'Database already holds data in: {tabs}',
     'settings.personalSchedule': 'Manual Busy Blocks',
     'settings.personalScheduleDesc': 'If you do not connect Google Calendar, you can manually add your busy periods here so the system can calculate availability correctly.',

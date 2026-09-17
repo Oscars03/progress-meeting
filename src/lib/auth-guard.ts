@@ -1,6 +1,8 @@
 import { getServerSession } from 'next-auth';
+import { cookies } from 'next/headers';
 import { authOptions } from './auth';
 import { UserError } from './user-error';
+import { ROLE_PREVIEW_COOKIE, effectiveRole } from './role-preview';
 import type { TranslationKey, TranslationVars } from './ui/i18n';
 
 export type Role = 'admin' | 'professor' | 'student';
@@ -23,7 +25,19 @@ export type SessionUser = {
   id: string;
   name?: string | null;
   email?: string | null;
+  /**
+   * What the app should behave as. Normally the stored role; for an admin who
+   * is previewing another one, that one -- see lib/role-preview.ts.
+   */
   role: Role;
+  /**
+   * What they actually are. Everything that decides whether the preview itself
+   * may be changed reads this, so an admin looking through a student's eyes can
+   * always put them down again.
+   */
+  realRole: Role;
+  /** Set only while `role` differs from `realRole`. */
+  previewing: boolean;
 };
 
 export class AuthorizationError extends UserError {
@@ -37,6 +51,22 @@ function isRole(value: unknown): value is Role {
   return typeof value === 'string' && value in RANK;
 }
 
+/**
+ * The role an admin has asked to look through, if any.
+ *
+ * `cookies()` throws where there is no request to read one from, and this is
+ * called from every action and route handler -- so a context without one must
+ * mean "not previewing" rather than bringing the whole call down. Nothing is
+ * granted by the answer, so failing to read it can only ever be safe.
+ */
+async function previewCookie(): Promise<string | undefined> {
+  try {
+    return (await cookies()).get(ROLE_PREVIEW_COOKIE)?.value;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Resolve the caller, or throw. Every server action and route handler starts here. */
 export async function requireSession(): Promise<SessionUser> {
   const session = await getServerSession(authOptions);
@@ -47,9 +77,39 @@ export async function requireSession(): Promise<SessionUser> {
   }
 
   // An unrecognised role is treated as the least privileged, never as a pass.
-  const role: Role = isRole(user.role) ? user.role : 'student';
+  const realRole: Role = isRole(user.role) ? user.role : 'student';
 
-  return { id: user.id, name: user.name, email: user.email, role };
+  // Honoured for admins only, and never able to select admin, so it can lower
+  // what somebody sees and never raise it. For everybody else the cookie is
+  // not even read.
+  const role = effectiveRole(realRole, await previewCookie());
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role,
+    realRole,
+    previewing: role !== realRole,
+  };
+}
+
+/**
+ * Resolve the caller and assert they are *really* an admin, ignoring any
+ * preview.
+ *
+ * Only for the controls that govern the preview itself. Everything else must
+ * go through requireRole, or previewing as a student would not actually stop
+ * an admin doing admin things and the preview would be a lie.
+ */
+export async function requireRealAdmin(): Promise<SessionUser> {
+  const user = await requireSession();
+
+  if (user.realRole !== 'admin') {
+    throw new AuthorizationError('error.roleRequired', { role: 'admin', current: user.realRole });
+  }
+
+  return user;
 }
 
 /**
@@ -80,7 +140,9 @@ export function hasManagerRights(role: Role): boolean {
   return RANK[role] >= RANK.professor;
 }
 
-export function canAssignRole(actor: SessionUser, target: Role): boolean {
+// Takes the role rather than the whole caller: what somebody may mint depends
+// on their rank and on nothing else about them.
+export function canAssignRole(actor: Pick<SessionUser, 'role'>, target: Role): boolean {
   // Nobody may create an account more privileged than themselves.
   return RANK[actor.role] >= RANK[target];
 }

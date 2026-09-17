@@ -4,10 +4,27 @@ const getServerSessionMock = vi.fn();
 vi.mock('next-auth', () => ({ getServerSession: () => getServerSessionMock() }));
 vi.mock('../lib/auth', () => ({ authOptions: {} }));
 
-const { requireSession, requireRole, canAssignRole, hasManagerRights, AuthorizationError } =
-  await import('../lib/auth-guard');
+// The role preview travels in a cookie, so requireSession reads one.
+let cookieValue: string | undefined;
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: () => (cookieValue === undefined ? undefined : { value: cookieValue }),
+  }),
+}));
 
-beforeEach(() => getServerSessionMock.mockReset());
+const {
+  requireSession,
+  requireRole,
+  requireRealAdmin,
+  canAssignRole,
+  hasManagerRights,
+  AuthorizationError,
+} = await import('../lib/auth-guard');
+
+beforeEach(() => {
+  getServerSessionMock.mockReset();
+  cookieValue = undefined;
+});
 
 function session(role: string, id = 'u1') {
   return { user: { id, name: 'X', email: 'x@test.com', role } };
@@ -59,12 +76,95 @@ describe('requireRole', () => {
   });
 });
 
+/**
+ * An admin looking at the app as somebody else.
+ *
+ * The property that matters is that this can only ever *lower* what somebody
+ * sees. It is a view, so a cookie is the whole of it -- which is exactly why
+ * it has to be impossible for anyone but an admin to gain anything by setting
+ * one by hand.
+ */
+describe('previewing another role', () => {
+  it('shows an admin the app as a student when they ask', async () => {
+    getServerSessionMock.mockResolvedValue(session('admin'));
+    cookieValue = 'student';
+
+    await expect(requireSession()).resolves.toMatchObject({
+      role: 'student',
+      realRole: 'admin',
+      previewing: true,
+    });
+  });
+
+  it('actually refuses the admin things while previewing, or it would be a lie', async () => {
+    getServerSessionMock.mockResolvedValue(session('admin'));
+    cookieValue = 'student';
+
+    await expect(requireRole('admin')).rejects.toThrow(AuthorizationError);
+  });
+
+  it('ignores the cookie for a student, so setting one by hand gains nothing', async () => {
+    getServerSessionMock.mockResolvedValue(session('student'));
+    cookieValue = 'admin';
+
+    await expect(requireSession()).resolves.toMatchObject({
+      role: 'student',
+      realRole: 'student',
+      previewing: false,
+    });
+  });
+
+  it('ignores it for a professor too, in either direction', async () => {
+    getServerSessionMock.mockResolvedValue(session('professor'));
+    cookieValue = 'admin';
+    await expect(requireSession()).resolves.toMatchObject({ role: 'professor' });
+
+    cookieValue = 'student';
+    await expect(requireSession()).resolves.toMatchObject({ role: 'professor' });
+  });
+
+  it('cannot select admin, so it is never a way up', async () => {
+    getServerSessionMock.mockResolvedValue(session('admin'));
+    cookieValue = 'admin';
+
+    // Not previewable, so it falls through to the real role -- which happens
+    // to be admin here, but arrives that way rather than being granted.
+    await expect(requireSession()).resolves.toMatchObject({
+      role: 'admin',
+      previewing: false,
+    });
+  });
+
+  it('ignores a value that is not a role at all', async () => {
+    getServerSessionMock.mockResolvedValue(session('admin'));
+    cookieValue = 'superuser';
+
+    await expect(requireSession()).resolves.toMatchObject({
+      role: 'admin',
+      previewing: false,
+    });
+  });
+
+  it('lets a previewing admin still prove they are one, so they can stop', async () => {
+    getServerSessionMock.mockResolvedValue(session('admin'));
+    cookieValue = 'student';
+
+    // requireRole('admin') refuses above. This is the door out.
+    await expect(requireRealAdmin()).resolves.toMatchObject({ realRole: 'admin' });
+  });
+
+  it('does not let a student through that door', async () => {
+    getServerSessionMock.mockResolvedValue(session('student'));
+    await expect(requireRealAdmin()).rejects.toThrow(AuthorizationError);
+  });
+});
+
 describe('canAssignRole', () => {
   it('stops anyone minting an account above their own rank', () => {
     const professor = { id: 'u1', role: 'professor' as const };
     expect(canAssignRole(professor, 'admin')).toBe(false);
     expect(canAssignRole(professor, 'student')).toBe(true);
-    expect(canAssignRole({ id: 'u2', role: 'admin' }, 'admin')).toBe(true);
+    expect(canAssignRole({ role: 'admin' }, 'admin')).toBe(true);
   });
 });
 

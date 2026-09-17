@@ -4,6 +4,7 @@ import { getPopulatedTabs } from '@/lib/db/init-db';
 import { getConnectedUserIds, getStoredToken, googleOAuthConfigured } from '@/lib/google/tokens';
 import CalendarCard from './calendar-card';
 import DriveCard from './drive-card';
+import RolePreview from './role-preview';
 import { driveStatus, type DriveStatus } from '@/lib/google/drive';
 import { requireSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
@@ -84,6 +85,11 @@ export default async function SettingsPage() {
 
       {/* First, because it is the only thing here every member can act on. */}
       <MyName name={me?.name ?? (actor.name ?? '')} email={actor.email ?? ''} />
+
+      {/* On realRole, not isAdmin: previewing as a student makes isAdmin
+          false, and gating this on that would hide the only control that can
+          end the preview from inside Settings. */}
+      {actor.realRole === 'admin' && <RolePreview current={actor.role} />}
 
       <CalendarCard
         status={{
