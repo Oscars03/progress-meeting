@@ -81,3 +81,20 @@ export function formatLabTime(iso: string, locale: string): string {
     timeZone: LAB_TIME_ZONE,
   });
 }
+
+/**
+ * Just the clock, in the lab's zone -- `13:30`.
+ *
+ * For a list that is already known to be one day: repeating the date on every
+ * row of "today" is noise, and the time is the only part that orders them.
+ */
+export function formatLabClock(iso: string, locale: string): string {
+  const instant = new Date(iso);
+  if (Number.isNaN(instant.getTime())) return '';
+
+  return instant.toLocaleTimeString(locale === 'th' ? 'th-TH' : 'en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: LAB_TIME_ZONE,
+  });
+}
