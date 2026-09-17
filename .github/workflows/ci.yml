@@ -34,12 +34,24 @@ jobs:
       # ci, not install: it installs exactly what the lockfile says and fails
       # if the two have drifted, instead of quietly rewriting it.
       - name: Install
+        id: install
         run: npm ci
 
+      # Each check runs whether or not an earlier one failed, and the job still
+      # fails if any of them did. By default a step only runs after the ones
+      # before it succeeded, so the first failure ended the run: a PR whose
+      # lint step failed was reported as a lint problem while the tests, the
+      # build and the typecheck had never been run at all -- and was merged on
+      # that reading. One failure should not decide what is known about the
+      # rest.
+      #
+      # Install stays a gate, because nothing can run without it.
       - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run lint
 
       - name: Tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm test
 
       # Build comes before the typecheck, not after. next-env.d.ts and
@@ -51,7 +63,13 @@ jobs:
       # -- verified by building with the file removed -- so a build that starts
       # needing credentials is a regression worth failing on.
       - name: Build
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run build
 
+      # The one check that does depend on the step before it: without the
+      # build's generated types tsc fails over globals rather than over the
+      # code, which is noise, not a second opinion.
       - name: Typecheck
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npx tsc --noEmit
