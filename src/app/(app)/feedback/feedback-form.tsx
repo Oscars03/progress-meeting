@@ -1,11 +1,58 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import Spinner from '@/lib/ui/spinner';
 import { submitFeedbackAction } from './actions';
 import { FEEDBACK_CATEGORIES, FEEDBACK_MAX_LENGTH } from './categories';
+import { IMAGE_TYPES, MAX_IMAGE_EDGE, checkImage } from '@/lib/uploads';
+
+/**
+ * Shrink a picture before it is sent.
+ *
+ * A screenshot off a phone is several megabytes of pixels nobody will look at
+ * at full size, and the slow part of sending feedback should not be the part
+ * the sender did not ask for. Anything already small enough is passed through
+ * untouched rather than re-encoded, which would only lose quality.
+ *
+ * If any of this fails -- an animated GIF, a browser without canvas, an image
+ * that will not decode -- the original is sent. The size limit still applies
+ * on the server, so the worst case is a refusal with a reason, not a silent
+ * loss.
+ */
+async function shrink(file: File): Promise<File> {
+  if (file.type === 'image/gif') return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longest = Math.max(bitmap.width, bitmap.height);
+    if (longest <= MAX_IMAGE_EDGE) {
+      bitmap.close();
+      return file;
+    }
+
+    const scale = MAX_IMAGE_EDGE / longest;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.85)
+    );
+    if (!blob || blob.size >= file.size) return file;
+
+    const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+    return new File([blob], name, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
 
 export default function FeedbackForm() {
   const { t } = usePrefs();
@@ -14,19 +61,70 @@ export default function FeedbackForm() {
   const [body, setBody] = useState('');
   const [category, setCategory] = useState<string>('problem');
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  // The file and its preview together, because they are made and thrown away
+  // at the same moment. An effect watching the file to produce the URL would
+  // be a setState inside an effect, which renders twice and fails lint --
+  // see CLAUDE.md. Picking a file is an event, so the URL is made in the
+  // event.
+  const [picked, setPicked] = useState<{ file: File; url: string } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const left = FEEDBACK_MAX_LENGTH - body.length;
+
+  /**
+   * Drop whatever is held. An object URL is a handle the browser keeps alive
+   * until it is told otherwise, so the old one is always released.
+   */
+  const clearPicked = () => {
+    setPicked((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+    // The input keeps its own value, so picking the same file again would
+    // fire no change event and look like nothing happened.
+    if (fileInput.current) fileInput.current.value = '';
+  };
+
+  const pick = async (file: File | null) => {
+    setMessage(null);
+    if (!file) {
+      clearPicked();
+      return;
+    }
+
+    const smaller = await shrink(file);
+    const problem = checkImage(smaller);
+    if (problem) {
+      setMessage({ kind: 'error', text: t(problem) });
+      clearPicked();
+      return;
+    }
+
+    const url = URL.createObjectURL(smaller);
+    setPicked((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return { file: smaller, url };
+    });
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
     startTransition(async () => {
-      const res = await submitFeedbackAction({ body, category });
+      // FormData rather than an object: this carries a file, and a server
+      // action takes one natively only this way.
+      const form = new FormData();
+      form.set('body', body);
+      form.set('category', category);
+      if (picked) form.set('image', picked.file);
+
+      const res = await submitFeedbackAction(form);
       if (!res.ok) {
         setMessage({ kind: 'error', text: t(res.error, res.vars) });
         return;
       }
       setBody('');
+      clearPicked();
       setMessage({ kind: 'ok', text: t('feedback.thanks') });
       router.refresh();
     });
@@ -94,6 +192,50 @@ export default function FeedbackForm() {
         {/* Only near the limit: a counter on an empty box is noise. */}
         {left < 200 && (
           <p className="text-xs text-gray-500 mt-1 text-right tabular-nums">{left}</p>
+        )}
+      </div>
+
+      {/* A picture, because "this screen looks wrong" is a sentence that takes
+          a paragraph to write and a screenshot to settle. */}
+      <div>
+        <input
+          ref={fileInput}
+          id="feedback-image"
+          type="file"
+          accept={IMAGE_TYPES.join(',')}
+          onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          className="sr-only"
+        />
+
+        {picked ? (
+          <div className="flex items-start gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={picked.url}
+              alt={picked.file.name}
+              className="h-24 w-24 rounded-lg border border-gray-200 object-cover"
+            />
+            <div className="min-w-0 text-sm">
+              <p className="truncate text-gray-700">{picked.file.name}</p>
+              <p className="text-xs text-gray-500 tabular-nums">
+                {Math.round(picked.file.size / 1024)} KB
+              </p>
+              <button
+                type="button"
+                onClick={clearPicked}
+                className="mt-1 text-xs text-red-700 hover:underline"
+              >
+                {t('feedback.removeImage')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <label
+            htmlFor="feedback-image"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            {t('feedback.addImage')}
+          </label>
         )}
       </div>
 

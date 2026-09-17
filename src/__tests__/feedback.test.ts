@@ -30,10 +30,20 @@ vi.mock('../lib/db/sheet-repo', () => ({
   },
 }));
 
+// Drive is mocked: these tests are about the rule, not about Google. The
+// upload is asserted through the calls it would have made.
+const storeFile = vi.fn(async () => ({ fileId: 'drive-1', size: 11 }));
+const removeFile = vi.fn(async () => {});
+vi.mock('../lib/google/drive', () => ({
+  storeFile: (...a: unknown[]) => storeFile(...(a as [])),
+  removeFile: (...a: unknown[]) => removeFile(...(a as [])),
+}));
+
 const { submitFeedbackAction, setFeedbackStatusAction, deleteFeedbackAction } = await import(
   '../app/(app)/feedback/actions'
 );
 const { FEEDBACK_MAX_LENGTH } = await import('../app/(app)/feedback/categories');
+const { MAX_IMAGE_BYTES } = await import('../lib/uploads');
 
 function signedInAs(id: string, role = 'student') {
   getServerSessionMock.mockResolvedValue({
@@ -41,11 +51,27 @@ function signedInAs(id: string, role = 'student') {
   });
 }
 
+/** The form's payload, which is FormData because it may carry a file. */
+function formOf(body: string, category: string, image?: File): FormData {
+  const form = new FormData();
+  form.set('body', body);
+  form.set('category', category);
+  if (image) form.set('image', image);
+  return form;
+}
+
+/** A file of `size` bytes claiming to be `type`. */
+function fileOf(name: string, type: string, size = 11): File {
+  return new File([new Uint8Array(size)], name, { type });
+}
+
 beforeEach(() => {
   getServerSessionMock.mockReset();
   insert.mockClear();
   update.mockClear();
   remove.mockClear();
+  storeFile.mockClear();
+  removeFile.mockClear();
   for (const key of Object.keys(tables)) delete tables[key];
   tables['feedback'] = [
     { id: 'f1', body: 'Mine', category: 'problem', status: 'open', created_by: 'me', row_version: 2 },
@@ -55,7 +81,7 @@ beforeEach(() => {
 describe('sending feedback', () => {
   it('lets any signed-in member send some', async () => {
     signedInAs('student1');
-    const result = await submitFeedbackAction({ body: '  it is broken  ', category: 'problem' });
+    const result = await submitFeedbackAction(formOf('  it is broken  ', 'problem'));
 
     expect(result.ok).toBe(true);
     // Trimmed, opened, and attributed to the session rather than to anything
@@ -69,7 +95,7 @@ describe('sending feedback', () => {
 
   it('refuses an empty message rather than filing a blank row', async () => {
     signedInAs('student1');
-    const result = await submitFeedbackAction({ body: '   ', category: 'idea' });
+    const result = await submitFeedbackAction(formOf('   ', 'idea'));
 
     expect(result).toMatchObject({ ok: false, error: 'feedback.error.empty' });
     expect(insert).not.toHaveBeenCalled();
@@ -77,10 +103,7 @@ describe('sending feedback', () => {
 
   it('refuses a message too long to read', async () => {
     signedInAs('student1');
-    const result = await submitFeedbackAction({
-      body: 'x'.repeat(FEEDBACK_MAX_LENGTH + 1),
-      category: 'other',
-    });
+    const result = await submitFeedbackAction(formOf('x'.repeat(FEEDBACK_MAX_LENGTH + 1), 'other'));
 
     expect(result).toMatchObject({ ok: false, error: 'feedback.error.tooLong' });
     expect(insert).not.toHaveBeenCalled();
@@ -88,7 +111,7 @@ describe('sending feedback', () => {
 
   it('refuses a category it does not recognise', async () => {
     signedInAs('student1');
-    const result = await submitFeedbackAction({ body: 'hello', category: 'urgent!!' });
+    const result = await submitFeedbackAction(formOf('hello', 'urgent!!'));
 
     expect(result).toMatchObject({ ok: false, error: 'error.invalidValue' });
     expect(insert).not.toHaveBeenCalled();
@@ -96,10 +119,147 @@ describe('sending feedback', () => {
 
   it('refuses an anonymous caller', async () => {
     getServerSessionMock.mockResolvedValue(null);
-    const result = await submitFeedbackAction({ body: 'hello', category: 'idea' });
+    const result = await submitFeedbackAction(formOf('hello', 'idea'));
 
     expect(result).toMatchObject({ ok: false, error: 'error.signInRequired' });
     expect(insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('sending a picture with it', () => {
+  it('stores the file and records what it belongs to', async () => {
+    signedInAs('student1');
+    const result = await submitFeedbackAction(
+      formOf('look at this', 'problem', fileOf('screen.png', 'image/png'))
+    );
+
+    expect(result.ok).toBe(true);
+    expect(storeFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'screen.png', mime: 'image/png' })
+    );
+    // The row points at the Drive id and at the feedback it came with.
+    expect(insert).toHaveBeenCalledWith(
+      'attachments',
+      expect.objectContaining({
+        entity_type: 'feedback',
+        entity_id: 'f-new',
+        url: 'drive-1',
+        mime: 'image/png',
+      }),
+      'student1'
+    );
+  });
+
+  it('refuses a file that is not an image, and stores nothing', async () => {
+    signedInAs('student1');
+    const result = await submitFeedbackAction(
+      formOf('here', 'problem', fileOf('payload.pdf', 'application/pdf'))
+    );
+
+    expect(result).toMatchObject({ ok: false, error: 'uploads.error.type' });
+    expect(storeFile).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses one too large, without uploading it first', async () => {
+    signedInAs('student1');
+    const result = await submitFeedbackAction(
+      formOf('here', 'problem', fileOf('huge.png', 'image/png', MAX_IMAGE_BYTES + 1))
+    );
+
+    expect(result).toMatchObject({ ok: false, error: 'uploads.error.tooBig' });
+    expect(storeFile).not.toHaveBeenCalled();
+  });
+
+  // The browser's check decides nothing: this is the one that does.
+  it('checks the file even though the form already did', async () => {
+    signedInAs('student1');
+    await submitFeedbackAction(formOf('here', 'problem', fileOf('x.exe', 'application/x-msdownload')));
+
+    expect(storeFile).not.toHaveBeenCalled();
+  });
+
+  it('takes the file back when the sheet refuses, so nothing is orphaned', async () => {
+    signedInAs('student1');
+    insert.mockRejectedValueOnce(new Error('sheet is down'));
+
+    const result = await submitFeedbackAction(
+      formOf('look', 'problem', fileOf('screen.png', 'image/png'))
+    );
+
+    expect(result.ok).toBe(false);
+    expect(removeFile).toHaveBeenCalledWith('drive-1');
+  });
+
+  it('strips a path out of the file name rather than storing it', async () => {
+    signedInAs('student1');
+    await submitFeedbackAction(
+      formOf('look', 'problem', fileOf('../../etc/passwd.png', 'image/png'))
+    );
+
+    expect(storeFile).toHaveBeenCalledWith(expect.objectContaining({ name: 'passwd.png' }));
+  });
+
+  it('files feedback with no picture exactly as before', async () => {
+    signedInAs('student1');
+    const result = await submitFeedbackAction(formOf('just words', 'idea'));
+
+    expect(result.ok).toBe(true);
+    expect(storeFile).not.toHaveBeenCalled();
+    expect(insert).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('withdrawing feedback that had a picture', () => {
+  beforeEach(() => {
+    tables['attachments'] = [
+      {
+        id: 'a1',
+        entity_type: 'feedback',
+        entity_id: 'f1',
+        name: 'screen.png',
+        url: 'drive-1',
+        mime: 'image/png',
+        size: 11,
+        row_version: 1,
+      },
+      // Somebody else's, which must be left alone.
+      {
+        id: 'a2',
+        entity_type: 'feedback',
+        entity_id: 'f2',
+        name: 'other.png',
+        url: 'drive-2',
+        mime: 'image/png',
+        size: 11,
+        row_version: 1,
+      },
+    ];
+  });
+
+  it('takes the picture with it', async () => {
+    signedInAs('me');
+    const result = await deleteFeedbackAction('f1', 2);
+
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('attachments', 'a1', 1, 'me');
+    expect(removeFile).toHaveBeenCalledWith('drive-1');
+  });
+
+  it('leaves another message’s picture alone', async () => {
+    signedInAs('me');
+    await deleteFeedbackAction('f1', 2);
+
+    expect(removeFile).not.toHaveBeenCalledWith('drive-2');
+    expect(remove).not.toHaveBeenCalledWith('attachments', 'a2', 1, 'me');
+  });
+
+  it('removes nothing at all when the caller is refused', async () => {
+    signedInAs('someone-else');
+    const result = await deleteFeedbackAction('f1', 2);
+
+    expect(result).toMatchObject({ ok: false, error: 'error.forbidden' });
+    expect(removeFile).not.toHaveBeenCalled();
   });
 });
 

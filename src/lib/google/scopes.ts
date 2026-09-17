@@ -32,6 +32,17 @@ export const CALENDAR_SCOPES = [
 ];
 
 /**
+ * `drive.file` is access to files this app created and nothing else. It cannot
+ * list, read or touch anything already in the Drive it is connected to, which
+ * is the only reason it is acceptable to point this at the lab's own account:
+ * the app gets a folder of its own, not the lab's documents.
+ *
+ * Plain `drive` would be the whole Drive, and `drive.readonly` would be every
+ * file in it. Neither is anywhere near what storing a screenshot needs.
+ */
+export const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+
+/**
  * The extra parameters the Connect button sends.
  *
  * `prompt: 'consent'` because this is the press that must return a refresh
@@ -50,4 +61,31 @@ export function calendarAuthParams(): Record<string, string> {
 /** Whether a granted scope string carries any calendar access at all. */
 export function grantsCalendar(scope: string): boolean {
   return CALENDAR_SCOPES.some((s) => scope.includes(s));
+}
+
+/**
+ * The parameters the "connect the lab's Drive" button sends.
+ *
+ * Drive is asked for here and nowhere else. It is deliberately not folded into
+ * `calendarAuthParams`: that button is pressed by every member who wants their
+ * calendar read, and none of them is storing anybody's files. Asking them all
+ * for Drive to serve the one account that needs it is exactly the over-ask
+ * that made a first sign-in several consent screens.
+ *
+ * `include_granted_scopes` so connecting Drive on an account that already gave
+ * calendar access comes back holding both, rather than a token that can store
+ * a picture and no longer read a diary.
+ */
+export function driveAuthParams(): Record<string, string> {
+  return {
+    prompt: 'consent',
+    access_type: 'offline',
+    include_granted_scopes: 'true',
+    scope: [...IDENTITY_SCOPES, ...DRIVE_SCOPES].join(' '),
+  };
+}
+
+/** Whether a granted scope string carries the app's Drive access. */
+export function grantsDrive(scope: string): boolean {
+  return DRIVE_SCOPES.some((s) => scope.includes(s));
 }

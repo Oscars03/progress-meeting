@@ -3,6 +3,8 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { getPopulatedTabs } from '@/lib/db/init-db';
 import { getConnectedUserIds, getStoredToken, googleOAuthConfigured } from '@/lib/google/tokens';
 import CalendarCard from './calendar-card';
+import DriveCard from './drive-card';
+import { driveStatus, type DriveStatus } from '@/lib/google/drive';
 import { requireSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
@@ -40,6 +42,13 @@ export default async function SettingsPage() {
     connectedCount = active.filter((u) => connected.has(u.id)).length;
   } catch {
     // The card still renders; it just cannot report group coverage.
+  }
+
+  // Where the lab keeps uploaded files. Admin-only, so it is not read for
+  // anybody else -- it is a Drive call, and nobody else can act on the answer.
+  let drive: DriveStatus | null = null;
+  if (isAdmin) {
+    drive = await driveStatus().catch(() => null);
   }
 
   if (isAdmin) {
@@ -87,6 +96,8 @@ export default async function SettingsPage() {
         connectedCount={connectedCount}
         activeCount={activeCount}
       />
+
+      {isAdmin && drive && <DriveCard status={drive} />}
 
       {isAdmin && <RotationOrder students={rotation} />}
 

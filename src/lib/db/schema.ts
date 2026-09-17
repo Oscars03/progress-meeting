@@ -257,3 +257,25 @@ export type FeedbackRecord = BaseRecord & {
   /** 'open' while it still wants an answer, 'done' once it has had one. */
   status: string;
 };
+
+/**
+ * A file hanging off something else -- at present, a picture on a piece of
+ * feedback. The bytes live on the lab's Google Drive; this row is the record
+ * that they exist and what they belong to.
+ *
+ * `url` holds the Drive file id rather than a link, because there is no link
+ * to hold: the file is private to the lab account and is served back through
+ * the app to somebody already signed in. The column keeps its name from the
+ * original schema.
+ */
+export type AttachmentRecord = BaseRecord & {
+  /** What kind of thing it is attached to, e.g. 'feedback'. */
+  entity_type: string;
+  entity_id: string;
+  /** The original file name, for the download and the alt text. */
+  name: string;
+  /** The Google Drive file id. */
+  url: string;
+  mime: string;
+  size: number;
+};

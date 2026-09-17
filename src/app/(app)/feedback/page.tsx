@@ -1,7 +1,7 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
-import type { FeedbackRecord, UserRecord } from '@/lib/db/schema';
+import type { AttachmentRecord, FeedbackRecord, UserRecord } from '@/lib/db/schema';
 import FeedbackForm from './feedback-form';
 import FeedbackList, { type FeedbackRow } from './feedback-list';
 
@@ -17,9 +17,10 @@ export default async function FeedbackPage() {
   const [actor, t] = await Promise.all([requireSession(), getT()]);
   const isAdmin = actor.role === 'admin';
 
-  const [all, users] = await Promise.all([
+  const [all, users, attachments] = await Promise.all([
     SheetRepo.find<FeedbackRecord>('feedback').catch(() => []),
     SheetRepo.find<UserRecord>('users').catch(() => []),
+    SheetRepo.find<AttachmentRecord>('attachments').catch(() => []),
   ]);
 
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name ?? '—';
@@ -27,6 +28,14 @@ export default async function FeedbackPage() {
   const visible = (isAdmin ? all : all.filter((row) => row.created_by === actor.id))
     // Newest first: the thing somebody just wrote is the thing they want to see.
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  // Only the row id travels to the browser, never the Drive id: the picture is
+  // fetched back through /api/attachments, which is the only thing that can
+  // read it.
+  const picturesFor = (feedbackId: string) =>
+    attachments
+      .filter((a) => a.entity_type === 'feedback' && a.entity_id === feedbackId)
+      .map((a) => ({ id: a.id, name: a.name }));
 
   const rows: FeedbackRow[] = visible.map((row) => ({
     id: row.id,
@@ -37,6 +46,7 @@ export default async function FeedbackPage() {
     createdAt: row.created_at,
     rowVersion: row.row_version,
     canRemove: isAdmin || row.created_by === actor.id,
+    images: picturesFor(row.id),
   }));
 
   const open = rows.filter((row) => row.status !== 'done');
