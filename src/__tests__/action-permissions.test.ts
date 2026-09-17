@@ -25,8 +25,8 @@ const insert = vi.fn(async (table: string, doc: Record<string, unknown>) => {
   (tables[table] ??= []).push(row);
   return row;
 });
-const update = vi.fn(async () => ({}));
-const remove = vi.fn(async () => {});
+const update = vi.fn(async (..._args: any[]) => ({}));
+const remove = vi.fn(async (..._args: any[]) => {});
 
 vi.mock('../lib/db/sheet-repo', () => ({
   SheetRepo: {
@@ -35,7 +35,14 @@ vi.mock('../lib/db/sheet-repo', () => ({
       (tables[table] ?? []).find((r) => (r as { id: string }).id === id) ?? null,
     insert: (...args: Parameters<typeof insert>) => insert(...args),
     update: (...args: Parameters<typeof update>) => update(...args),
+    updateMany: async (_tab: string, items: { id: string }[], actorId?: string) => {
+      for (const item of items) await update(_tab, item.id, (item as any).fields, (item as any).expectedVersion, actorId);
+      return items.map(() => ({}));
+    },
     delete: (...args: Parameters<typeof remove>) => remove(...args),
+    deleteMany: async (_tab: string, items: { id: string }[]) => {
+      for (const item of items) await remove(_tab, item.id, (item as any).expectedVersion);
+    },
   },
 }));
 
@@ -452,7 +459,7 @@ describe('weekly progress permissions', () => {
     signedInAs('student1');
     const result = await saveWeeklyUpdateAction(input);
     expect(result.ok).toBe(true);
-    expect(insert).toHaveBeenCalledWith('task_updates', expect.anything(), 'student1');
+    expect(insert).toHaveBeenCalledWith('task_updates', expect.anything(), 'student1', expect.anything());
   });
 
   it('refuses a non-assignee who is not the lead', async () => {

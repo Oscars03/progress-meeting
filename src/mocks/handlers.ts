@@ -15,6 +15,14 @@ export const handlers = [
     HttpResponse.json({ values: META_ROWS })
   ),
 
+  http.get(`${BASE}/:spreadsheetId/values:batchGet`, () =>
+    HttpResponse.json({
+      valueRanges: [
+        { values: META_ROWS }
+      ]
+    })
+  ),
+
   http.get(`${BASE}/:spreadsheetId`, () =>
     HttpResponse.json({
       sheets: [

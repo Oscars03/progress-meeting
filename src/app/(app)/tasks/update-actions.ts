@@ -91,7 +91,8 @@ async function saveWeeklyUpdate(input: {
     await SheetRepo.insert(
       'task_updates',
       { task_id: taskId, week_key: key, ...fields },
-      actor.id
+      actor.id,
+      { uniqueBy: { task_id: taskId, week_key: key } }
     );
   }
 

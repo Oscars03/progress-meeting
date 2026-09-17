@@ -133,17 +133,12 @@ export async function setTopicOrder(
     const actor = await assertMayArrange(weekKey);
     if (order.length === 0) return;
 
-    // Sequential: each write is a separate row edit and the repo serialises them
-    // anyway, so a batch here would only hide which one conflicted.
-    for (const [index, entry] of order.entries()) {
-      await SheetRepo.update(
-        'topics',
-        entry.id,
-        { present_order: index + 1 },
-        entry.row_version,
-        actor.id,
-      );
-    }
+    const items = order.map((entry, index) => ({
+      id: entry.id,
+      fields: { present_order: index + 1 },
+      expectedVersion: entry.row_version,
+    }));
+    await SheetRepo.updateMany('topics', items, actor.id);
 
     revalidatePath('/presentations');
   });
@@ -157,9 +152,12 @@ export async function clearTopicOrder(
   return toResult(async () => {
     const actor = await assertMayArrange(weekKey);
 
-    for (const entry of topics) {
-      await SheetRepo.update('topics', entry.id, { present_order: '' }, entry.row_version, actor.id);
-    }
+    const items = topics.map((entry) => ({
+      id: entry.id,
+      fields: { present_order: '' },
+      expectedVersion: entry.row_version,
+    }));
+    await SheetRepo.updateMany('topics', items, actor.id);
 
     revalidatePath('/presentations');
   });

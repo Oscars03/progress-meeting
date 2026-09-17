@@ -69,7 +69,8 @@ export async function registerAction(input: {
         line_id: '',
         active: false,
       },
-      'self-signup'
+      'self-signup',
+      { uniqueBy: { email } }
     );
 
     return { ok: true, notice: PENDING };

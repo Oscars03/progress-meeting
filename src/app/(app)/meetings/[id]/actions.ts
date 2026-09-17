@@ -9,6 +9,7 @@ import type {
   ActionItemRecord,
   MeetingAttendeeRecord,
   MinutesRecord,
+  CellValue,
 } from '@/lib/db/schema';
 
 const ACTION_ITEM_STATUSES = ['open', 'done', 'dropped'] as const;
@@ -56,7 +57,8 @@ export async function saveMinutesAction(
       await SheetRepo.insert(
         'minutes',
         { meeting_id: meetingId, content, recorded_by: actor.id },
-        actor.id
+        actor.id,
+        { uniqueBy: { meeting_id: meetingId } }
       );
     }
 
@@ -147,45 +149,34 @@ export async function setAgendaAction(meetingId: string, userIds: string[]): Pro
     const seen = new Set<string>();
     const ordered = userIds.filter((id) => id && !seen.has(id) && seen.add(id));
 
+    // Collect batch updates and new inserts
+    const updates: { id: string; fields: Partial<Record<string, CellValue>>; expectedVersion: number }[] = [];
+
     for (const [index, userId] of ordered.entries()) {
       const existing = mine.find((a) => a.user_id === userId);
       const present_order = index + 1;
 
       if (existing) {
         if (Number(existing.present_order) === present_order) continue;
-        await SheetRepo.update<MeetingAttendeeRecord>(
-          'meeting_attendees',
-          existing.id,
-          { present_order },
-          existing.row_version,
-          actor.id
-        );
+        updates.push({ id: existing.id, fields: { present_order }, expectedVersion: existing.row_version });
       } else {
         await SheetRepo.insert(
           'meeting_attendees',
-          {
-            meeting_id: meetingId,
-            user_id: userId,
-            attend_status: 'invited',
-            present_order,
-          },
+          { meeting_id: meetingId, user_id: userId, attend_status: 'invited', present_order },
           actor.id
         );
       }
     }
 
-    // Anyone dropped from the list loses their slot but keeps their row, so an
-    // attendance record taken earlier is not destroyed by an agenda edit.
+    // Anyone dropped from the list loses their slot but keeps their row
     for (const row of mine) {
       if (!ordered.includes(row.user_id) && row.present_order !== '') {
-        await SheetRepo.update<MeetingAttendeeRecord>(
-          'meeting_attendees',
-          row.id,
-          { present_order: '' },
-          row.row_version,
-          actor.id
-        );
+        updates.push({ id: row.id, fields: { present_order: '' }, expectedVersion: row.row_version });
       }
+    }
+
+    if (updates.length > 0) {
+      await SheetRepo.updateMany('meeting_attendees', updates, actor.id);
     }
 
     revalidate(meetingId);

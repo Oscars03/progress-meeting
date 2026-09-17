@@ -31,9 +31,10 @@ export default async function SettingsPage() {
   const stored = await getStoredToken(actor.id).catch(() => null);
   let connectedCount = 0;
   let activeCount = 0;
+  let allUsers: UserRecord[] = [];
   try {
     const connected = await getConnectedUserIds();
-    const allUsers = await SheetRepo.find<UserRecord>('users');
+    allUsers = await SheetRepo.find<UserRecord>('users');
     const active = labMembers(allUsers);
     activeCount = active.length;
     connectedCount = active.filter((u) => connected.has(u.id)).length;
@@ -43,7 +44,7 @@ export default async function SettingsPage() {
 
   if (isAdmin) {
     try {
-      const rawUsers = await SheetRepo.find<UserRecord>('users');
+      const rawUsers = allUsers.length > 0 ? allUsers : await SheetRepo.find<UserRecord>('users');
       users = rawUsers.map((u) => ({
         id: u.id,
         name: u.name,

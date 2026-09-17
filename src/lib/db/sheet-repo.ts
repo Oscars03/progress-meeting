@@ -32,6 +32,11 @@ const CACHE_TTL = 60 * 1000;
 const cache = new Map<string, { data: AnyRecord[]; timestamp: number }>();
 const sheetIdCache = new Map<string, number>();
 
+/** True when the stored version does not match what the caller expects. */
+function expectedVersionMismatch(current: number, expected: number): boolean {
+  return Number.isNaN(current) || expected !== current;
+}
+
 type SheetsApi = Awaited<ReturnType<typeof getSheetsApi>>;
 type RawRow = string[];
 
@@ -126,6 +131,50 @@ export class SheetRepo {
     return (res.data.values ?? []) as RawRow[];
   }
 
+  static async preloadCache(tabNames: TableName[]): Promise<void> {
+    const missing = tabNames.filter(
+      (t) => !cache.has(t) || Date.now() - cache.get(t)!.timestamp >= 60_000
+    );
+    if (missing.length === 0) return;
+
+    const sheets = await getSheetsApi();
+    const spreadsheetId = getSpreadsheetId();
+    const res = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges: missing.map((t) => `${t}!A:ZZ`),
+    });
+
+    const valueRanges = res.data.valueRanges ?? [];
+    valueRanges.forEach((vr, i) => {
+      const tabName = missing[i];
+      const rawRows = (vr.values ?? []) as RawRow[];
+      if (rawRows.length === 0) {
+        cache.set(tabName, { data: [], timestamp: Date.now() });
+        return;
+      }
+
+      const headers = rawRows[0];
+      const expected = SCHEMAS[tabName] as readonly string[];
+      if (expected.some((h) => !headers.includes(h))) {
+        // Log rather than throw, so one broken sheet doesn't crash the whole batch
+        console.error(`Schema mismatch in ${tabName}: expected ${expected.join(',')}, got ${headers.join(',')}`);
+        cache.set(tabName, { data: [], timestamp: Date.now() });
+        return;
+      }
+
+      const parsed = rawRows.slice(1).map((row) => {
+        const obj: Record<string, CellValue> = {};
+        expected.forEach((h) => {
+          const idx = headers.indexOf(h);
+          obj[h] = idx === -1 ? null : fromCell(h, row[idx]);
+        });
+        return obj as AnyRecord;
+      });
+
+      cache.set(tabName, { data: parsed, timestamp: Date.now() });
+    });
+  }
+
   /**
    * `fresh` skips the read cache for this call, and refills it.
    *
@@ -133,34 +182,21 @@ export class SheetRepo {
    * a row that is not in the list. On a multi-instance deploy the process
    * serving a page may hold a list from before another process inserted the
    * row, so "missing" can mean "created seconds ago somewhere else" -- which
-   * showed up as a 404 on a poll that plainly existed. A hit still comes from
-   * the cache; only a miss pays for a second read.
+   * only a fresh read can answer.
    */
   static async find<T extends BaseRecord = AnyRecord>(
     tabName: TableName,
-    options: { fresh?: boolean } = {}
+    options?: { fresh?: boolean }
   ): Promise<T[]> {
     assertHasCommonColumns(tabName);
 
-    const cached = cache.get(tabName);
-    if (!options.fresh && cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return clone(cached.data) as unknown as T[];
+    if (options?.fresh) {
+      cache.delete(tabName);
     }
-
-    const values = await this.getRawValues(tabName);
-    if (values.length <= 1) return [];
-
-    const headers = values[0];
-    const data = values.slice(1).map((row) => {
-      const obj: Record<string, CellValue> = {};
-      headers.forEach((h, i) => {
-        obj[h] = fromCell(h, row[i]);
-      });
-      return obj as unknown as AnyRecord;
-    });
-
-    cache.set(tabName, { data, timestamp: Date.now() });
-    return clone(data) as unknown as T[];
+    
+    await this.preloadCache([tabName]);
+    const cached = cache.get(tabName);
+    return clone(cached?.data ?? []) as T[];
   }
 
   static async findOne<T extends BaseRecord = AnyRecord>(
@@ -179,7 +215,19 @@ export class SheetRepo {
   static async insert<T extends Record<string, CellValue>>(
     tabName: TableName,
     record: T,
-    actorId: string = 'system'
+    actorId: string = 'system',
+    options?: {
+      /**
+       * Column-value pairs that must be unique. If a row already exists
+       * matching ALL of these, the insert is skipped and the existing row
+       * is returned. The check runs inside the write-queue mutex, so two
+       * concurrent inserts with the same uniqueBy will not both succeed.
+       *
+       * ponytail: per-process mutex only — on multi-instance deploys a
+       * narrow window remains; row_version is the last line of defence.
+       */
+      uniqueBy?: Record<string, CellValue>;
+    }
   ): Promise<T & BaseRecord> {
     assertHasCommonColumns(tabName);
 
@@ -197,6 +245,8 @@ export class SheetRepo {
       created_by: actorId,
     } as T & BaseRecord;
 
+    let existingHit: (T & BaseRecord) | null = null;
+
     await writeQueue.enqueue(tabName, async () => {
       const sheets = await getSheetsApi();
       const spreadsheetId = getSpreadsheetId();
@@ -204,6 +254,24 @@ export class SheetRepo {
       // If a previous attempt already landed this row, stop rather than duplicate.
       const existing = await this.getRawValues(tabName);
       if (existing.slice(1).some((r) => r[0] === newId)) return;
+
+      // Business-key dedup: if a row already matches all uniqueBy columns, skip.
+      if (options?.uniqueBy && existing.length > 1) {
+        const headers = existing[0];
+        const entries = Object.entries(options.uniqueBy);
+        const match = existing.slice(1).find((row) =>
+          entries.every(([col, val]) => {
+            const idx = headers.indexOf(col);
+            return idx !== -1 && row[idx] === toCell(val);
+          })
+        );
+        if (match) {
+          const obj: Record<string, CellValue> = {};
+          headers.forEach((h, i) => { obj[h] = fromCell(h, match[i]); });
+          existingHit = obj as unknown as T & BaseRecord;
+          return;
+        }
+      }
 
       const headers = SCHEMAS[tabName] as readonly string[];
       const rowData = headers.map((h) => toCell((toInsert as Record<string, CellValue>)[h]));
@@ -225,7 +293,7 @@ export class SheetRepo {
 
     cache.delete(tabName);
     cache.delete('audit_log');
-    return toInsert;
+    return existingHit ?? toInsert;
   }
 
   /**
@@ -411,6 +479,203 @@ export class SheetRepo {
 
     cache.delete(tabName);
     cache.delete('audit_log');
+  }
+
+  /**
+   * Delete multiple rows in one Sheets API call.
+   *
+   * All rows must belong to the same tab. Rows are deleted bottom-to-top so
+   * grid indices stay valid. The whole batch is one batchUpdate request: either
+   * all rows are removed or none are (Sheets API atomicity).
+   */
+  static async deleteMany(
+    tabName: TableName,
+    items: { id: string; expectedVersion: number }[],
+    actorId: string = 'system'
+  ): Promise<void> {
+    if (items.length === 0) return;
+    // Single item? Reuse the existing path — no extra code needed.
+    if (items.length === 1) {
+      return this.delete(tabName, items[0].id, items[0].expectedVersion, actorId);
+    }
+    assertHasCommonColumns(tabName);
+
+    for (const item of items) {
+      if (!Number.isInteger(item.expectedVersion) || item.expectedVersion < 1) {
+        throw new ConflictError(
+          `row_version required to delete ${item.id} (got: ${String(item.expectedVersion)})`
+        );
+      }
+    }
+
+    await writeQueue.enqueue(tabName, async () => {
+      const sheets = await getSheetsApi();
+      const spreadsheetId = getSpreadsheetId();
+
+      const values = await this.getRawValues(tabName);
+      if (values.length <= 1) throw new NotFoundError(`No rows in table ${tabName}`);
+
+      const headers = values[0];
+      const versionIdx = headers.indexOf('row_version');
+      if (versionIdx === -1) throw new Error(`Table ${tabName} has no row_version column`);
+
+      const now = new Date().toISOString();
+      const mainSheetId = await getSheetId(sheets, spreadsheetId, tabName);
+      const auditSheetId = await getSheetId(sheets, spreadsheetId, 'audit_log');
+
+      // Collect row indices and validate versions
+      const found: { rowIndex: number; id: string; auditData: string[] }[] = [];
+      for (const item of items) {
+        const rowIndex = values.findIndex((r) => r[0] === item.id);
+        if (rowIndex === -1) continue; // Already deleted — skip silently
+
+        const currentRow = values[rowIndex];
+        const currentVersion = Number.parseInt(currentRow[versionIdx], 10);
+        if (expectedVersionMismatch(currentVersion, item.expectedVersion)) {
+          throw new ConflictError(
+            `Row ${item.id} changed (expected ${item.expectedVersion}, now ${currentVersion})`
+          );
+        }
+
+        const oldObj: Record<string, CellValue> = {};
+        headers.forEach((h, i) => { oldObj[h] = fromCell(h, currentRow[i]); });
+        found.push({
+          rowIndex,
+          id: item.id,
+          auditData: buildAuditRow(actorId, tabName, item.id, 'DELETE', oldObj, {}, now),
+        });
+      }
+
+      if (found.length === 0) return;
+
+      // Sort descending by rowIndex so deletions don't shift indices
+      found.sort((a, b) => b.rowIndex - a.rowIndex);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requests: any[] = found.map((f) => ({
+        appendCells: { sheetId: auditSheetId, rows: [makeRowData(f.auditData)], fields: '*' },
+      }));
+      for (const f of found) {
+        requests.push({
+          deleteDimension: {
+            range: {
+              sheetId: mainSheetId,
+              dimension: 'ROWS',
+              startIndex: f.rowIndex,
+              endIndex: f.rowIndex + 1,
+            },
+          },
+        });
+      }
+
+      await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+    });
+
+    cache.delete(tabName);
+    cache.delete('audit_log');
+  }
+
+  /**
+   * Update multiple rows in one Sheets API call.
+   *
+   * All rows must belong to the same tab. Each entry carries its own
+   * expectedVersion for optimistic locking. The whole batch is atomic.
+   */
+  static async updateMany<T extends BaseRecord = AnyRecord>(
+    tabName: TableName,
+    items: { id: string; fields: Partial<Record<string, CellValue>>; expectedVersion: number }[],
+    actorId: string = 'system'
+  ): Promise<T[]> {
+    if (items.length === 0) return [];
+    if (items.length === 1) {
+      const r = await this.update<T>(tabName, items[0].id, items[0].fields, items[0].expectedVersion, actorId);
+      return [r];
+    }
+    assertHasCommonColumns(tabName);
+
+    for (const item of items) {
+      if (!Number.isInteger(item.expectedVersion) || item.expectedVersion < 1) {
+        throw new ConflictError(
+          `row_version required to update ${item.id} (got: ${String(item.expectedVersion)})`
+        );
+      }
+    }
+
+    const results = await writeQueue.enqueue(tabName, async () => {
+      const sheets = await getSheetsApi();
+      const spreadsheetId = getSpreadsheetId();
+
+      const values = await this.getRawValues(tabName);
+      if (values.length <= 1) throw new NotFoundError(`No rows in table ${tabName}`);
+
+      const headers = values[0];
+      const versionIdx = headers.indexOf('row_version');
+      if (versionIdx === -1) throw new Error(`Table ${tabName} has no row_version column`);
+
+      const now = new Date().toISOString();
+      const mainSheetId = await getSheetId(sheets, spreadsheetId, tabName);
+      const auditSheetId = await getSheetId(sheets, spreadsheetId, 'audit_log');
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requests: any[] = [];
+      const updatedRows: Record<string, CellValue>[] = [];
+
+      for (const item of items) {
+        const rowIndex = values.findIndex((r) => r[0] === item.id);
+        if (rowIndex === -1) throw new NotFoundError(`No row with id ${item.id} in table ${tabName}`);
+
+        const currentRow = values[rowIndex];
+        const currentVersion = Number.parseInt(currentRow[versionIdx], 10);
+        if (expectedVersionMismatch(currentVersion, item.expectedVersion)) {
+          throw new ConflictError(
+            `Row ${item.id} changed (expected ${item.expectedVersion}, now ${currentVersion})`
+          );
+        }
+
+        const updated: Record<string, CellValue> = {};
+        headers.forEach((h, i) => {
+          if (h === 'row_version') updated[h] = currentVersion + 1;
+          else if (h === 'updated_at') updated[h] = now;
+          else if (h in item.fields) updated[h] = item.fields[h];
+          else updated[h] = fromCell(h, currentRow[i]);
+        });
+
+        const rowData = headers.map((h) => toCell(updated[h]));
+
+        const oldObj: Record<string, CellValue> = {};
+        headers.forEach((h, i) => { oldObj[h] = fromCell(h, currentRow[i]); });
+
+        requests.push({
+          updateCells: {
+            range: {
+              sheetId: mainSheetId,
+              startRowIndex: rowIndex,
+              endRowIndex: rowIndex + 1,
+              startColumnIndex: 0,
+              endColumnIndex: headers.length,
+            },
+            rows: [makeRowData(rowData)],
+            fields: '*',
+          },
+        });
+        requests.push({
+          appendCells: {
+            sheetId: auditSheetId,
+            rows: [makeRowData(buildAuditRow(actorId, tabName, item.id, 'UPDATE', oldObj, updated, now))],
+            fields: '*',
+          },
+        });
+
+        updatedRows.push(updated);
+      }
+
+      await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+      return updatedRows;
+    });
+
+    cache.delete(tabName);
+    cache.delete('audit_log');
+    return results as unknown as T[];
   }
 
   /** Test seam: drop cached reads. */
