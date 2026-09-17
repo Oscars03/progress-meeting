@@ -2,6 +2,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import AppNav from './app-nav';
+import PreviewBanner from './preview-banner';
+import { requireSession } from '@/lib/auth-guard';
 import { NavDepth } from '@/lib/ui/back-link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { UserRecord } from '@/lib/db/schema';
@@ -28,6 +30,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   const userName = me?.name || session.user?.name || '';
 
+  // Only ever set for a real admin who asked for it -- see lib/role-preview.ts.
+  const actor = await requireSession().catch(() => null);
+
   // h-dvh, not h-screen: on a phone or tablet 100vh is the height the page
   // would have with the browser toolbar hidden, so the bottom of the sidebar --
   // sign out -- sits underneath the toolbar and cannot be reached. dvh shrinks
@@ -37,8 +42,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <NavDepth />
       <AppNav userName={userName} />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-        {children}
+      {/* Inside the scrolling column, above the page: the banner belongs to
+          what is being looked at, and pinning it over the nav would cover the
+          one thing that still works normally. */}
+      <main className="flex-1 overflow-y-auto">
+        {actor?.previewing && <PreviewBanner role={actor.role} />}
+        <div className="p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );
