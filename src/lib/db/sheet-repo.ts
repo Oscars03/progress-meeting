@@ -133,7 +133,7 @@ export class SheetRepo {
 
   static async preloadCache(tabNames: TableName[]): Promise<void> {
     const missing = tabNames.filter(
-      (t) => !cache.has(t) || Date.now() - cache.get(t)!.timestamp >= 60_000
+      (t) => !cache.has(t) || Date.now() - cache.get(t)!.timestamp >= CACHE_TTL
     );
     if (missing.length === 0) return;
 

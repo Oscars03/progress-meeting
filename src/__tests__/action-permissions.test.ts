@@ -25,8 +25,21 @@ const insert = vi.fn(async (table: string, doc: Record<string, unknown>) => {
   (tables[table] ??= []).push(row);
   return row;
 });
-const update = vi.fn(async (..._args: any[]) => ({}));
-const remove = vi.fn(async (..._args: any[]) => {});
+// Typed through vi.fn's type argument rather than the implementation, so the
+// batch mocks below can call them with the repo's real argument list without
+// naming parameters none of them use.
+const update = vi.fn<
+  (
+    table: string,
+    id: string,
+    fields: Record<string, unknown>,
+    expectedVersion: number,
+    actorId?: string
+  ) => Promise<object>
+>(async () => ({}));
+const remove = vi.fn<
+  (table: string, id: string, expectedVersion: number, actorId?: string) => Promise<void>
+>(async () => {});
 
 vi.mock('../lib/db/sheet-repo', () => ({
   SheetRepo: {
@@ -35,13 +48,17 @@ vi.mock('../lib/db/sheet-repo', () => ({
       (tables[table] ?? []).find((r) => (r as { id: string }).id === id) ?? null,
     insert: (...args: Parameters<typeof insert>) => insert(...args),
     update: (...args: Parameters<typeof update>) => update(...args),
-    updateMany: async (_tab: string, items: { id: string }[], actorId?: string) => {
-      for (const item of items) await update(_tab, item.id, (item as any).fields, (item as any).expectedVersion, actorId);
+    updateMany: async (
+      table: string,
+      items: { id: string; fields: Record<string, unknown>; expectedVersion: number }[],
+      actorId?: string
+    ) => {
+      for (const item of items) await update(table, item.id, item.fields, item.expectedVersion, actorId);
       return items.map(() => ({}));
     },
     delete: (...args: Parameters<typeof remove>) => remove(...args),
-    deleteMany: async (_tab: string, items: { id: string }[]) => {
-      for (const item of items) await remove(_tab, item.id, (item as any).expectedVersion);
+    deleteMany: async (table: string, items: { id: string; expectedVersion: number }[]) => {
+      for (const item of items) await remove(table, item.id, item.expectedVersion);
     },
   },
 }));
