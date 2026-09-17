@@ -8,7 +8,7 @@ import { UserError } from '@/lib/user-error';
 import { isWeekLead, rotationMembers } from '@/lib/rotation';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
-import { removeMeetingEvent } from '@/lib/google/meeting-sync';
+import { pushMeeting, removeMeetingEvent } from '@/lib/google/meeting-sync';
 import type {
   ActionItemRecord,
   AvailabilityPollRecord,
@@ -88,6 +88,74 @@ export async function createMeeting(data: {
     );
 
     revalidatePath('/meetings');
+    revalidatePath('/dashboard');
+  });
+}
+
+/**
+ * Move a confirmed meeting to a different time.
+ *
+ * Until now the only way to correct a booking was to delete it and start the
+ * poll again, which throws away the minutes, the agenda and the attendance
+ * along with the wrong hour. Nothing about the meeting changes here except
+ * when it happens.
+ *
+ * Judged on the week, like deleting one: the lead owns their week's schedule
+ * and admin can always step in. Both ends are checked, so a lead cannot push a
+ * meeting out of their week and into somebody else's.
+ */
+export async function rescheduleMeetingAction(
+  meetingId: string,
+  data: { start_at: string; end_at: string },
+  rowVersion: number
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+
+    const meeting = await SheetRepo.findOne<MeetingRecord>('meetings', meetingId);
+    if (!meeting) throw new UserError('error.notFound');
+
+    // Bare wall clocks from the form, read as Thailand -- the same rule as
+    // everywhere else a time is typed in.
+    const start = labInstant(data.start_at);
+    const end = labInstant(data.end_at);
+    if (!start || !end) throw new UserError('error.dateInvalid');
+    if (end <= start) throw new UserError('error.endBeforeStart');
+
+    if (actor.role !== 'admin') {
+      const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+      const wasAt = labInstant(meeting.start_at);
+      const weeks = [wasAt ? weekKey(wasAt) : '', weekKey(start)];
+      if (weeks.some((w) => !w || !isWeekLead(leads, w, actor.id))) {
+        throw new UserError('avail.leadOnly');
+      }
+    }
+
+    const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
+    const coveringBreak = breakCovering(breaks, labDay(start));
+    if (coveringBreak) throw new UserError('error.duringBreak', { name: coveringBreak.name });
+
+    await SheetRepo.update<MeetingRecord>(
+      'meetings',
+      meetingId,
+      { start_at: start.toISOString(), end_at: end.toISOString() },
+      rowVersion,
+      actor.id
+    );
+
+    // Best effort, and only for a meeting that already reached Google. A
+    // calendar that refuses must not undo a move the app has accepted.
+    if (meeting.google_event_id) {
+      try {
+        await pushMeeting(meetingId, actor.id);
+      } catch (err) {
+        console.error('Could not move the Google event for this meeting:', err);
+      }
+    }
+
+    revalidatePath('/meetings');
+    revalidatePath(`/meetings/${meetingId}`);
+    revalidatePath('/meetings/polls');
     revalidatePath('/dashboard');
   });
 }

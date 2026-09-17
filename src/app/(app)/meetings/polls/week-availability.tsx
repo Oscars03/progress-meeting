@@ -3,28 +3,62 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
-import { addDays, type AvailabilityCell, type CellStatus } from '@/lib/availability-grid';
+import {
+  addDays,
+  type AvailabilityCell,
+  type CellMeeting,
+  type CellStatus,
+} from '@/lib/availability-grid';
+import { labWallClock } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
 import { weekAvailabilityAction, type WeekAvailability } from '../../calendar-actions';
+import { rescheduleMeetingAction } from '../actions';
 import { createPollAction } from './actions';
 
 /**
  * Only utilities globals.css remaps for dark mode, so each state still reads
  * as green, red or neutral on the dark surface.
+ *
+ * A booked meeting is the exception: solid blue rather than a tint, because it
+ * is not another shade on the free-to-busy scale -- it is a different kind of
+ * thing, and reading it as "very busy" is exactly the mistake to avoid. Solid
+ * blue on white needs no remap, which is why the buttons elsewhere use it.
  */
 const TONE: Record<CellStatus, string> = {
   'all-free': 'bg-green-50 text-green-700 border-green-200',
   'some-busy': 'bg-red-50 text-red-700 border-red-200',
   incomplete: 'bg-gray-100 text-gray-500 border-gray-200',
+  meeting: 'bg-blue-600 text-white border-blue-600',
 };
 
-const LEGEND: { status: CellStatus; key: 'avail.legendAllFree' | 'avail.legendSomeBusy' | 'avail.legendIncomplete' }[] = [
+const LEGEND: {
+  status: CellStatus;
+  key: 'avail.legendAllFree' | 'avail.legendSomeBusy' | 'avail.legendIncomplete' | 'avail.legendMeeting';
+}[] = [
   { status: 'all-free', key: 'avail.legendAllFree' },
   { status: 'some-busy', key: 'avail.legendSomeBusy' },
   { status: 'incomplete', key: 'avail.legendIncomplete' },
+  { status: 'meeting', key: 'avail.legendMeeting' },
 ];
 
-const hh = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
+/** The wall clock of a cell edge. `2026-09-14T11:30:00+07:00` -> `11:30`. */
+const clock = (instant: string) => instant.slice(11, 16);
+
+/**
+ * The lab's day and wall clock for a UTC instant.
+ *
+ * Not `toLocaleString`: the browser would answer in whatever zone the laptop
+ * is in, and a meeting at 13:00 in Thailand must read 13:00 whoever opens it.
+ */
+function labParts(iso: string): { date: string; time: string } {
+  const at = labWallClock(new Date(iso)).toISOString();
+  return { date: at.slice(0, 10), time: at.slice(11, 16) };
+}
+
+/** Every half hour of the day, the times a meeting may be moved to. */
+const HALF_HOURS = Array.from({ length: 48 }, (_, i) =>
+  `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`
+);
 
 export default function WeekAvailabilityGrid({
   initial,
@@ -43,6 +77,10 @@ export default function WeekAvailabilityGrid({
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const [asking, setAsking] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editDate, setEditDate] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
 
   const intl = locale === 'th' ? 'th-TH' : 'en-GB';
 
@@ -57,9 +95,11 @@ export default function WeekAvailabilityGrid({
     });
 
   const whenLabel = (cell: AvailabilityCell) =>
-    `${dayLabel(cell.start.slice(0, 10))} ${hh(cell.hour)}–${hh(cell.hour + 1)}`;
+    `${dayLabel(cell.start.slice(0, 10))} ${clock(cell.start)}–${clock(cell.end)}`;
 
-  const hours = data.days[0]?.cells.map((c) => c.hour) ?? [];
+  // One row per slot. The first day's cells define the rows; every day is
+  // built from the same list of starts, so they line up by index.
+  const rows = data.days[0]?.cells ?? [];
   const total = data.activeCount;
   const firstDay = data.days[0]?.date;
   const lastDay = data.days[data.days.length - 1]?.date;
@@ -109,6 +149,44 @@ export default function WeekAvailabilityGrid({
   // every render: reading the clock during render is impure, and would differ
   // between the server's HTML and the browser's.
   const [selectedIsPast, setSelectedIsPast] = useState(false);
+
+  /** The meeting's own span in the lab's zone, e.g. `Mon 14 Sep 13:00–15:00`. */
+  const meetingSpan = (meeting: CellMeeting) => {
+    const from = labParts(meeting.startAt);
+    const to = labParts(meeting.endAt);
+    return `${dayLabel(from.date)} ${from.time}–${to.time}`;
+  };
+
+  const startEditing = (meeting: CellMeeting) => {
+    const from = labParts(meeting.startAt);
+    const to = labParts(meeting.endAt);
+    setError('');
+    setEditDate(from.date);
+    setEditStart(from.time);
+    setEditEnd(to.time);
+    setEditing(true);
+  };
+
+  const save = (meeting: CellMeeting) => {
+    setError('');
+    startTransition(async () => {
+      const result = await rescheduleMeetingAction(
+        meeting.id,
+        // Bare wall clocks. The action reads them as Thailand, which is what
+        // the person typing them meant.
+        { start_at: `${editDate}T${editStart}`, end_at: `${editDate}T${editEnd}` },
+        meeting.rowVersion
+      );
+      if (!result.ok) {
+        setError(t(result.error as Parameters<typeof t>[0]));
+        return;
+      }
+      setEditing(false);
+      setSelected(null);
+      setData(await weekAvailabilityAction(data.weekStart));
+      router.refresh();
+    });
+  };
 
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
@@ -192,20 +270,30 @@ export default function WeekAvailabilityGrid({
             </tr>
           </thead>
           <tbody>
-            {hours.map((hour, row) => (
-              <tr key={hour}>
-                <th scope="row" className="pr-1 text-left font-normal text-gray-500 tabular-nums whitespace-nowrap">
-                  {hh(hour)}
+            {rows.map((rowCell, row) => (
+              <tr key={rowCell.start}>
+                {/* The half hours are set back rather than left blank: you
+                    have to be able to aim at 11:30, but the hour is still what
+                    you read the column by. */}
+                <th
+                  scope="row"
+                  className={`pr-1 text-left font-normal tabular-nums whitespace-nowrap ${
+                    rowCell.minute === 0 ? 'text-gray-500' : 'text-gray-400 text-[0.65rem]'
+                  }`}
+                >
+                  {clock(rowCell.start)}
                 </th>
                 {data.days.map((day) => {
                   const cell = day.cells[row];
                   const isSelected = selected?.start === cell.start;
-                  const label = t('avail.cellTitle', {
-                    when: whenLabel(cell),
-                    free: cell.free.length,
-                    busy: cell.busy.length,
-                    unknown: cell.unknown.length,
-                  });
+                  const label = cell.meeting
+                    ? t('avail.cellMeeting', { when: whenLabel(cell), title: cell.meeting.title })
+                    : t('avail.cellTitle', {
+                        when: whenLabel(cell),
+                        free: cell.free.length,
+                        busy: cell.busy.length,
+                        unknown: cell.unknown.length,
+                      });
                   return (
                     <td key={cell.start} className="p-0">
                       <button
@@ -213,15 +301,16 @@ export default function WeekAvailabilityGrid({
                         onClick={() => {
                           setSelected(isSelected ? null : cell);
                           setSelectedIsPast(!isSelected && Date.parse(cell.end) <= Date.now());
+                          setEditing(false);
                         }}
                         aria-pressed={isSelected}
                         aria-label={label}
                         title={label}
-                        className={`w-full min-w-14 rounded-md border px-1 py-1.5 font-semibold tabular-nums transition hover:brightness-95 ${TONE[cell.status]} ${
+                        className={`w-full min-w-14 rounded-md border px-1 py-1 font-semibold tabular-nums transition hover:brightness-95 ${TONE[cell.status]} ${
                           isSelected ? 'ring-2 ring-blue-600' : ''
                         }`}
                       >
-                        {cell.free.length}/{total}
+                        {cell.meeting ? '●' : `${cell.free.length}/${total}`}
                       </button>
                     </td>
                   );
@@ -241,6 +330,94 @@ export default function WeekAvailabilityGrid({
             </span>
           </div>
 
+          {/* A booked slot answers a different question from a free one: not
+              "who could make it" but "what is already here". Who was free
+              before it was booked stays below, because moving it is one of the
+              things you came here to do. */}
+          {selected.meeting && (
+            <div className="rounded-lg border border-gray-200 bg-gray-100 p-3 space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="font-medium text-gray-900">{selected.meeting.title}</p>
+                <p className="text-xs text-gray-500 tabular-nums">
+                  {meetingSpan(selected.meeting)}
+                </p>
+              </div>
+
+              {canAsk(selected) ? (
+                editing ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      save(selected.meeting!);
+                    }}
+                    className="space-y-3"
+                  >
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      <label className="text-xs text-gray-600">
+                        {t('avail.editDate')}
+                        <input
+                          type="date"
+                          required
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="mt-1 w-full min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
+                        />
+                      </label>
+                      {(
+                        [
+                          ['avail.editStart', editStart, setEditStart],
+                          ['avail.editEnd', editEnd, setEditEnd],
+                        ] as const
+                      ).map(([key, value, set]) => (
+                        <label key={key} className="text-xs text-gray-600">
+                          {t(key)}
+                          <select
+                            required
+                            value={value}
+                            onChange={(e) => set(e.target.value)}
+                            className="mt-1 w-full min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
+                          >
+                            {HALF_HOURS.map((time) => (
+                              <option key={time} value={time}>
+                                {time}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="submit"
+                        disabled={isPending}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                      >
+                        {t('avail.editSave')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditing(false)}
+                        className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        {t('avail.editCancel')}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => startEditing(selected.meeting!)}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    {t('avail.editTime')}
+                  </button>
+                )
+              ) : (
+                <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
+              )}
+            </div>
+          )}
+
           <dl className="grid gap-2 text-sm sm:grid-cols-3">
             {(
               [
@@ -258,7 +435,9 @@ export default function WeekAvailabilityGrid({
             ))}
           </dl>
 
-          {selectedIsPast ? (
+          {/* Nothing to ask about: this hour is already settled, and the way
+              to change it is the control above, not a second poll. */}
+          {selected.meeting ? null : selectedIsPast ? (
             <p className="text-xs text-gray-500">{t('avail.past')}</p>
           ) : canAsk(selected) ? (
             <button

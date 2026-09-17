@@ -66,7 +66,9 @@ vi.mock('../lib/db/sheet-repo', () => ({
 const { createPollAction, closePollAction, confirmSlotAction, deletePollAction } = await import(
   '../app/(app)/meetings/polls/actions'
 );
-const { createMeeting, deleteMeeting } = await import('../app/(app)/meetings/actions');
+const { createMeeting, deleteMeeting, rescheduleMeetingAction } = await import(
+  '../app/(app)/meetings/actions'
+);
 const { createTask, updateTaskStatus, updateTaskDetails, deleteTask } = await import('../app/(app)/tasks/actions');
 const { saveWeeklyUpdateAction, deleteWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 const { updateMyNameAction } = await import('../app/(app)/settings/actions');
@@ -581,6 +583,100 @@ describe('removing a meeting', () => {
     // The topic somebody proposed outlives the meeting it was going to be at.
     expect(update).toHaveBeenCalledWith('topics', 't1', { meeting_id: '' }, 1, 'boss');
     expect(remove).not.toHaveBeenCalledWith('topics', 't1', expect.anything(), expect.anything());
+  });
+});
+
+describe('moving a confirmed meeting', () => {
+  beforeEach(() => {
+    tables['meetings'] = [
+      {
+        id: 'm1',
+        title: 'Progress',
+        start_at: `${MONDAY}T03:00:00.000Z`, // 10:00 in Bangkok, inside WEEK
+        end_at: `${MONDAY}T04:00:00.000Z`,
+        status: 'scheduled',
+        owner_id: 'lead',
+        google_event_id: '',
+        row_version: 1,
+      },
+    ];
+  });
+
+  /** A wall clock on the same Monday, read as Thailand by the action. */
+  const sameDay = (from: string, to: string) => ({
+    start_at: `${MONDAY}T${from}`,
+    end_at: `${MONDAY}T${to}`,
+  });
+
+  it('lets the lead move it to a half hour, and writes the instant', async () => {
+    signedInAs('lead');
+    const result = await rescheduleMeetingAction('m1', sameDay('11:30', '12:30'), 1);
+
+    expect(result.ok).toBe(true);
+    // 11:30 in Bangkok is 04:30 UTC. The half hour is the point of this.
+    expect(update).toHaveBeenCalledWith(
+      'meetings',
+      'm1',
+      { start_at: `${MONDAY}T04:30:00.000Z`, end_at: `${MONDAY}T05:30:00.000Z` },
+      1,
+      'lead'
+    );
+  });
+
+  it('lets an admin move it', async () => {
+    signedInAs('boss', 'admin');
+    const result = await rescheduleMeetingAction('m1', sameDay('13:00', '14:00'), 1);
+
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('refuses a member who does not hold that week, and writes nothing', async () => {
+    signedInAs('other');
+    const result = await rescheduleMeetingAction('m1', sameDay('13:00', '14:00'), 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a lead pushing the meeting into somebody else’s week', async () => {
+    signedInAs('lead');
+    // The Monday after, which belongs to the next week and so to its lead.
+    const result = await rescheduleMeetingAction(
+      'm1',
+      { start_at: '2026-10-05T13:00', end_at: '2026-10-05T14:00' },
+      1
+    );
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses an end that is not after the start', async () => {
+    signedInAs('lead');
+    const result = await rescheduleMeetingAction('m1', sameDay('13:00', '13:00'), 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'error.endBeforeStart' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a move into a term break', async () => {
+    tables['term_breaks'] = [
+      { id: 'tb1', name: 'ปิดเทอม', start_date: MONDAY, end_date: MONDAY, row_version: 1 },
+    ];
+    signedInAs('lead');
+    const result = await rescheduleMeetingAction('m1', sameDay('13:00', '14:00'), 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('reports a meeting that is already gone', async () => {
+    signedInAs('boss', 'admin');
+    const result = await rescheduleMeetingAction('nope', sameDay('13:00', '14:00'), 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'error.notFound' });
+    expect(update).not.toHaveBeenCalled();
   });
 });
 

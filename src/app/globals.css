@@ -96,9 +96,13 @@ body {
   border-bottom: 1px solid var(--cal-line-soft);
   height: 1.5rem;
 }
+/* The half hour gets a line too, but a dashed, fainter one -- you cannot aim
+   at 11:30 on a surface that gives no sign of where it is, and a slot you can
+   drop an event on with nothing drawn there reads as broken. Dashed rather
+   than solid so it still says "half", not "hour". */
 .fc .fc-timegrid-slot.fc-timegrid-slot-minor {
   border-top: none;
-  border-bottom: none;
+  border-bottom: 1px dashed var(--cal-line-soft);
 }
 
 /* Day headers: the weekday small and quiet above the date, instead of one
