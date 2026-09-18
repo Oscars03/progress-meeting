@@ -100,6 +100,9 @@ export const common = defineMessages({
 
     'dashboard.yourTurn': 'ลำดับการนำเสนอของคุณ',
     'dashboard.yourPosition': 'คุณนำเสนอเป็นลำดับที่ {n} จาก {of} คน',
+    'dashboard.ofPresenters': '/ {of} คน',
+    'dashboard.afterPerson': 'ต่อจาก {name}',
+    'dashboard.firstUp': 'คุณนำเสนอเป็นคนแรก',
     'dashboard.seeFullOrder': 'ดูลำดับทั้งหมด',
     'dashboard.noTopicYet': 'สัปดาห์นี้คุณยังไม่ได้เพิ่มหัวข้อที่จะนำเสนอ',
 
@@ -286,6 +289,9 @@ export const common = defineMessages({
 
     'dashboard.yourTurn': 'Your slot in the running order',
     'dashboard.yourPosition': 'You present {n} of {of}',
+    'dashboard.ofPresenters': '/ {of}',
+    'dashboard.afterPerson': 'After {name}',
+    'dashboard.firstUp': 'You are first up',
     'dashboard.seeFullOrder': 'See the full order',
     'dashboard.noTopicYet': "You have not put a topic down for this week yet",
 
