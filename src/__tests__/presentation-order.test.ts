@@ -6,6 +6,8 @@ import {
   topicCounts,
   groupByPresenter,
   flattenPresenters,
+  lastArrangedBy,
+  type TopicAudit,
 } from '../lib/presentation-order';
 import { readStatus } from '../app/(app)/tasks/statuses';
 import type { TopicRecord } from '../lib/db/schema';
@@ -215,5 +217,79 @@ describe('readStatus', () => {
   it('falls back rather than losing a row it cannot read at all', () => {
     expect(readStatus('')).toBe('not_started');
     expect(readStatus('something-else')).toBe('not_started');
+  });
+});
+
+/**
+ * The order is stored as a number per topic, a column with no author -- so who
+ * arranged a week can only be answered by the audit trail of the write.
+ */
+describe('who arranged the week', () => {
+  const week = [topic('t1', 'ann', '2026-09-01T00:00:00.000Z'), topic('t2', 'bob', '2026-09-02T00:00:00.000Z')];
+
+  function moved(id: string, actor: string, at: string, from: string | number, to: string | number): TopicAudit {
+    return {
+      entity: 'topics',
+      entity_id: id,
+      action: 'UPDATE',
+      actor_id: actor,
+      at,
+      old: JSON.stringify({ present_order: from }),
+      new: JSON.stringify({ present_order: to }),
+    };
+  }
+
+  it('names nobody when the week was never arranged', () => {
+    expect(lastArrangedBy([], week)).toBe(null);
+  });
+
+  it('names whoever wrote the most recent position', () => {
+    const entries = [
+      moved('t1', 'ann', '2026-09-03T10:00:00.000Z', '', 1),
+      moved('t2', 'prof', '2026-09-04T10:00:00.000Z', '', 2),
+    ];
+    expect(lastArrangedBy(entries, week)).toBe('prof');
+  });
+
+  // Rewording a topic touches the same row, and used to be indistinguishable
+  // from arranging it -- which would credit the wrong person entirely.
+  it('ignores a write that left the position alone', () => {
+    const entries = [
+      moved('t1', 'prof', '2026-09-03T10:00:00.000Z', '', 1),
+      {
+        entity: 'topics',
+        entity_id: 't1',
+        action: 'UPDATE',
+        actor_id: 'ann',
+        at: '2026-09-05T10:00:00.000Z',
+        old: JSON.stringify({ present_order: 1, title: 'A' }),
+        new: JSON.stringify({ present_order: 1, title: 'A renamed' }),
+      },
+    ];
+    expect(lastArrangedBy(entries, week)).toBe('prof');
+  });
+
+  it('ignores another week, and another sheet entirely', () => {
+    const entries = [
+      moved('t9', 'someone', '2026-09-09T10:00:00.000Z', '', 1),
+      { ...moved('t1', 'elsewhere', '2026-09-10T10:00:00.000Z', '', 1), entity: 'tasks' },
+      moved('t1', 'prof', '2026-09-03T10:00:00.000Z', '', 1),
+    ];
+    expect(lastArrangedBy(entries, week)).toBe('prof');
+  });
+
+  it('leaves a row it cannot parse unattributed rather than guessing', () => {
+    const entries: TopicAudit[] = [
+      {
+        entity: 'topics',
+        entity_id: 't1',
+        action: 'UPDATE',
+        actor_id: 'ann',
+        at: '2026-09-03T10:00:00.000Z',
+        old: 'not json',
+        new: 'not json either',
+      },
+    ];
+    expect(lastArrangedBy(entries, week)).toBe(null);
   });
 });

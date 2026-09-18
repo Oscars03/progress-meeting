@@ -67,6 +67,60 @@ export function effectiveTopicOrder(topics: TopicRecord[]): {
   return { ordered: [...sorted, ...unplaced], custom: true };
 }
 
+/**
+ * One audit row, as much of it as this file needs.
+ *
+ * Structural rather than the sheet's own record type: what matters is which
+ * fields are read, and a test should be able to hand over four of them.
+ */
+export type TopicAudit = {
+  entity: string;
+  entity_id: string;
+  action: string;
+  actor_id: string;
+  at: string;
+  old?: string;
+  new?: string;
+};
+
+/** The stored position as the audit row saw it, JSON and all. */
+function auditPosition(raw: string | undefined): string {
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw) as { present_order?: unknown };
+    return String(parsed?.present_order ?? '');
+  } catch {
+    // An unparseable row is not evidence of anything. Better to leave the
+    // arrangement unattributed than to name somebody on a guess.
+    return '';
+  }
+}
+
+/**
+ * Who arranged this week's order last, by id, or null if nobody did.
+ *
+ * The positions live in `present_order` on each topic, a column that records
+ * no author -- so the name has to come from the write itself. Only rows that
+ * actually moved a position count: editing a title touches the same topic and
+ * would otherwise claim the arrangement.
+ *
+ * Ordered on `at`, the instant the write was stamped with, which is written in
+ * ISO so string order is time order.
+ */
+export function lastArrangedBy(entries: TopicAudit[], topics: TopicRecord[]): string | null {
+  const ids = new Set(topics.map((topic) => topic.id));
+
+  let latest: TopicAudit | null = null;
+  for (const entry of entries) {
+    if (entry.entity !== 'topics' || entry.action !== 'UPDATE') continue;
+    if (!ids.has(entry.entity_id)) continue;
+    if (auditPosition(entry.old) === auditPosition(entry.new)) continue;
+    if (!latest || entry.at > latest.at) latest = entry;
+  }
+
+  return latest?.actor_id ?? null;
+}
+
 /** How many topics each person brought, for showing beside their name. */
 export function topicCounts(topics: TopicRecord[]): Map<string, number> {
   const counts = new Map<string, number>();

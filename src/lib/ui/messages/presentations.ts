@@ -23,6 +23,7 @@ export const presentations = defineMessages({
     'presentations.empty': 'สัปดาห์นี้ยังไม่มีใครเพิ่มหัวข้อ',
     'presentations.emptyHint': 'เพิ่มหัวข้อของคุณเพื่อเริ่มจัดลำดับ',
     'presentations.position': 'ลำดับที่ {n}',
+    'presentations.arrangedBy': 'จัดลำดับโดย {name}',
 
     'topics.add': 'เพิ่มหัวข้อของฉัน',
     'topics.addTitle': 'เพิ่มหัวข้อที่จะนำเสนอ',
@@ -37,6 +38,7 @@ export const presentations = defineMessages({
     'topics.titleTooLong': 'หัวข้อต้องยาวไม่เกิน {n} ตัวอักษร',
     'topics.notYours': 'แก้ไขได้เฉพาะหัวข้อของตนเองเท่านั้น',
     'topics.confirmDelete': 'ลบหัวข้อนี้หรือไม่?',
+    'topics.advisorNoTopics': 'อาจารย์ที่ปรึกษาดูและจัดลำดับได้ แต่ไม่ได้เพิ่มหัวข้อนำเสนอเอง',
   },
   en: {
     'nav.presentations': 'Running order',
@@ -59,6 +61,7 @@ export const presentations = defineMessages({
     'presentations.empty': 'Nobody has added a topic for this week yet',
     'presentations.emptyHint': 'Add your topic to start building the order',
     'presentations.position': 'Position {n}',
+    'presentations.arrangedBy': 'Arranged by {name}',
 
     'topics.add': 'Add my topic',
     'topics.addTitle': 'Add a topic to present',
@@ -73,5 +76,6 @@ export const presentations = defineMessages({
     'topics.titleTooLong': 'A topic must be {n} characters or fewer',
     'topics.notYours': 'You can only edit your own topics',
     'topics.confirmDelete': 'Delete this topic?',
+    'topics.advisorNoTopics': 'An advisor reads and arranges the order rather than presenting in it',
   },
 });

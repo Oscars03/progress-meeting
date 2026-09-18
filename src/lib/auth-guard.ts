@@ -150,6 +150,29 @@ export function hasManagerRights(role: Role): boolean {
   return RANK[role] >= RANK.professor;
 }
 
+/**
+ * Whether a role brings topics of its own to the meeting.
+ *
+ * An advisor reads the agenda and arranges it; what is on it is the work of
+ * the people who did it. They take no turn -- the same reason they are not
+ * waited on when a slot poll is confirmed.
+ *
+ * Admin keeps it, being the account that fixes what nobody else can.
+ */
+export function canAddTopic(role: Role): boolean {
+  return role !== 'professor';
+}
+
+/**
+ * Whether a role may reword or drop a topic somebody else wrote.
+ *
+ * This used to be manager rights, which let an advisor delete a student's
+ * topic outright. Arranging the week is theirs; the topics in it are not.
+ */
+export function canEditAnyTopic(role: Role): boolean {
+  return RANK[role] >= RANK.admin;
+}
+
 // Takes the role rather than the whole caller: what somebody may mint depends
 // on their rank and on nothing else about them.
 export function canAssignRole(actor: Pick<SessionUser, 'role'>, target: Role): boolean {

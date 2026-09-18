@@ -224,6 +224,25 @@ export type TopicRecord = BaseRecord & {
 };
 
 /**
+ * One write, kept so a value can be traced back to whoever changed it.
+ *
+ * `old` and `new` hold the row either side of the write as JSON, or '' where
+ * there was none -- an insert has no old, a delete no new. Columns the sheet
+ * has always had; this is the type for reading them.
+ */
+export type AuditRecord = BaseRecord & {
+  actor_id: string;
+  entity: string;
+  entity_id: string;
+  /** INSERT, UPDATE or DELETE. */
+  action: string;
+  old: string;
+  new: string;
+  /** When the write happened, ISO. */
+  at: string;
+};
+
+/**
  * Who is responsible for a given week -- preparing the meeting and writing the
  * summary.
  *

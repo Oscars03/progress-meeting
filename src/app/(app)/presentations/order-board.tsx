@@ -61,12 +61,21 @@ export default function OrderBoard({
   topics,
   custom,
   canArrange,
+  canAdd,
+  canEditAny,
+  arrangedBy,
   currentUserId,
 }: {
   weekKey: string;
   topics: BoardTopic[];
   custom: boolean;
   canArrange: boolean;
+  /** False for an advisor, who arranges the week rather than appearing in it. */
+  canAdd: boolean;
+  /** Whether somebody else's topic may be reworded or dropped. Admin only. */
+  canEditAny: boolean;
+  /** Who arranged the stored order, already resolved to a name. */
+  arrangedBy: string | null;
   currentUserId: string;
 }) {
   const { t } = usePrefs();
@@ -214,19 +223,26 @@ export default function OrderBoard({
           {custom ? t('presentations.customBadge') : t('presentations.suggestedBadge')}
         </span>
         {!custom && <span className="text-xs text-gray-500">{t('presentations.suggestedHint')}</span>}
+        {custom && arrangedBy && (
+          <span className="text-xs text-gray-500">
+            {t('presentations.arrangedBy', { name: arrangedBy })}
+          </span>
+        )}
 
-        <button
-          type="button"
-          onClick={() => {
-            setEditingId(null);
-            setTitle('');
-            setDetails('');
-            setAdding((open) => !open);
-          }}
-          className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition whitespace-nowrap"
-        >
-          {t('topics.add')}
-        </button>
+        {canAdd && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setTitle('');
+              setDetails('');
+              setAdding((open) => !open);
+            }}
+            className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition whitespace-nowrap"
+          >
+            {t('topics.add')}
+          </button>
+        )}
       </div>
 
       {adding && (
@@ -291,7 +307,8 @@ export default function OrderBoard({
       {order.length === 0 ? (
         <div className="p-6 text-center bg-gray-50 rounded-xl border border-gray-100">
           <p className="text-gray-500">{t('presentations.empty')}</p>
-          <p className="text-sm text-gray-400 mt-1">{t('presentations.emptyHint')}</p>
+          {/* Not advice for an advisor, who has no topic to add. */}
+          {canAdd && <p className="text-sm text-gray-400 mt-1">{t('presentations.emptyHint')}</p>}
         </div>
       ) : (
         <ol className="space-y-2">
@@ -392,7 +409,7 @@ export default function OrderBoard({
                           {topic.title}
                         </span>
 
-                        {(mine || canArrange) && (
+                        {(mine || canEditAny) && (
                           <span className="flex items-center gap-2">
                             <button
                               type="button"

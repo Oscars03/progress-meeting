@@ -2,7 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole, requireSession, hasManagerRights, type SessionUser } from '@/lib/auth-guard';
+import {
+  requireRole,
+  requireSession,
+  hasManagerRights,
+  canAddTopic,
+  canEditAnyTopic,
+  type SessionUser,
+} from '@/lib/auth-guard';
 import { actsAsWeekLead } from '@/lib/rotation';
 import type { WeekLeadRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
@@ -18,7 +25,11 @@ function cleanWeek(value: string | undefined): string {
   return key;
 }
 
-/** Anyone signed in may add a topic, but only ever under their own name. */
+/**
+ * Anyone who presents may add a topic, but only ever under their own name.
+ *
+ * An advisor is the exception: they arrange the week rather than appear in it.
+ */
 export async function addTopic(data: {
   title: string;
   details?: string;
@@ -26,6 +37,7 @@ export async function addTopic(data: {
 }): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireRole('student');
+    if (!canAddTopic(actor.role)) throw new UserError('topics.advisorNoTopics');
 
     const title = data.title?.trim();
     if (!title) throw new UserError('topics.titleRequired');
@@ -50,8 +62,11 @@ export async function addTopic(data: {
 }
 
 /**
- * Edit a topic. Yours to change; a professor may also fix anyone's, since they
- * run the meeting and a wrong title should not need the author to be around.
+ * Edit a topic. Yours to change, and admin's to fix.
+ *
+ * An advisor used to be able to reword anyone's, on the grounds that they run
+ * the meeting -- but a topic is a claim about somebody's own work, and the one
+ * who wrote it is the one who gets to say what it says.
  */
 export async function updateTopic(
   topicId: string,
@@ -63,7 +78,7 @@ export async function updateTopic(
 
     const topic = await SheetRepo.findOne<TopicRecord>('topics', topicId);
     if (!topic) throw new UserError('error.notFound');
-    if (topic.owner_id !== actor.id && !hasManagerRights(actor.role)) {
+    if (topic.owner_id !== actor.id && !canEditAnyTopic(actor.role)) {
       throw new UserError('topics.notYours');
     }
 
@@ -89,7 +104,7 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
 
     const topic = await SheetRepo.findOne<TopicRecord>('topics', topicId);
     if (!topic) throw new UserError('error.notFound');
-    if (topic.owner_id !== actor.id && !hasManagerRights(actor.role)) {
+    if (topic.owner_id !== actor.id && !canEditAnyTopic(actor.role)) {
       throw new UserError('topics.notYours');
     }
 

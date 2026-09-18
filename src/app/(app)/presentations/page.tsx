@@ -1,10 +1,10 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession, hasManagerRights } from '@/lib/auth-guard';
+import { requireSession, hasManagerRights, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { weekKey } from '@/lib/week';
-import { effectiveTopicOrder, topicsForWeek } from '@/lib/presentation-order';
+import { effectiveTopicOrder, topicsForWeek, lastArrangedBy } from '@/lib/presentation-order';
 import OrderBoard from './order-board';
-import type { TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import type { AuditRecord, TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { actsAsWeekLead } from '@/lib/rotation';
 
 export default async function PresentationsPage(props: {
@@ -23,6 +23,13 @@ export default async function PresentationsPage(props: {
   const { ordered, custom } = effectiveTopicOrder(topicsForWeek(allTopics, activeWeek));
   const nameOf = (id: string) => users.find((user) => user.id === id)?.name ?? t('common.deletedUser');
 
+  // Only when the week was actually arranged. A suggested order has nobody to
+  // name, and audit_log is the longest sheet here -- no reason to read it to
+  // answer a question the badge has already answered.
+  const arrangedById = custom
+    ? lastArrangedBy(await SheetRepo.find<AuditRecord>('audit_log'), ordered)
+    : null;
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -39,6 +46,9 @@ export default async function PresentationsPage(props: {
         weekKey={activeWeek}
         custom={custom}
         canArrange={hasManagerRights(actor.role) || actsAsWeekLead(actor, leads, activeWeek)}
+        canAdd={canAddTopic(actor.role)}
+        canEditAny={canEditAnyTopic(actor.role)}
+        arrangedBy={arrangedById ? nameOf(arrangedById) : null}
         currentUserId={actor.id}
         topics={ordered.map((topic) => ({
           id: topic.id,
