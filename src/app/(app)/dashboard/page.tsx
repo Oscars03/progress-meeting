@@ -194,12 +194,277 @@ export default async function DashboardPage() {
       return a.due_date.localeCompare(b.due_date);
     });
 
+  /**
+   * The meeting and the poll that settles one, hoisted so the two can change
+   * places.
+   *
+   * A scheduled meeting is the first thing anybody opens this page for. Until
+   * there is one, the thing that produces one is -- so when nothing is booked
+   * the poll leads and the meeting card, which then has only "nothing
+   * scheduled" to say, falls in behind it.
+   */
+  const meetingCard = (
+    <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
+      <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.nextMeeting')}</h3>
+
+      {upcoming ? (
+        <>
+          <p className="text-xl font-bold text-gray-900">{upcoming.title}</p>
+          <p className="text-sm text-gray-600 tabular-nums">
+            {formatLabTime(upcoming.start_at, locale)}
+          </p>
+          {upcoming.location && <p className="text-sm text-gray-500">{upcoming.location}</p>}
+          <Link
+            href={`/meetings/${upcoming.id}`}
+            className="inline-block text-sm text-blue-600 hover:underline"
+          >
+            {t('dashboard.openMeeting')}
+          </Link>
+        </>
+      ) : currentBreak ? (
+        <>
+          <p className="text-xl font-bold text-gray-900">{t('dashboard.breakWeek', { name: currentBreak.name })}</p>
+          <p className="text-sm text-gray-500">
+            {(() => {
+              const resumes = new Date(currentBreak.end_date);
+              resumes.setUTCDate(resumes.getUTCDate() + 1);
+              const formatter = new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: 'long' });
+              return t('dashboard.breakResumes', { date: formatter.format(resumes) });
+            })()}
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
+          <p className="text-sm text-gray-500">{t('dashboard.notScheduledHint')}</p>
+          {canSchedule && (
+            <Link
+              href="/meetings"
+              className="inline-block text-sm text-blue-600 hover:underline"
+            >
+              {t('dashboard.scheduleNow')}
+            </Link>
+          )}
+        </>
+      )}
+
+      {/* The lead stands whether or not anything is scheduled, so this strip
+          shows in both states above. */}
+      {!currentBreak && (
+        <div className="pt-3 border-t border-gray-100 space-y-2">
+          {students.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              <span className="text-gray-400">{t('rotation.title')}: </span>
+              {t('rotation.noStudents')}
+            </p>
+          ) : (
+            <>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <span className="text-gray-500">{t('rotation.title')}:</span>
+                <span className="font-semibold text-gray-900">
+                  {confirmedHost || suggested?.name}
+                </span>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    confirmedHost ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
+                  }`}
+                >
+                  {confirmedHost ? t('rotation.confirmed') : t('rotation.suggested')}
+                </span>
+              </p>
+
+              {lead?.user_id === actor.id && (
+                <div className="pt-2">
+                  <Link
+                    href="/tasks/weekly"
+                    className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition"
+                  >
+                    {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
+                  </Link>
+                </div>
+              )}
+
+              {canConfirm && (
+                <HostPicker
+                  weekKey={thisWeekKey}
+                  students={students.map((student) => ({ id: student.id, name: student.name }))}
+                  hostId={lead?.user_id ?? ''}
+                  suggestedId={suggested?.id ?? ''}
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+
+  const pollCard = awaiting.length > 0 ? (
+    <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+      <div>
+        <h3 className="font-semibold text-amber-900">{t('dashboard.awaitingYou')}</h3>
+        <p className="text-sm text-amber-800">{t('dashboard.awaitingHint')}</p>
+      </div>
+
+      <ul className="space-y-2">
+        {awaiting.map(({ poll, remaining }) => (
+          <li key={poll.id}>
+            <Link
+              href={`/meetings/polls/${poll.id}`}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 bg-white rounded-lg border border-amber-200 hover:border-amber-400 transition"
+            >
+              <span className="font-medium text-gray-900 flex-1 min-w-48">{poll.title}</span>
+              <span className="text-xs text-gray-500 tabular-nums">
+                {t('dashboard.awaitingSlots', { n: remaining })}
+              </span>
+              <span className="text-sm font-medium text-blue-600">
+                {t('dashboard.answerNow')}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
         {canSchedule && <NewMeetingButton />}
       </div>
+
+      {/* Meeting first, or the poll that will produce one -- see above. */}
+      {upcoming ? (
+        <>
+          {meetingCard}
+          {pollCard}
+        </>
+      ) : (
+        <>
+          {pollCard}
+          {meetingCard}
+        </>
+      )}
+
+      {/* Your place in the running order. Shown even when you have nothing
+          down, because "you have not added a topic" is the more useful of the
+          two answers in the days before a meeting. */}
+      {!currentBreak && (
+        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h3 className="font-semibold text-gray-900">{t('dashboard.yourTurn')}</h3>
+            <Link href="/presentations" className="text-sm text-blue-600 hover:underline">
+              {t('dashboard.seeFullOrder')}
+            </Link>
+          </div>
+
+          {myTurn ? (
+            <>
+              <p className="text-sm text-gray-700">
+                {t('dashboard.yourPosition', { n: myTurn.position, of: myTurn.outOf })}
+              </p>
+              <ul className="space-y-1.5">
+                {myTurn.topics.map((topic) => (
+                  <li
+                    key={topic.id}
+                    className="p-3 rounded-lg border border-gray-200 bg-gray-50"
+                  >
+                    <p className="font-medium text-gray-900">{topic.title}</p>
+                    {topic.details && (
+                      <p className="text-sm text-gray-500 whitespace-pre-line">{topic.details}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            /* Not a congratulation: nothing is down, which is different from
+               everything being ready -- see CLAUDE.md. */
+            <p className="text-sm text-gray-500">{t('dashboard.noTopicYet')}</p>
+          )}
+        </section>
+      )}
+
+      {myOpenTasks.length > 0 && (
+        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('dashboard.myTasks')}</h3>
+              <p className="text-sm text-gray-500">{t('dashboard.myTasksHint')}</p>
+            </div>
+            <Link href="/tasks" className="text-sm text-blue-600 hover:underline">
+              {t('dashboard.total')}
+            </Link>
+          </div>
+
+          <ul className="space-y-2">
+            {myOpenTasks.map((task) => {
+              // Both sides as lab days. Comparing a due date against the
+              // server's `new Date()` made the badge a day late every morning
+              // before 07:00, when UTC is still on yesterday.
+              const overdue = Boolean(task.due_date) && task.due_date < today;
+              return (
+                <li key={task.id}>
+                  <Link
+                    href={`/tasks`}
+                    className={`block p-4 rounded-xl border transition ${
+                      overdue ? 'bg-red-50 border-red-200 hover:border-red-300' : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                      <span className={`font-semibold ${overdue ? 'text-red-900' : 'text-gray-900'}`}>
+                        {task.title}
+                      </span>
+                      {task.due_date && (
+                        <span className={`text-xs font-medium tabular-nums ${overdue ? 'text-red-600' : 'text-gray-500'}`}>
+                          {t('tasks.due')}: {task.due_date} {overdue && t('tasks.overdue')}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* What the lead has to do this week, where they start the week rather
+          than two pages into it. Not shown during a term break: there is no
+          meeting to arrange. */}
+      {iLeadThisWeek && (
+        <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
+          <div>
+            {/* An admin is shown this because they can do it, not because it
+                is their turn -- so it does not tell them it is. */}
+            <h3 className="font-semibold text-blue-800">
+              {t(amThisWeeksLead ? 'dashboard.yourLeadTurn' : 'dashboard.runThisWeek')}
+            </h3>
+            <p className="text-sm text-blue-700">{t('dashboard.yourLeadTurnHint')}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/meetings/polls#availability"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition"
+            >
+              {t('dashboard.findFreeTime')}
+            </Link>
+            <Link
+              href="/meetings/polls?new=1"
+              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
+            >
+              {t('dashboard.createPoll')}
+            </Link>
+            <Link
+              href="/presentations"
+              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
+            >
+              {t('dashboard.arrangeOrder')}
+            </Link>
+          </div>
+        </section>
+      )}
 
       {openFeedback > 0 && (
         <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl">
@@ -254,81 +519,6 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* What the lead has to do this week, where they start the week rather
-          than two pages into it. Not shown during a term break: there is no
-          meeting to arrange. */}
-      {iLeadThisWeek && (
-        <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
-          <div>
-            {/* An admin is shown this because they can do it, not because it
-                is their turn -- so it does not tell them it is. */}
-            <h3 className="font-semibold text-blue-800">
-              {t(amThisWeeksLead ? 'dashboard.yourLeadTurn' : 'dashboard.runThisWeek')}
-            </h3>
-            <p className="text-sm text-blue-700">{t('dashboard.yourLeadTurnHint')}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/meetings/polls#availability"
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition"
-            >
-              {t('dashboard.findFreeTime')}
-            </Link>
-            <Link
-              href="/meetings/polls?new=1"
-              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
-            >
-              {t('dashboard.createPoll')}
-            </Link>
-            <Link
-              href="/presentations"
-              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
-            >
-              {t('dashboard.arrangeOrder')}
-            </Link>
-          </div>
-        </section>
-      )}
-
-      {/* Your place in the running order. Shown even when you have nothing
-          down, because "you have not added a topic" is the more useful of the
-          two answers in the days before a meeting. */}
-      {!currentBreak && (
-        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <h3 className="font-semibold text-gray-900">{t('dashboard.yourTurn')}</h3>
-            <Link href="/presentations" className="text-sm text-blue-600 hover:underline">
-              {t('dashboard.seeFullOrder')}
-            </Link>
-          </div>
-
-          {myTurn ? (
-            <>
-              <p className="text-sm text-gray-700">
-                {t('dashboard.yourPosition', { n: myTurn.position, of: myTurn.outOf })}
-              </p>
-              <ul className="space-y-1.5">
-                {myTurn.topics.map((topic) => (
-                  <li
-                    key={topic.id}
-                    className="p-3 rounded-lg border border-gray-200 bg-gray-50"
-                  >
-                    <p className="font-medium text-gray-900">{topic.title}</p>
-                    {topic.details && (
-                      <p className="text-sm text-gray-500 whitespace-pre-line">{topic.details}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            /* Not a congratulation: nothing is down, which is different from
-               everything being ready -- see CLAUDE.md. */
-            <p className="text-sm text-gray-500">{t('dashboard.noTopicYet')}</p>
-          )}
-        </section>
-      )}
-
       {myDay.length > 0 && (
         <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -367,176 +557,6 @@ export default async function DashboardPage() {
           </ul>
         </section>
       )}
-
-      {myOpenTasks.length > 0 && (
-        <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <div>
-              <h3 className="font-semibold text-gray-900">{t('dashboard.myTasks')}</h3>
-              <p className="text-sm text-gray-500">{t('dashboard.myTasksHint')}</p>
-            </div>
-            <Link href="/tasks" className="text-sm text-blue-600 hover:underline">
-              {t('dashboard.total')}
-            </Link>
-          </div>
-
-          <ul className="space-y-2">
-            {myOpenTasks.map((task) => {
-              // Both sides as lab days. Comparing a due date against the
-              // server's `new Date()` made the badge a day late every morning
-              // before 07:00, when UTC is still on yesterday.
-              const overdue = Boolean(task.due_date) && task.due_date < today;
-              return (
-                <li key={task.id}>
-                  <Link
-                    href={`/tasks`}
-                    className={`block p-4 rounded-xl border transition ${
-                      overdue ? 'bg-red-50 border-red-200 hover:border-red-300' : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-                      <span className={`font-semibold ${overdue ? 'text-red-900' : 'text-gray-900'}`}>
-                        {task.title}
-                      </span>
-                      {task.due_date && (
-                        <span className={`text-xs font-medium tabular-nums ${overdue ? 'text-red-600' : 'text-gray-500'}`}>
-                          {t('tasks.due')}: {task.due_date} {overdue && t('tasks.overdue')}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {awaiting.length > 0 && (
-        <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
-          <div>
-            <h3 className="font-semibold text-amber-900">{t('dashboard.awaitingYou')}</h3>
-            <p className="text-sm text-amber-800">{t('dashboard.awaitingHint')}</p>
-          </div>
-
-          <ul className="space-y-2">
-            {awaiting.map(({ poll, remaining }) => (
-              <li key={poll.id}>
-                <Link
-                  href={`/meetings/polls/${poll.id}`}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 bg-white rounded-lg border border-amber-200 hover:border-amber-400 transition"
-                >
-                  <span className="font-medium text-gray-900 flex-1 min-w-48">{poll.title}</span>
-                  <span className="text-xs text-gray-500 tabular-nums">
-                    {t('dashboard.awaitingSlots', { n: remaining })}
-                  </span>
-                  <span className="text-sm font-medium text-blue-600">
-                    {t('dashboard.answerNow')}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Next meeting -- scheduled, or plainly not -- with the week's lead
-          along the bottom. The duty is not a separate topic from the meeting
-          it prepares, and as its own card it took a whole column to say one
-          name. */}
-      <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.nextMeeting')}</h3>
-
-        {upcoming ? (
-          <>
-            <p className="text-xl font-bold text-gray-900">{upcoming.title}</p>
-            <p className="text-sm text-gray-600 tabular-nums">
-              {formatLabTime(upcoming.start_at, locale)}
-            </p>
-            {upcoming.location && <p className="text-sm text-gray-500">{upcoming.location}</p>}
-            <Link
-              href={`/meetings/${upcoming.id}`}
-              className="inline-block text-sm text-blue-600 hover:underline"
-            >
-              {t('dashboard.openMeeting')}
-            </Link>
-          </>
-        ) : currentBreak ? (
-          <>
-            <p className="text-xl font-bold text-gray-900">{t('dashboard.breakWeek', { name: currentBreak.name })}</p>
-            <p className="text-sm text-gray-500">
-              {(() => {
-                const resumes = new Date(currentBreak.end_date);
-                resumes.setUTCDate(resumes.getUTCDate() + 1);
-                const formatter = new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: 'long' });
-                return t('dashboard.breakResumes', { date: formatter.format(resumes) });
-              })()}
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
-            <p className="text-sm text-gray-500">{t('dashboard.notScheduledHint')}</p>
-            {canSchedule && (
-              <Link
-                href="/meetings"
-                className="inline-block text-sm text-blue-600 hover:underline"
-              >
-                {t('dashboard.scheduleNow')}
-              </Link>
-            )}
-          </>
-        )}
-
-        {/* The lead stands whether or not anything is scheduled, so this strip
-            shows in both states above. */}
-        {!currentBreak && (
-          <div className="pt-3 border-t border-gray-100 space-y-2">
-            {students.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                <span className="text-gray-400">{t('rotation.title')}: </span>
-                {t('rotation.noStudents')}
-              </p>
-            ) : (
-              <>
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                  <span className="text-gray-500">{t('rotation.title')}:</span>
-                  <span className="font-semibold text-gray-900">
-                    {confirmedHost || suggested?.name}
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      confirmedHost ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
-                    }`}
-                  >
-                    {confirmedHost ? t('rotation.confirmed') : t('rotation.suggested')}
-                  </span>
-                </p>
-
-                {lead?.user_id === actor.id && (
-                  <div className="pt-2">
-                    <Link
-                      href="/tasks/weekly"
-                      className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition"
-                    >
-                      {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
-                    </Link>
-                  </div>
-                )}
-
-                {canConfirm && (
-                  <HostPicker
-                    weekKey={thisWeekKey}
-                    students={students.map((student) => ({ id: student.id, name: student.name }))}
-                    hostId={lead?.user_id ?? ''}
-                    suggestedId={suggested?.id ?? ''}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </section>
 
       {/* Answered, but still open: quieter than the amber card above, because
           it is not something to do -- it is somewhere to go back to. */}
