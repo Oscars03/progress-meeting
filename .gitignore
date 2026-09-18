@@ -46,10 +46,15 @@ next-env.d.ts
 /IRiSH Lab Logo/*
 !/IRiSH Lab Logo/README.md
 
-# Markdown other than README stays local and is not published to GitHub.
+# Markdown other than README stays local and is not published to GitHub:
+# working notes, handover prompts and plans are for whoever is at this machine.
 # Kept last so it overrides the logo folder rules above for README.md too.
+#
+# The exceptions are the documents somebody cloning the repo needs in order to
+# work on it -- how to run it, and how to ship it.
 *.md
 !README.md
+!DEPLOY.md
 
 # Claude Code personal settings (not shared)
 .claude/settings.local.json
