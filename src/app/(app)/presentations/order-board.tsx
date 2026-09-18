@@ -323,7 +323,15 @@ export default function OrderBoard({
                     </span>
                   )}
 
-                  <span className="w-7 h-7 shrink-0 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-700 text-sm font-semibold tabular-nums">
+                  {/* Blue means "you" everywhere -- the same mark the
+                      dashboard fills in its row of presenters. The number is
+                      the loudest thing in the row because the row is about
+                      the number. */}
+                  <span
+                    className={`w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-full text-base font-bold tabular-nums ${
+                      mine ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
                     {index + 1}
                   </span>
 
@@ -336,7 +344,7 @@ export default function OrderBoard({
                   </span>
 
                   {mine && (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-700">
                       {t('topics.mine')}
                     </span>
                   )}
@@ -369,9 +377,18 @@ export default function OrderBoard({
                     inside them rather than as siblings competing for a place. */}
                 <ul className="space-y-1.5 pl-2 border-l-2 border-gray-100">
                   {block.topics.map((topic) => (
-                    <li key={topic.id} className="pl-3">
+                    <li key={topic.id} className="pl-3 flex gap-2.5">
+                      {/* A dot, not a number. The count is already on the
+                          row, and a numbered topic beside a numbered presenter
+                          read as the same number twice -- worst for the common
+                          case of one topic, where the "1" said nothing at all.
+                          bg-current over text-gray-400 so the dot follows the
+                          theme; bg-gray-400 is not on the dark remap list. */}
+                      <span className="shrink-0 mt-2 h-1.5 w-1.5 rounded-full bg-current text-gray-400" />
+
+                      <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                        <span className="text-sm font-medium text-gray-900 flex-1 min-w-40">
+                        <span className="text-sm font-medium text-gray-900 flex-1 min-w-40 break-words">
                           {topic.title}
                         </span>
 
@@ -401,8 +418,11 @@ export default function OrderBoard({
                       </div>
 
                       {topic.details && (
-                        <p className="text-sm text-gray-600 mt-0.5">{topic.details}</p>
+                        <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line break-words">
+                          {topic.details}
+                        </p>
                       )}
+                      </div>
                     </li>
                   ))}
                 </ul>
