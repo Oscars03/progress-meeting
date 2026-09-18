@@ -72,7 +72,9 @@ const { createMeeting, deleteMeeting, rescheduleMeetingAction } = await import(
 const { createTask, updateTaskStatus, updateTaskDetails, deleteTask } = await import('../app/(app)/tasks/actions');
 const { saveWeeklyUpdateAction, deleteWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 const { updateMyNameAction } = await import('../app/(app)/settings/actions');
-const { setTopicOrder, clearTopicOrder } = await import('../app/(app)/presentations/actions');
+const { setTopicOrder, clearTopicOrder, addTopic, updateTopic, deleteTopic } = await import(
+  '../app/(app)/presentations/actions'
+);
 const { updatePersonalEventAction } = await import('../app/(app)/settings/schedule-actions');
 const { saveMinutesAction } = await import('../app/(app)/meetings/[id]/actions');
 const { pushMeetingAction, pullMeetingAction } = await import('../app/(app)/calendar-actions');
@@ -1053,6 +1055,86 @@ describe('arranging the running order', () => {
 
     expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * An advisor runs the meeting without appearing in it: they read the week's
+ * agenda and arrange it, and the topics on it belong to whoever did the work.
+ *
+ * Arranging is tested above and stays theirs -- what changes here is that the
+ * agenda is no longer something they can write to.
+ */
+describe('what an advisor may do to a topic', () => {
+  beforeEach(() => {
+    tables['topics'] = [
+      { id: 't1', title: 'A', details: '', owner_id: 'stu', week_key: WEEK, status: 'planned', row_version: 1 },
+      { id: 'tp', title: 'Mine', details: '', owner_id: 'prof', week_key: WEEK, status: 'planned', row_version: 1 },
+    ];
+  });
+
+  it('refuses a professor adding one, and writes nothing', async () => {
+    signedInAs('prof', 'professor');
+    const result = await addTopic({ title: 'Something to show', week_key: WEEK });
+
+    expect(result).toMatchObject({ ok: false, error: 'topics.advisorNoTopics' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('lets a student add one, under their own name', async () => {
+    signedInAs('stu');
+    const result = await addTopic({ title: 'Nav2 trial 3', week_key: WEEK });
+
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith('topics', expect.objectContaining({ owner_id: 'stu' }), 'stu');
+  });
+
+  // The admin account is the one that fixes what nobody else can, so the rule
+  // is about advising rather than about rank.
+  it('lets an admin add one', async () => {
+    signedInAs('boss', 'admin');
+    const result = await addTopic({ title: 'Housekeeping', week_key: WEEK });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("refuses a professor rewording somebody else's", async () => {
+    signedInAs('prof', 'professor');
+    const result = await updateTopic('t1', { title: 'Renamed' }, 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'topics.notYours' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses a professor dropping somebody else's", async () => {
+    signedInAs('prof', 'professor');
+    const result = await deleteTopic('t1', 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'topics.notYours' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  // A professor who wrote one before this rule still owns it, and an owner is
+  // always allowed to correct or withdraw their own.
+  it('lets a professor edit the one they already own', async () => {
+    signedInAs('prof', 'professor');
+    const result = await updateTopic('tp', { title: 'Corrected' }, 1);
+
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalledWith(
+      'topics',
+      'tp',
+      { title: 'Corrected', details: '' },
+      1,
+      'prof',
+    );
+  });
+
+  it("lets an admin fix anybody's", async () => {
+    signedInAs('boss', 'admin');
+    const result = await updateTopic('t1', { title: 'Fixed' }, 1);
+
+    expect(result.ok).toBe(true);
   });
 });
 
