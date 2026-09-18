@@ -15,7 +15,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import PollGrid, { type SlotView } from './poll-grid';
-import { labMembers } from '@/lib/members';
+import { labMembers, memberIds } from '@/lib/members';
 
 export default async function PollDetailPage(props: PageProps<'/meetings/polls/[id]'>) {
   const { id } = await props.params;
@@ -41,6 +41,14 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
   const activeUsers = labMembers(users);
   const nameById = new Map(activeUsers.map((u) => [u.id, u.name] as const));
 
+  // A poll is asked of members and counted over members. Admin is a system
+  // account, not somebody a meeting has to suit, so it is neither asked nor
+  // counted -- and a vote already sitting in the sheet from before this rule
+  // is dropped rather than merely uncounted, or a yes from outside the group
+  // would be added to a tally whose denominator leaves that voter out.
+  const voters = memberIds(users);
+  const iMayVote = voters.has(actor.id);
+
   const mySlots = slots
     .filter((s) => s.poll_id === id)
     .sort((a, b) => a.start_at.localeCompare(b.start_at));
@@ -50,6 +58,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     for (const vote of votes) {
       if (vote.slot_id !== slot.id) continue;
       const choice = vote.choice as Choice;
+      if (!voters.has(vote.user_id)) continue;
       if (choice === 'yes' || choice === 'no') {
         byUser.set(vote.user_id, choice);
       }
@@ -124,6 +133,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
         pollRowVersion={poll.row_version}
         slots={slotViews}
         canManage={canManage}
+        canVote={iMayVote}
         closed={closed}
         alreadyConfirmed={Boolean(poll.meeting_id)}
       />

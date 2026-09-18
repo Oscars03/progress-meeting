@@ -17,6 +17,7 @@ import { formatLabClock, formatLabTime, labDay } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
 import { brokenConnections } from '@/lib/google/tokens';
 import { breakForWeek } from '@/lib/term-breaks';
+import { memberIds } from '@/lib/members';
 import { intlLocale } from '@/lib/ui/i18n';
 import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from '@/lib/presentation-order';
 import { actsAsWeekLead } from '@/lib/rotation';
@@ -113,9 +114,15 @@ export default async function DashboardPage() {
   // and a suggestion box nobody empties stops being used.
   const openFeedback = actor.role === 'admin' ? feedback.filter((f) => f.status !== 'done').length : 0;
 
-  // Asking is the lead's job, but answering is everyone's, and the ask is easy
-  // to miss on a page nobody opens. It sits at the top of the page they do.
-  const open = openPolls(polls, slots, votes, actor.id);
+  // Asking is the lead's job, but answering is every *member's*, and the ask is
+  // easy to miss on a page nobody opens. It sits at the top of the page they do.
+  //
+  // Not admin, though. Its availability is not weighed when finding a slot and
+  // not counted when deciding whether everyone has answered, so being chased
+  // for an answer nobody wants is the one thing left that treated it as a
+  // member.
+  const iAmAVoter = memberIds(users).has(actor.id);
+  const open = iAmAVoter ? openPolls(polls, slots, votes, actor.id) : [];
   const awaiting = open.filter((row) => row.remaining > 0);
   const answered = open.filter((row) => row.remaining === 0);
   const canConfirm = hasManagerRights(actor.role);

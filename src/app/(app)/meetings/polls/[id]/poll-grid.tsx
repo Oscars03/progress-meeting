@@ -70,6 +70,7 @@ export default function PollGrid({
   pollRowVersion,
   slots,
   canManage,
+  canVote,
   closed,
   alreadyConfirmed,
 }: {
@@ -77,6 +78,12 @@ export default function PollGrid({
   pollRowVersion: number;
   slots: SlotView[];
   canManage: boolean;
+  /**
+   * Whether this viewer is somebody the meeting has to suit. False for an
+   * admin account, which is not counted in the tally -- so offering it the
+   * buttons would be offering an answer that is thrown away.
+   */
+  canVote: boolean;
   closed: boolean;
   alreadyConfirmed: boolean;
 }) {
@@ -249,7 +256,7 @@ export default function PollGrid({
               </div>
             )}
 
-            {!closed && (
+            {!closed && canVote && (
               <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
                 {(['yes', 'no'] as Choice[]).map((choice) => {
                   const active = slot.myChoice === choice;
