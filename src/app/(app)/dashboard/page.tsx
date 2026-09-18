@@ -499,17 +499,14 @@ export default async function DashboardPage() {
               </p>
 
               <ul className="space-y-2">
-                {myTurn.topics.map((topic, i) => (
+                {myTurn.topics.map((topic) => (
                   <li
                     key={topic.id}
                     className="flex gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50"
                   >
-                    {/* Numbered within your own block, so it reads as "your
-                        second topic" and never as a place in the running
-                        order -- that number is the big one above. */}
-                    <span className="shrink-0 h-6 w-6 rounded-full bg-gray-200 text-gray-600 text-xs font-semibold tabular-nums flex items-center justify-center">
-                      {i + 1}
-                    </span>
+                    {/* A dot, not a number -- the big number above is the
+                        only one on this card that means anything. */}
+                    <span className="shrink-0 mt-2 h-1.5 w-1.5 rounded-full bg-current text-gray-400" />
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900 break-words">{topic.title}</p>
                       {topic.details && (
