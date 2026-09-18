@@ -64,6 +64,29 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   // Whoever runs the week owns its schedule, so the lead can undo their own
   // booking. Admin can always step in.
   const canRemove = actor.role === 'admin' || actsAsWeekLead(actor, leads, meetingWeek);
+
+  /**
+   * Whether anything has changed since the event was last sent to Google.
+   *
+   * A push is not free -- it re-invites every member -- so the button is not
+   * offered when there is nothing new to send, and comes back the moment the
+   * meeting is edited.
+   *
+   * The comparison needs a moment's slack, and this is why: recording the sync
+   * *is itself a write to the row*, so `updated_at` always lands a fraction
+   * after the `google_synced_at` it just stored. Measured on the live row, 215
+   * milliseconds. A plain `>` therefore reported every freshly-synced meeting
+   * as having unsent changes -- always true, which is the same as not asking.
+   *
+   * A minute separates "the sync's own write" from "a person edited this
+   * afterwards" by a wide margin in both directions: the first is always under
+   * a second, the second never is.
+   */
+  const SYNC_WRITE_SLACK_MS = 60_000;
+  const syncedAtMs = Date.parse(meeting.google_synced_at ?? '');
+  const updatedAtMs = Date.parse(meeting.updated_at ?? '');
+  const hasUnsentChanges =
+    Number.isNaN(syncedAtMs) || updatedAtMs > syncedAtMs + SYNC_WRITE_SLACK_MS;
   const suggestedHost = hostName ? null : suggestNextHost(users, leads);
   const calendarOwner = users.find((u) => u.id === meeting.google_calendar_owner_id);
   // This showed the two stored instants verbatim -- "2026-09-25T01:00:00.000Z"
@@ -133,18 +156,24 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
         )}
       </section>
 
+      {/* Same rule as removing the meeting: the week's schedule belongs to
+          the week's lead, and admin can step in. */}
       <CalendarSync
         meetingId={id}
         linked={Boolean(meeting.google_event_id)}
         syncedAt={meeting.google_synced_at ?? ''}
         ownerName={calendarOwner?.name ?? t('meeting.eventCreator')}
+        canSync={canRemove}
+        hasUnsentChanges={hasUnsentChanges}
       />
 
+      {/* Everybody reads the record of the meeting; the lead writes it. */}
       <MinutesEditor
         meetingId={id}
         initialContent={minutes?.content ?? ''}
         minutesId={minutes?.id ?? null}
         rowVersion={minutes?.row_version ?? null}
+        canEdit={canRemove}
       />
 
       <ActionItems

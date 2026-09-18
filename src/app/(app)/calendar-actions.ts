@@ -5,7 +5,7 @@ import { requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { busyTimes, NotConnectedError } from '@/lib/google/calendar';
-import { pullMeeting, pushMeeting } from '@/lib/google/meeting-sync';
+import { pullMeeting, pushMeeting, type SyncOutcome } from '@/lib/google/meeting-sync';
 import { disconnect, getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import {
   addDays,
@@ -20,8 +20,18 @@ import {
   type PersonAvailability,
 } from '@/lib/availability-grid';
 import { labInstant } from '@/lib/lab-time';
+import { actsAsWeekLead } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
+import { UserError } from '@/lib/user-error';
+import type { TranslationKey } from '@/lib/ui/i18n';
 import { labMembers } from '@/lib/members';
-import type { MeetingAttendeeRecord, MeetingRecord, UserRecord, PersonalEventRecord } from '@/lib/db/schema';
+import type {
+  MeetingAttendeeRecord,
+  MeetingRecord,
+  UserRecord,
+  PersonalEventRecord,
+  WeekLeadRecord,
+} from '@/lib/db/schema';
 
 /**
  * The hours the grid covers each day, in the lab's zone. Kept in step with the
@@ -206,8 +216,48 @@ export async function disconnectCalendarAction(): Promise<ActionResult> {
   });
 }
 
+/**
+ * Whoever runs the week the meeting falls in, or an admin.
+ *
+ * Pushing is not a read: it creates a calendar event on the organiser's
+ * account and sends an invitation to every member. Until now it needed only a
+ * session, so any student could re-send the whole lab an invitation to a
+ * meeting they had nothing to do with -- as many times as they liked. Pulling
+ * is worse in its way: it writes the meeting's title, times and status back
+ * from Google over whatever the app holds.
+ *
+ * Same rule as removing a meeting: the week's schedule belongs to the week's
+ * lead, and admin can step in.
+ */
+async function assertRunsTheMeeting(
+  actor: { id: string; role: string; previewingLead?: boolean },
+  meetingId: string
+): Promise<void> {
+  if (actor.role === 'admin') return;
+
+  const meeting = await SheetRepo.findOne<MeetingRecord>('meetings', meetingId);
+  if (!meeting) throw new UserError('error.notFound');
+
+  const start = labInstant(meeting.start_at);
+  const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+  if (!start || !actsAsWeekLead(actor, leads, weekKey(start))) {
+    throw new UserError('avail.leadOnly');
+  }
+}
+
+/** The failure shape the sync card already understands. */
+function refused(error: TranslationKey): SyncOutcome {
+  return { ok: false, reason: 'error', error };
+}
+
 export async function pushMeetingAction(meetingId: string) {
   const actor = await requireSession();
+  try {
+    await assertRunsTheMeeting(actor, meetingId);
+  } catch (err) {
+    return refused(err instanceof UserError ? err.key : 'error.generic');
+  }
+
   const result = await pushMeeting(meetingId, actor.id);
   revalidatePath(`/meetings/${meetingId}`);
   revalidatePath('/meetings');
@@ -216,6 +266,12 @@ export async function pushMeetingAction(meetingId: string) {
 
 export async function pullMeetingAction(meetingId: string) {
   const actor = await requireSession();
+  try {
+    await assertRunsTheMeeting(actor, meetingId);
+  } catch (err) {
+    return refused(err instanceof UserError ? err.key : 'error.generic');
+  }
+
   const result = await pullMeeting(meetingId, actor.id);
   revalidatePath(`/meetings/${meetingId}`);
   revalidatePath('/meetings');

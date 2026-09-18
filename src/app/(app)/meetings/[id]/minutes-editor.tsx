@@ -10,11 +10,19 @@ export default function MinutesEditor({
   initialContent,
   minutesId,
   rowVersion,
+  canEdit,
 }: {
   meetingId: string;
   initialContent: string;
   minutesId: string | null;
   rowVersion: number | null;
+  /**
+   * Whoever runs this meeting's week, or an admin. There is one minutes row
+   * per meeting and a save replaces it, so an editable box for everybody was
+   * an invitation to overwrite the agreed account of a meeting you did not
+   * run. Reading stays open to all.
+   */
+  canEdit: boolean;
 }) {
   const { t } = usePrefs();
   const router = useRouter();
@@ -63,24 +71,36 @@ export default function MinutesEditor({
         </div>
       )}
 
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        rows={10}
-        placeholder={t('minutes.placeholder')}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      {canEdit ? (
+        <>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={10}
+            placeholder={t('minutes.placeholder')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={save}
-          disabled={isPending || !dirty}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-        >
-          {isPending ? t('common.saving') : t('common.save')}
-        </button>
-        <p className="text-xs text-gray-500">{t('minutes.oneRecord')}</p>
-      </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={save}
+              disabled={isPending || !dirty}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+            >
+              {isPending ? t('common.saving') : t('common.save')}
+            </button>
+            <p className="text-xs text-gray-500">{t('minutes.oneRecord')}</p>
+          </div>
+        </>
+      ) : content ? (
+        /* whitespace-pre-line: the minutes are typed in paragraphs, and a
+           collapsed record reads as one run-on sentence. */
+        <p className="text-sm text-gray-900 whitespace-pre-line break-words">{content}</p>
+      ) : (
+        /* Not a congratulation: nothing has been written, which is different
+           from the meeting having nothing to record -- see CLAUDE.md. */
+        <p className="text-sm text-gray-500">{t('minutes.noneYet')}</p>
+      )}
     </section>
   );
 }

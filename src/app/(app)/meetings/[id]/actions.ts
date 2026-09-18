@@ -5,10 +5,15 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
+import { actsAsWeekLead } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
+import { labInstant } from '@/lib/lab-time';
 import type {
   ActionItemRecord,
   MeetingAttendeeRecord,
+  MeetingRecord,
   MinutesRecord,
+  WeekLeadRecord,
   CellValue,
 } from '@/lib/db/schema';
 
@@ -31,6 +36,33 @@ function revalidate(meetingId: string) {
 }
 
 /**
+ * Whoever runs the week the meeting falls in, or an admin.
+ *
+ * Writing the minutes is writing the lab's record of what was decided, and it
+ * is one row per meeting -- a save replaces what is there. Any signed-in
+ * member could do it, so anyone could overwrite the agreed account of a
+ * meeting they did not run. Preparing the meeting and recording it are the
+ * same job, and it belongs to the week's lead.
+ *
+ * Everybody still reads them. Only writing is narrowed.
+ */
+async function assertRecordsTheMeeting(
+  actor: { id: string; role: string; previewingLead?: boolean },
+  meetingId: string
+): Promise<void> {
+  if (actor.role === 'admin') return;
+
+  const meeting = await SheetRepo.findOne<MeetingRecord>('meetings', meetingId);
+  if (!meeting) throw new UserError('error.notFound');
+
+  const start = labInstant(meeting.start_at);
+  const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+  if (!start || !actsAsWeekLead(actor, leads, weekKey(start))) {
+    throw new UserError('avail.leadOnly');
+  }
+}
+
+/**
  * Minutes are one row per meeting: saving twice updates in place rather than
  * stacking revisions, so there is a single agreed record per meeting instead
  * of a pile the room has to reconcile later.
@@ -42,8 +74,9 @@ export async function saveMinutesAction(
   rowVersion: number | null
 ): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('student');
+    const actor = await requireSession();
     requireMeetingId(meetingId);
+    await assertRecordsTheMeeting(actor, meetingId);
 
     if (existingId && rowVersion !== null) {
       await SheetRepo.update<MinutesRecord>(
