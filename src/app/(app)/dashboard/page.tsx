@@ -143,6 +143,9 @@ export default async function DashboardPage() {
           position: myPlaceIndex + 1,
           outOf: presenters.length,
           topics: presenters[myPlaceIndex].topics,
+          // Whoever goes immediately before you. After your own number, this
+          // is the fact that decides when to stop typing and get ready.
+          after: myPlaceIndex > 0 ? nameOf(presenters[myPlaceIndex - 1].ownerId) : '',
         }
       : null;
 
@@ -453,19 +456,68 @@ export default async function DashboardPage() {
 
           {myTurn ? (
             <>
-              <p className="text-sm text-gray-700">
-                {t('dashboard.yourPosition', { n: myTurn.position, of: myTurn.outOf })}
+              {/* The number, not a sentence about the number. Being third is a
+                  fact you want off the page in one glance, and "คุณนำเสนอเป็น
+                  ลำดับที่ 3 จาก 5 คน" made you read eleven words to get it. */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <p className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-bold text-blue-600 tabular-nums leading-none">
+                    {myTurn.position}
+                  </span>
+                  <span className="text-sm text-gray-500 tabular-nums">
+                    {t('dashboard.ofPresenters', { of: myTurn.outOf })}
+                  </span>
+                </p>
+
+                {/* The queue itself. One mark per presenter, yours filled --
+                    position and length in the same glance, without counting. */}
+                <ol
+                  className="flex flex-wrap items-center gap-1.5"
+                  aria-label={t('dashboard.yourPosition', {
+                    n: myTurn.position,
+                    of: myTurn.outOf,
+                  })}
+                >
+                  {Array.from({ length: myTurn.outOf }, (_, i) => (
+                    <li
+                      key={i}
+                      className={
+                        i + 1 === myTurn.position
+                          ? 'h-2.5 w-6 rounded-full bg-blue-600'
+                          : 'h-2.5 w-2.5 rounded-full bg-gray-300'
+                      }
+                    />
+                  ))}
+                </ol>
+              </div>
+
+              {/* The one other fact that decides when to get ready. */}
+              <p className="text-sm text-gray-500">
+                {myTurn.after
+                  ? t('dashboard.afterPerson', { name: myTurn.after })
+                  : t('dashboard.firstUp')}
               </p>
-              <ul className="space-y-1.5">
-                {myTurn.topics.map((topic) => (
+
+              <ul className="space-y-2">
+                {myTurn.topics.map((topic, i) => (
                   <li
                     key={topic.id}
-                    className="p-3 rounded-lg border border-gray-200 bg-gray-50"
+                    className="flex gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50"
                   >
-                    <p className="font-medium text-gray-900">{topic.title}</p>
-                    {topic.details && (
-                      <p className="text-sm text-gray-500 whitespace-pre-line">{topic.details}</p>
-                    )}
+                    {/* Numbered within your own block, so it reads as "your
+                        second topic" and never as a place in the running
+                        order -- that number is the big one above. */}
+                    <span className="shrink-0 h-6 w-6 rounded-full bg-gray-200 text-gray-600 text-xs font-semibold tabular-nums flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 break-words">{topic.title}</p>
+                      {topic.details && (
+                        <p className="text-sm text-gray-500 whitespace-pre-line break-words">
+                          {topic.details}
+                        </p>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
