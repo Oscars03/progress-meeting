@@ -1,0 +1,198 @@
+# การ deploy
+
+ทุกการเปลี่ยนแปลงเข้า `master` ผ่าน pull request เท่านั้น แล้วค่อย deploy ขึ้น
+Vercel ด้วยมือ — ไม่มี auto-deploy จาก push
+
+**Production:** https://irish-progress.vercel.app
+**Vercel project:** `irish-progress` (team `irishlab101-7231s-projects`)
+
+---
+
+## ขั้นตอนเต็ม
+
+### 1. แตกกิ่ง
+
+```bash
+git checkout master
+git pull --ff-only
+git checkout -b ชื่อ-กิ่ง
+```
+
+**อย่า push เข้า `master` ตรง ๆ** — เป็นนิสัยเดิมของโปรเจกต์นี้และเลิกไปแล้ว
+โดยตั้งใจ GitHub บังคับให้ไม่ได้ (repo เป็น private บนบัญชีฟรี ruleset จึงไม่ทำงาน)
+กฎนี้แข็งแรงเท่าคนที่กด merge เท่านั้น
+
+### 2. รันเช็คในเครื่องก่อนเปิด PR
+
+```bash
+npm run lint
+npm test
+npm run build
+npx tsc --noEmit
+```
+
+เรียง `build` ก่อน `typecheck` เหมือนใน CI เพราะ `tsc` ที่ยังไม่มี generated
+globals ของ Next จะฟ้องเรื่องพวกนั้นแทนที่จะฟ้องโค้ดจริง
+
+> **อ่านบรรทัด `Test Files` ไม่ใช่แค่ `Tests`**
+> ไฟล์เทสต์ที่ **โหลดไม่ขึ้น** จะรายงานว่า 0 เทสต์ ไม่ใช่เทสต์ที่ fail สรุปจะขึ้นว่า
+> `Tests 57 passed` โดยมี `Test Files 1 failed` อยู่บรรทัดบน เคยเกิดขึ้นจริง —
+> `auth.test.ts` import พัง เทสต์หายไป 6 ตัวเงียบ ๆ และถูกรายงานว่าเขียว
+
+### 3. เปิด PR
+
+```bash
+git push -u origin ชื่อ-กิ่ง
+gh pr create --title "..." --body "..."
+```
+
+`gh` อยู่ที่ `C:/Program Files/GitHub CLI/gh.exe` — terminal ที่เปิดก่อนติดตั้ง
+อาจต้องใช้ path เต็ม
+
+### 4. รอ CI แล้ว**อ่านทุกขั้น**
+
+```bash
+gh pr checks <เลข PR>
+gh run view --job=<job id>          # ดูทีละขั้น
+```
+
+ต้องเห็นครบ **5 ขั้น**: `Install` · `Lint` · `Tests` · `Build` · `Typecheck`
+
+> **เช็คแดงคือรายการ ไม่ใช่พาดหัว**
+> เมื่อก่อนขั้นตอนจะหยุดที่ตัวแรกที่พัง รันแดงจึงรายงานปัญหาเดียวและปล่อยที่เหลือไม่รู้
+> PR ที่มี lint error 5 จุดเคยถูก merge ด้วยเหตุผลว่า "แค่ lint" — ทั้งที่ tests,
+> build, typecheck **ยังไม่ได้รันกับโค้ดนั้นเลย** ตอนนี้ทั้ง 3 ขั้นรันเสมอไม่ว่าขั้นก่อน
+> จะพังหรือไม่ เหลือ 2 ขั้นที่ยังกั้นไว้ตั้งใจ: `Install` (ไม่มีมันก็รันอะไรไม่ได้) และ
+> `Build` ก่อน `Typecheck`
+
+> **รอให้รันจบจริง ๆ ก่อน merge**
+> PR #41 ถูก merge ในนาทีเดียวกับที่ CI ยังรันอยู่ แล้ว CI ก็ fail
+
+### 5. Merge
+
+```bash
+gh pr merge <เลข PR> --rebase --delete-branch
+```
+
+rebase ทำให้ commit ได้ SHA ใหม่ `git branch -d` จึงบอกว่ากิ่งยัง unmerged —
+ยืนยันด้วย `git diff --quiet master <กิ่ง>` ก่อนลบด้วย `-D`
+
+### 6. Deploy
+
+```bash
+git checkout master
+git pull --ff-only
+npx vercel --prod --yes
+```
+
+ขึ้น `▲ Aliased https://irish-progress.vercel.app` คือสำเร็จ
+
+### 7. ตรวจหลัง deploy
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://irish-progress.vercel.app/login
+curl -s https://irish-progress.vercel.app/api/auth/providers   # callback URL ถูกไหม
+```
+
+แล้วเปิดหน้าเว็บจริงดูสิ่งที่เพิ่งแก้ **lint/tests/build/typecheck เขียวไม่ได้แปลว่า
+ฟีเจอร์ทำงาน** — เคยมีบั๊กจริง 2 ตัวที่ผ่านทั้งสี่อย่างมาได้
+
+---
+
+## เรื่องที่คนมักสะดุด
+
+### master ไม่มีเครื่องหมาย CI — ปกติ
+
+CI รันบน `pull_request` (กับสั่งมือผ่าน `workflow_dispatch`) เท่านั้น commit บน
+master หลัง merge จึงไม่มีติ๊กถูก **ไม่ใช่รันพังหรือถูกข้าม** — รันของ PR คือตัวที่นับ
+
+ถ้าอยากเช็ค master เองจริง ๆ สั่งจากแท็บ Actions ได้
+
+### Environment variables
+
+อยู่ 2 ที่ และไม่ sync กันเอง:
+
+| ที่ | ใช้ตอน |
+|---|---|
+| `.env.local` | รันในเครื่อง |
+| Vercel → Settings → Environment Variables | production |
+
+```bash
+npx vercel env ls production
+npx vercel env update ชื่อตัวแปร production     # แก้ค่าเดิม
+npx vercel env add ชื่อตัวแปร production        # เพิ่มใหม่
+```
+
+**env ที่แก้แล้วยังไม่มีผลจนกว่าจะ deploy ใหม่**
+
+ตัวที่ต้องมีบน production: `SPREADSHEET_ID` · `SERVICE_ACCOUNT_JSON` ·
+`NEXTAUTH_SECRET` · `NEXTAUTH_URL` · `GOOGLE_CLIENT_ID` · `GOOGLE_CLIENT_SECRET` ·
+`ALLOWED_SIGNUP_DOMAINS` · `CRON_SECRET` · `LAB_DRIVE_EMAIL`
+
+### ถ้าเปลี่ยนโดเมน
+
+3 อย่างนี้ลืมแล้วล็อกอินพัง และ**ต้องทำตามลำดับ**:
+
+1. **Google Cloud Console ก่อน** — เพิ่ม (ไม่ต้องลบของเดิม) ที่
+   [Credentials](https://console.cloud.google.com/apis/credentials?project=564538306798)
+   - Authorized JavaScript origins: `https://โดเมนใหม่`
+   - Authorized redirect URIs: `https://โดเมนใหม่/api/auth/callback/google`
+2. เปลี่ยนโดเมน / ชื่อโปรเจกต์ใน Vercel
+3. `npx vercel env update NEXTAUTH_URL production` → `https://โดเมนใหม่` แล้ว deploy
+
+ยืนยันว่า `NEXTAUTH_URL` มีผลจริงด้วย `/api/auth/providers` — callback ที่คืนมา
+ต้องตรงกับที่ใส่ใน Google Console เป๊ะ
+
+การเชื่อม Google Calendar / Drive ของสมาชิก**ไม่หลุด** เพราะ refresh token
+ไม่ผูกกับโดเมน
+
+### Schema ของฐานข้อมูล
+
+ถ้า PR แตะ `SCHEMAS` ใน `src/lib/db/schema.ts` ต้องรัน migration ด้วยมือ —
+**ไม่มีอะไรรันให้อัตโนมัติตอน deploy**
+
+```bash
+npm run db:migrate-schema -- --dry-run    # ดูแผนก่อน
+npm run db:migrate-schema
+```
+
+อย่าใช้ `db:init` กับชีตที่มีข้อมูลแล้ว มันเขียนแถว header ทับที่เดิมโดยไม่ขยับ
+แถวข้อมูล ค่าทุกตัวจะเลื่อนหลุดจาก header ของมัน (ตอนนี้มันปฏิเสธที่จะรันถ้ามีแถว
+ข้อมูลอยู่)
+
+---
+
+## ย้อนกลับ (rollback)
+
+**ทางที่เร็วที่สุด** — ชี้ alias กลับไป deployment เดิม ไม่ต้อง build ใหม่:
+
+```bash
+npx vercel ls                                   # หา deployment ก่อนหน้า
+npx vercel alias set <deployment-url> irish-progress.vercel.app
+```
+
+**ถ้าโค้ดผิดจริง** — revert commit แล้วเข้ากระบวนการ PR ตามปกติ:
+
+```bash
+git revert <sha>
+```
+
+> ระวัง: **ข้อมูลในสเปรดชีตย้อนกลับไม่ได้ด้วยวิธีนี้** ถ้า deploy ที่พังเขียนแถวผิด
+> ลงไปแล้ว การชี้ alias กลับแก้แค่โค้ด ข้อมูลต้องซ่อมแยกต่างหาก — ค่าเดิมหาได้จาก
+> ตาราง `audit_log` ซึ่งเก็บ `old` ของทุกการเปลี่ยนแปลงไว้
+
+---
+
+## สรุปสั้น
+
+```bash
+git checkout -b my-change
+# ...แก้โค้ด...
+npm run lint && npm test && npm run build && npx tsc --noEmit
+git push -u origin my-change
+gh pr create --title "..." --body "..."
+gh pr checks <n>                                # รอครบ 5 ขั้น แล้วอ่านให้ครบ
+gh pr merge <n> --rebase --delete-branch
+git checkout master && git pull --ff-only
+npx vercel --prod --yes
+```
