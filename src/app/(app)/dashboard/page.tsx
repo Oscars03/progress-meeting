@@ -147,7 +147,23 @@ export default async function DashboardPage() {
   // steps in for a week whose lead has not been settled or has gone quiet.
   // Being able to do a job and being shown where it starts should not differ.
   const amThisWeeksLead = !currentBreak && actsAsWeekLead(actor, leads, thisWeekKey);
-  const iLeadThisWeek = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
+
+  /**
+   * Arranging a meeting and arranging its running order are not the same
+   * right, and the card offers both.
+   *
+   * Finding an hour and asking everyone to confirm it belongs to whoever runs
+   * the week. Ordering the presenters is a manager's as well -- a professor
+   * could always do it, and simply had no way in from here, so they were sent
+   * to find the page themselves.
+   *
+   * Each button is shown to whoever the action behind it will actually accept.
+   * A card offering three things and refusing two of them would be worse than
+   * not showing it.
+   */
+  const canRunTheWeek = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
+  const canArrangeOrder = !currentBreak && (hasManagerRights(actor.role) || amThisWeeksLead);
+  const iLeadThisWeek = canRunTheWeek || canArrangeOrder;
 
   const today = labDay(new Date());
 
@@ -367,6 +383,55 @@ export default async function DashboardPage() {
         </>
       )}
 
+      {/* What the lead has to do this week, where they start the week rather
+          than two pages into it. Not shown during a term break: there is no
+          meeting to arrange. */}
+      {iLeadThisWeek && (
+        <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
+          <div>
+            {/* An admin is shown this because they can do it, not because it
+                is their turn -- so it does not tell them it is. */}
+            <h3 className="font-semibold text-blue-800">
+              {t(amThisWeeksLead ? 'dashboard.yourLeadTurn' : 'dashboard.runThisWeek')}
+            </h3>
+            <p className="text-sm text-blue-700">
+              {t(canRunTheWeek ? 'dashboard.yourLeadTurnHint' : 'dashboard.arrangeOnlyHint')}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canRunTheWeek && (
+              <>
+                <Link
+                  href="/meetings/polls#availability"
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition"
+                >
+                  {t('dashboard.findFreeTime')}
+                </Link>
+                <Link
+                  href="/meetings/polls?new=1"
+                  className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
+                >
+                  {t('dashboard.createPoll')}
+                </Link>
+              </>
+            )}
+
+            {canArrangeOrder && (
+              <Link
+                href="/presentations"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  canRunTheWeek
+                    ? 'border border-blue-300 bg-white text-blue-700 hover:bg-blue-100'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {t('dashboard.arrangeOrder')}
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Your place in the running order. Shown even when you have nothing
           down, because "you have not added a topic" is the more useful of the
           two answers in the days before a meeting. */}
@@ -447,42 +512,6 @@ export default async function DashboardPage() {
               );
             })}
           </ul>
-        </section>
-      )}
-
-      {/* What the lead has to do this week, where they start the week rather
-          than two pages into it. Not shown during a term break: there is no
-          meeting to arrange. */}
-      {iLeadThisWeek && (
-        <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
-          <div>
-            {/* An admin is shown this because they can do it, not because it
-                is their turn -- so it does not tell them it is. */}
-            <h3 className="font-semibold text-blue-800">
-              {t(amThisWeeksLead ? 'dashboard.yourLeadTurn' : 'dashboard.runThisWeek')}
-            </h3>
-            <p className="text-sm text-blue-700">{t('dashboard.yourLeadTurnHint')}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/meetings/polls#availability"
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition"
-            >
-              {t('dashboard.findFreeTime')}
-            </Link>
-            <Link
-              href="/meetings/polls?new=1"
-              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
-            >
-              {t('dashboard.createPoll')}
-            </Link>
-            <Link
-              href="/presentations"
-              className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
-            >
-              {t('dashboard.arrangeOrder')}
-            </Link>
-          </div>
         </section>
       )}
 
