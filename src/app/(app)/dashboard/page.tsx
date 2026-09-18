@@ -334,6 +334,26 @@ export default async function DashboardPage() {
         {canSchedule && <NewMeetingButton />}
       </div>
 
+      {/* Above the meeting, and the only notice that is. Somebody waiting on
+          approval cannot use the app at all until an admin acts, so it is the
+          one card whose cost of being scrolled past is measured in days of
+          somebody else being locked out. */}
+      {awaitingApproval.length > 0 && (
+        <section className="p-5 sm:p-6 bg-purple-100 border border-gray-200 rounded-xl space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <div>
+              <h3 className="font-semibold text-purple-700">{t('pending.title')}</h3>
+              <p className="text-sm text-gray-600">{t('pending.hint')}</p>
+            </div>
+            <Link href="/settings" className="text-sm text-blue-600 hover:underline">
+              {t('pending.manage')}
+            </Link>
+          </div>
+
+          <PendingUsers users={awaitingApproval} />
+        </section>
+      )}
+
       {/* Meeting first, or the poll that will produce one -- see above. */}
       {upcoming ? (
         <>
@@ -500,22 +520,6 @@ export default async function DashboardPage() {
               </li>
             ))}
           </ul>
-        </section>
-      )}
-
-      {awaitingApproval.length > 0 && (
-        <section className="p-5 sm:p-6 bg-purple-100 border border-gray-200 rounded-xl space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <div>
-              <h3 className="font-semibold text-purple-700">{t('pending.title')}</h3>
-              <p className="text-sm text-gray-600">{t('pending.hint')}</p>
-            </div>
-            <Link href="/settings" className="text-sm text-blue-600 hover:underline">
-              {t('pending.manage')}
-            </Link>
-          </div>
-
-          <PendingUsers users={awaitingApproval} />
         </section>
       )}
 
