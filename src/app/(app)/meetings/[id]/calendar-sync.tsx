@@ -14,12 +14,29 @@ export default function CalendarSync({
   linked,
   syncedAt,
   ownerName,
+  canSync,
+  hasUnsentChanges,
 }: {
   meetingId: string;
   linked: boolean;
   syncedAt: string;
   /** Empty when the event's owner is no longer a user. */
   ownerName: string;
+  /**
+   * Whoever runs this meeting's week, or an admin. Pushing invites the whole
+   * lab and pulling overwrites the meeting from Google, so neither is
+   * something to leave lying about for any reader to press.
+   */
+  canSync: boolean;
+  /**
+   * Whether the meeting has changed since it was last sent.
+   *
+   * The push button is not a status light. Once the event is on the calendar
+   * and nothing has changed, pressing it re-sends the same invitation to
+   * everybody -- so it is not offered. It comes back on its own the moment
+   * there is something new to send.
+   */
+  hasUnsentChanges: boolean;
 }) {
   const { t } = usePrefs();
   const router = useRouter();
@@ -90,15 +107,17 @@ export default function CalendarSync({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={() => run(() => pushMeetingAction(meetingId))}
-          disabled={isPending}
-          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-        >
-          {isPending ? t('sync.syncing') : linked ? t('sync.pushChanges') : t('sync.pushInvite')}
-        </button>
+        {canSync && (!linked || hasUnsentChanges) && (
+          <button
+            onClick={() => run(() => pushMeetingAction(meetingId))}
+            disabled={isPending}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+          >
+            {isPending ? t('sync.syncing') : linked ? t('sync.pushChanges') : t('sync.pushInvite')}
+          </button>
+        )}
 
-        {linked && (
+        {canSync && linked && (
           <button
             onClick={() => run(() => pullMeetingAction(meetingId))}
             disabled={isPending}
@@ -108,6 +127,10 @@ export default function CalendarSync({
           </button>
         )}
 
+        {canSync && linked && !hasUnsentChanges && (
+          <span className="text-xs text-gray-500">{t('sync.upToDate')}</span>
+        )}
+
         {syncedAt && (
           <span className="text-xs text-gray-400 tabular-nums">
             {t('sync.lastSynced', { at: syncedAt.slice(0, 16).replace('T', ' ') })}
@@ -115,7 +138,9 @@ export default function CalendarSync({
         )}
       </div>
 
-      <p className="text-xs text-gray-400">{t('sync.manualNote')}</p>
+      {/* The note is about pressing a button, so it is for the people who
+          have one. */}
+      {canSync && <p className="text-xs text-gray-400">{t('sync.manualNote')}</p>}
     </section>
   );
 }

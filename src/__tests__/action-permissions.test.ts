@@ -74,6 +74,8 @@ const { saveWeeklyUpdateAction, deleteWeeklyUpdateAction } = await import('../ap
 const { updateMyNameAction } = await import('../app/(app)/settings/actions');
 const { setTopicOrder, clearTopicOrder } = await import('../app/(app)/presentations/actions');
 const { updatePersonalEventAction } = await import('../app/(app)/settings/schedule-actions');
+const { saveMinutesAction } = await import('../app/(app)/meetings/[id]/actions');
+const { pushMeetingAction, pullMeetingAction } = await import('../app/(app)/calendar-actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
@@ -833,6 +835,101 @@ describe('moving a confirmed meeting', () => {
 
     expect(result).toMatchObject({ ok: false, error: 'error.notFound' });
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Sending a meeting to Google, and writing the record of it.
+ *
+ * Both looked like reads and are not. A push creates the event and invites
+ * every member -- any signed-in student could re-send the whole lab an
+ * invitation, as often as they liked. A pull writes Google's title, times and
+ * status back over the app's. And the minutes are one row per meeting, so a
+ * save replaces the agreed account of a meeting you may not have run.
+ */
+describe('syncing and recording a meeting', () => {
+  beforeEach(() => {
+    tables['meetings'] = [
+      {
+        id: 'm1',
+        title: 'Progress',
+        start_at: `${MONDAY}T03:00:00.000Z`, // inside WEEK, which 'lead' holds
+        end_at: `${MONDAY}T04:00:00.000Z`,
+        status: 'scheduled',
+        owner_id: 'lead',
+        google_event_id: '',
+        row_version: 1,
+      },
+    ];
+    tables['minutes'] = [];
+  });
+
+  it('refuses a member who does not hold the week from pushing', async () => {
+    signedInAs('other');
+    const result = await pushMeetingAction('m1');
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+  });
+
+  it('refuses the same member from pulling, which would overwrite the row', async () => {
+    signedInAs('other');
+    const result = await pullMeetingAction('m1');
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  // A professor outranks a student but does not run the week.
+  it('refuses a professor who does not hold the week', async () => {
+    signedInAs('prof', 'professor');
+    await expect(pushMeetingAction('m1')).resolves.toMatchObject({
+      ok: false,
+      error: 'avail.leadOnly',
+    });
+  });
+
+  it('refuses a member from writing the minutes', async () => {
+    signedInAs('other');
+    const result = await saveMinutesAction('m1', 'we decided things', null, null);
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('lets the week lead write them', async () => {
+    signedInAs('lead');
+    const result = await saveMinutesAction('m1', 'we decided things', null, null);
+
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith(
+      'minutes',
+      expect.objectContaining({ meeting_id: 'm1', content: 'we decided things' }),
+      'lead',
+      expect.anything()
+    );
+  });
+
+  it('lets an admin write them', async () => {
+    signedInAs('boss', 'admin');
+    await expect(saveMinutesAction('m1', 'note', null, null)).resolves.toMatchObject({ ok: true });
+  });
+
+  it('refuses the lead of a different week', async () => {
+    tables['week_leads'] = [{ id: 'wl2', week_key: '2026-W41', user_id: 'other', row_version: 1 }];
+    signedInAs('other');
+
+    await expect(saveMinutesAction('m1', 'note', null, null)).resolves.toMatchObject({
+      ok: false,
+      error: 'avail.leadOnly',
+    });
+  });
+
+  it('reports a meeting that is not there rather than pretending', async () => {
+    signedInAs('lead');
+    await expect(saveMinutesAction('nope', 'note', null, null)).resolves.toMatchObject({
+      ok: false,
+      error: 'error.notFound',
+    });
   });
 });
 

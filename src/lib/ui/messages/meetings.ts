@@ -74,6 +74,7 @@ export const meetings = defineMessages({
     'minutes.unsaved': 'ยังไม่ได้บันทึก',
     'minutes.placeholder': 'สรุปสิ่งที่คุยกัน มติที่ประชุม และประเด็นค้าง',
     'minutes.oneRecord': 'หนึ่งการประชุมมีบันทึกหนึ่งฉบับ — กดบันทึกซ้ำคือแก้ฉบับเดิม',
+    'minutes.noneYet': 'ยังไม่มีการบันทึกการประชุมครั้งนี้',
 
     'sync.synced': 'ซิงก์กับ Google Calendar แล้ว',
     'sync.unchanged': 'ตรงกันอยู่แล้ว ไม่มีอะไรเปลี่ยน',
@@ -88,6 +89,7 @@ export const meetings = defineMessages({
     'sync.pushInvite': 'ส่งขึ้นปฏิทินและเชิญทุกคน',
     'sync.pull': 'ดึงการแก้ไขจากปฏิทิน',
     'sync.lastSynced': 'ซิงก์ล่าสุด {at}',
+    'sync.upToDate': 'ปฏิทินตรงกับข้อมูลล่าสุดแล้ว',
     'sync.manualNote': 'การซิงก์ยังต้องกดเอง — ให้ Google แจ้งเตือนกลับมาอัตโนมัติได้ต่อเมื่อระบบอยู่บนเซิร์ฟเวอร์ที่มี URL สาธารณะ',
     'sync.notLinked': 'การประชุมนี้ยังไม่ได้ผูกกับ Google Calendar',
     'sync.noEvent': 'ไม่มีอีเวนต์ให้ลบ',
@@ -183,6 +185,7 @@ export const meetings = defineMessages({
     'minutes.unsaved': 'Unsaved changes',
     'minutes.placeholder': 'What was discussed, what was decided, and what is still open',
     'minutes.oneRecord': 'One set of minutes per meeting — saving again edits it',
+    'minutes.noneYet': 'Nothing has been recorded for this meeting yet',
 
     'sync.synced': 'Synced with Google Calendar',
     'sync.unchanged': 'Already in step; nothing changed',
@@ -197,6 +200,7 @@ export const meetings = defineMessages({
     'sync.pushInvite': 'Add to calendar and invite everyone',
     'sync.pull': 'Pull changes from the calendar',
     'sync.lastSynced': 'Last synced {at}',
+    'sync.upToDate': 'The calendar matches the latest details',
     'sync.manualNote': 'Sync is manual for now — Google can only notify the app automatically once it runs on a server with a public URL',
     'sync.notLinked': "This meeting isn't linked to Google Calendar",
     'sync.noEvent': 'No event to remove',
