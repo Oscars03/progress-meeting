@@ -18,7 +18,7 @@ import type {
   UserRecord,
 } from '@/lib/db/schema';
 import { breakCovering } from '@/lib/term-breaks';
-import { labMembers } from '@/lib/members';
+import { labMembers, memberIds } from '@/lib/members';
 
 function assertChoice(value: string): asserts value is Choice {
   if (!isChoice(value)) {
@@ -142,6 +142,14 @@ export async function voteAction(
   return toResult(async () => {
   const actor = await requireSession();
   assertChoice(choice);
+
+  // Only the people the meeting has to suit. Admin is a system account: it
+  // takes no turn, its free time is not weighed, and it is not counted when
+  // deciding whether everyone has answered -- so accepting its vote would add
+  // a yes to a tally whose denominator leaves that voter out, and a slot could
+  // read as "everyone can make it" while a member had said nothing.
+  const users = await SheetRepo.find<UserRecord>('users');
+  if (!memberIds(users).has(actor.id)) throw new UserError('polls.error.notAVoter');
 
   const votes = await SheetRepo.find<AvailabilityVoteRecord>('availability_votes');
   const existing = votes.find((v) => v.slot_id === slotId && v.user_id === actor.id);

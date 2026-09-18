@@ -63,7 +63,7 @@ vi.mock('../lib/db/sheet-repo', () => ({
   },
 }));
 
-const { createPollAction, closePollAction, confirmSlotAction, deletePollAction } = await import(
+const { createPollAction, closePollAction, confirmSlotAction, deletePollAction, voteAction } = await import(
   '../app/(app)/meetings/polls/actions'
 );
 const { createMeeting, deleteMeeting, rescheduleMeetingAction } = await import(
@@ -211,6 +211,72 @@ describe('closing, confirming and deleting a poll', () => {
  * were not asked about -- and the availability grid then shows them "busy" for
  * it, which is how it looked settled when it was not.
  */
+/**
+ * An admin account is not somebody the meeting has to suit.
+ *
+ * It takes no turn in the rotation, its free time is not weighed when finding
+ * a slot, and it is not counted when deciding whether everyone has answered.
+ * Accepting its vote would put a yes into a tally whose denominator leaves
+ * that voter out -- so a slot could read as "everyone can make it" while a
+ * real member had said nothing.
+ */
+describe('who may answer a poll', () => {
+  beforeEach(() => {
+    seedPoll();
+    tables['users'] = [
+      { id: 'lead', name: 'Lead', role: 'student', active: true, row_version: 1 },
+      { id: 'prof', name: 'Prof', role: 'professor', active: true, row_version: 1 },
+      { id: 'boss', name: 'Boss', role: 'admin', active: true, row_version: 1 },
+      { id: 'gone', name: 'Gone', role: 'student', active: false, row_version: 1 },
+    ];
+  });
+
+  it('lets a student answer', async () => {
+    signedInAs('lead');
+    const result = await voteAction('p1', 's1', 'yes');
+
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith(
+      'availability_votes',
+      expect.objectContaining({ user_id: 'lead', choice: 'yes' }),
+      'lead',
+      expect.anything()
+    );
+  });
+
+  // A professor advises rather than reports, which is why they take no turn --
+  // but they attend, so the time has to suit them.
+  it('lets a professor answer', async () => {
+    signedInAs('prof', 'professor');
+    await expect(voteAction('p1', 's1', 'no')).resolves.toMatchObject({ ok: true });
+  });
+
+  it('refuses an admin, and stores nothing', async () => {
+    signedInAs('boss', 'admin');
+    const result = await voteAction('p1', 's1', 'yes');
+
+    expect(result).toMatchObject({ ok: false, error: 'polls.error.notAVoter' });
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses somebody not approved yet', async () => {
+    signedInAs('gone');
+    const result = await voteAction('p1', 's1', 'yes');
+
+    expect(result).toMatchObject({ ok: false, error: 'polls.error.notAVoter' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses an account that is not in the sheet at all', async () => {
+    signedInAs('stranger');
+    await expect(voteAction('p1', 's1', 'yes')).resolves.toMatchObject({
+      ok: false,
+      error: 'polls.error.notAVoter',
+    });
+  });
+});
+
 describe('confirming only once everyone has answered', () => {
   beforeEach(() => {
     seedPoll();

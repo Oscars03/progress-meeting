@@ -1,4 +1,5 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
+import { labMembers } from '@/lib/members';
 import type { MeetingRecord, UserRecord } from '@/lib/db/schema';
 import {
   createEvent,
@@ -33,12 +34,22 @@ export type SyncOutcome =
 /** Meeting fields a pull can change, named for the page to translate. */
 export type SyncField = 'title' | 'start' | 'end' | 'location' | 'status';
 
-/** Emails to invite: everyone active, minus blanks and duplicates. */
+/**
+ * Emails to invite: the lab's members, minus blanks and duplicates.
+ *
+ * Members, not "everyone active". Admin is a system account rather than
+ * somebody who attends -- it takes no turn, its free time is not weighed when
+ * finding a slot, and it is not asked to confirm one. Putting it on the
+ * invitation contradicted all of that: an account that had no say in the time
+ * was sent the appointment anyway, and with two admin accounts on this
+ * spreadsheet that is two invitations nobody wanted.
+ *
+ * `excludeUserId` is the organiser, who is on their own event already.
+ */
 async function attendeeEmails(excludeUserId?: string): Promise<string[]> {
   const users = await SheetRepo.find<UserRecord>('users');
   const seen = new Set<string>();
-  for (const u of users) {
-    if (u.active !== true) continue;
+  for (const u of labMembers(users)) {
     if (excludeUserId && u.id === excludeUserId) continue;
     const email = (u.email ?? '').trim().toLowerCase();
     if (email) seen.add(email);
