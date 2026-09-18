@@ -717,6 +717,12 @@ body {
 :root[data-theme='dark'] .border-red-300 { border-color: #5a262b !important; }
 :root[data-theme='dark'] .border-green-200 { border-color: #1c3d2a !important; }
 :root[data-theme='dark'] .border-amber-200 { border-color: #4a3a18 !important; }
+/* Blue was missed here, and its pale lines glowed on the dark ground. -400 is
+   the drag highlight in the rotation order, so it stays the brightest. */
+:root[data-theme='dark'] .border-blue-200 { border-color: #1f3a5c !important; }
+:root[data-theme='dark'] .border-blue-300 { border-color: #2a4a75 !important; }
+:root[data-theme='dark'] .border-blue-400 { border-color: #3b64a0 !important; }
+:root[data-theme='dark'] .ring-blue-200 { --tw-ring-color: #2a4a75 !important; }
 
 /* Hover states that assumed a light ground */
 :root[data-theme='dark'] .hover\:bg-gray-50:hover { background-color: #26262a !important; }
