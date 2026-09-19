@@ -15,6 +15,7 @@ import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { weekKey } from '@/lib/week';
 import type { TopicRecord } from '@/lib/db/schema';
+import { can } from '@/lib/permissions';
 
 const MAX_TITLE = 200;
 
@@ -36,7 +37,7 @@ export async function addTopic(data: {
 }): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireRole('student');
-    if (!canAddTopic(actor.role)) throw new UserError('topics.advisorNoTopics');
+    if (!canAddTopic(actor)) throw new UserError('topics.advisorNoTopics');
 
     const title = data.title?.trim();
     if (!title) throw new UserError('topics.titleRequired');
@@ -77,7 +78,7 @@ export async function updateTopic(
 
     const topic = await SheetRepo.findOne<TopicRecord>('topics', topicId);
     if (!topic) throw new UserError('error.notFound');
-    if (topic.owner_id !== actor.id && !canEditAnyTopic(actor.role)) {
+    if (topic.owner_id !== actor.id && !canEditAnyTopic(actor)) {
       throw new UserError('topics.notYours');
     }
 
@@ -103,7 +104,7 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
 
     const topic = await SheetRepo.findOne<TopicRecord>('topics', topicId);
     if (!topic) throw new UserError('error.notFound');
-    if (topic.owner_id !== actor.id && !canEditAnyTopic(actor.role)) {
+    if (topic.owner_id !== actor.id && !canEditAnyTopic(actor)) {
       throw new UserError('topics.notYours');
     }
 
@@ -120,15 +121,17 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
  * actually running the meeting had to ask somebody else to move a name.
  * Admin can always step in.
  *
- * Not an advisor. They read the order like everybody else; arranging it is
- * part of running the week, and they do not run it.
+ * Not an advisor by default. They read the order like everybody else;
+ * arranging it is part of running the week, and they do not run it. An admin
+ * can hand it to one person without promoting them -- the `arrangeOrder`
+ * ability in lib/permissions.ts.
  *
  * Judged on the week being arranged, not on today: rearranging last week's
  * agenda answers to whoever led last week.
  */
 async function assertMayArrange(weekKey: string): Promise<SessionUser> {
   const actor = await requireSession();
-  if (actor.role === 'admin') return actor;
+  if (can(actor, 'arrangeOrder')) return actor;
 
   const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
   if (!actsAsWeekLead(actor, leads, weekKey)) throw new UserError('avail.leadOnly');

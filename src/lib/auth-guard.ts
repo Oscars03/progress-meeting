@@ -3,6 +3,9 @@ import { cookies } from 'next/headers';
 import { authOptions } from './auth';
 import { UserError } from './user-error';
 import { ROLE_PREVIEW_COOKIE, effectiveRole, previewsLead } from './role-preview';
+import { can, parseOverrides, type Overrides } from './permissions';
+import { SheetRepo } from './db/sheet-repo';
+import type { UserRecord } from './db/schema';
 import type { TranslationKey, TranslationVars } from './ui/i18n';
 
 export type Role = 'admin' | 'professor' | 'student';
@@ -36,6 +39,12 @@ export type SessionUser = {
    * always put them down again.
    */
   realRole: Role;
+  /**
+   * Abilities an admin granted or took away for this person specifically.
+   * Empty for almost everybody, which means the role decides -- see
+   * lib/permissions.ts.
+   */
+  abilities: Overrides;
   /** Set only while `role` differs from `realRole`. */
   previewing: boolean;
   /**
@@ -72,6 +81,23 @@ async function previewCookie(): Promise<string | undefined> {
   }
 }
 
+/**
+ * The caller's own permission overrides, read from their row.
+ *
+ * One `find` per call, which the repository serves from its cache for a
+ * minute -- the same read every page already makes. A row that cannot be read
+ * means no override, so a sheet hiccup narrows what somebody may do rather
+ * than widening it.
+ */
+async function overridesFor(userId: string): Promise<Overrides> {
+  try {
+    const users = await SheetRepo.find<UserRecord>('users');
+    return parseOverrides(users.find((u) => u.id === userId)?.permissions);
+  } catch {
+    return {};
+  }
+}
+
 /** Resolve the caller, or throw. Every server action and route handler starts here. */
 export async function requireSession(): Promise<SessionUser> {
   const session = await getServerSession(authOptions);
@@ -91,12 +117,18 @@ export async function requireSession(): Promise<SessionUser> {
   const role = effectiveRole(realRole, preview);
   const previewingLead = previewsLead(realRole, preview);
 
+  // An admin looking through another role's eyes sees that role's defaults,
+  // not their own grants -- otherwise the preview would quietly keep powers
+  // the person being previewed does not have.
+  const abilities = role === realRole ? await overridesFor(user.id) : {};
+
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role,
     realRole,
+    abilities,
     // The lead view lowers the role to student as well, but a preview that
     // happened to leave the role alone would still be a preview.
     previewing: role !== realRole || previewingLead,
@@ -140,42 +172,41 @@ export async function requireRole(minimum: Role): Promise<SessionUser> {
 }
 
 /**
- * Whether a role may direct somebody else's work: adding a task, editing one,
- * recording progress against it, and taking it back.
+ * Whether this caller may direct somebody else's work: adding a task, editing
+ * one and recording progress against it.
  *
  * This is all an advisor does in the app now. It used to be one predicate,
  * `hasManagerRights`, covering everything a professor could reach: arranging
  * the agenda, confirming the week's lead, deleting other people's rows. That
  * bundled two unrelated ideas -- who assigns the work, and who runs the week
- * -- and running the week belongs to the lead. The advisor's part is the work
- * itself, so that is the only thing left here.
+ * -- and running the week belongs to the lead.
  *
+ * Takes the caller rather than the role, because an admin can now grant or
+ * withdraw it one person at a time -- see lib/permissions.ts.
  */
-export function directsWork(role: Role): boolean {
-  return RANK[role] >= RANK.professor;
+export function directsWork(actor: Pick<SessionUser, 'role' | 'abilities'>): boolean {
+  return can(actor, 'assignWork') || can(actor, 'editAnyWork');
 }
 
 /**
- * Whether a role brings topics of its own to the meeting.
+ * Whether this caller brings topics of their own to the meeting.
  *
- * An advisor reads the agenda and arranges it; what is on it is the work of
- * the people who did it. They take no turn -- the same reason they are not
- * waited on when a slot poll is confirmed.
- *
- * Admin keeps it, being the account that fixes what nobody else can.
+ * An advisor reads the agenda; what is on it is the work of the people who
+ * did it. They take no turn -- the same reason they are not polled about a
+ * slot. Admin keeps it, being the account that fixes what nobody else can.
  */
-export function canAddTopic(role: Role): boolean {
-  return role !== 'professor';
+export function canAddTopic(actor: Pick<SessionUser, 'role' | 'abilities'>): boolean {
+  return can(actor, 'addTopic');
 }
 
 /**
- * Whether a role may reword or drop a topic somebody else wrote.
+ * Whether this caller may reword or drop a topic somebody else wrote.
  *
  * This used to be manager rights, which let an advisor delete a student's
- * topic outright. Arranging the week is theirs; the topics in it are not.
+ * topic outright. The topics belong to whoever wrote them.
  */
-export function canEditAnyTopic(role: Role): boolean {
-  return RANK[role] >= RANK.admin;
+export function canEditAnyTopic(actor: Pick<SessionUser, 'role' | 'abilities'>): boolean {
+  return can(actor, 'editAnyTopic');
 }
 
 // Takes the role rather than the whole caller: what somebody may mint depends

@@ -6,6 +6,7 @@ import { effectiveTopicOrder, topicsForWeek, lastArrangedBy } from '@/lib/presen
 import OrderBoard from './order-board';
 import type { AuditRecord, TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { actsAsWeekLead } from '@/lib/rotation';
+import { can } from '@/lib/permissions';
 
 export default async function PresentationsPage(props: {
   searchParams: Promise<{ week?: string }>;
@@ -45,9 +46,9 @@ export default async function PresentationsPage(props: {
       <OrderBoard
         weekKey={activeWeek}
         custom={custom}
-        canArrange={actor.role === 'admin' || actsAsWeekLead(actor, leads, activeWeek)}
-        canAdd={canAddTopic(actor.role)}
-        canEditAny={canEditAnyTopic(actor.role)}
+        canArrange={can(actor, 'arrangeOrder') || actsAsWeekLead(actor, leads, activeWeek)}
+        canAdd={canAddTopic(actor)}
+        canEditAny={canEditAnyTopic(actor)}
         arrangedBy={arrangedById ? nameOf(arrangedById) : null}
         currentUserId={actor.id}
         topics={ordered.map((topic) => ({

@@ -22,6 +22,7 @@ import { intlLocale } from '@/lib/ui/i18n';
 import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from '@/lib/presentation-order';
 import { actsAsWeekLead } from '@/lib/rotation';
 import { labInstant } from '@/lib/lab-time';
+import { can } from '@/lib/permissions';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -172,7 +173,7 @@ export default async function DashboardPage() {
    * not showing it.
    */
   const canRunTheWeek = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
-  const canArrangeOrder = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
+  const canArrangeOrder = !currentBreak && (can(actor, 'arrangeOrder') || amThisWeeksLead);
   const iLeadThisWeek = canRunTheWeek || canArrangeOrder;
 
   const today = labDay(new Date());

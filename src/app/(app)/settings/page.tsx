@@ -9,6 +9,8 @@ import { driveStatus, type DriveStatus } from '@/lib/google/drive';
 import { requireSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
+import PermissionTable from './permission-table';
+import { storedJson } from '@/lib/permissions';
 import RotationOrder, { type RotationStudent } from './rotation-order';
 import TermBreaks from './term-breaks';
 import MyName from './my-name';
@@ -62,6 +64,7 @@ export default async function SettingsPage() {
         role: u.role,
         active: u.active === true,
         row_version: u.row_version,
+        permissions: storedJson(u.permissions),
       }));
       rotation = rotationMembers(rawUsers).map((u) => ({ id: u.id, name: u.name }));
       breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
@@ -112,6 +115,10 @@ export default async function SettingsPage() {
       {isAdmin && <RotationOrder students={rotation} />}
 
       {isAdmin && <TermBreaks breaks={breaks} />}
+
+      {/* Beside user management, because it is the other half of the same
+          question: the role a person holds, and the exceptions to it. */}
+      {isAdmin && !loadError && <PermissionTable users={users} />}
 
       {isAdmin ? (
         <UserManager initialUsers={users} loadError={loadError} populatedTabs={populatedTabs} />

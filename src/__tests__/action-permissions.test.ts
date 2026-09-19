@@ -1122,6 +1122,40 @@ describe('arranging the running order', () => {
     expect(result.ok).toBe(true);
   });
 
+  /**
+   * The permission table, end to end: a student who holds `arrangeOrder`
+   * may set the order without being promoted, and the action -- not just the
+   * button -- honours it.
+   */
+  it('lets a student an admin granted arrangeOrder do it', async () => {
+    tables['users'] = [
+      {
+        id: 'helper',
+        name: 'Helper',
+        role: 'student',
+        active: true,
+        row_version: 1,
+        permissions: { arrangeOrder: true },
+      },
+    ];
+    signedInAs('helper');
+
+    await expect(setTopicOrder(order, WEEK)).resolves.toMatchObject({ ok: true });
+  });
+
+  it('still refuses a student without it', async () => {
+    tables['users'] = [
+      { id: 'helper', name: 'Helper', role: 'student', active: true, row_version: 1, permissions: '' },
+    ];
+    signedInAs('helper');
+
+    await expect(setTopicOrder(order, WEEK)).resolves.toMatchObject({
+      ok: false,
+      error: 'avail.leadOnly',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('refuses a member who does not hold that week', async () => {
     signedInAs('other');
     const result = await setTopicOrder(order, WEEK);
