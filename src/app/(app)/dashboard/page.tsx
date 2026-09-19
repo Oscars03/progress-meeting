@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession, hasManagerRights } from '@/lib/auth-guard';
+import { requireSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import {
   leadForWeek,
@@ -125,7 +125,7 @@ export default async function DashboardPage() {
   const open = iAmAVoter ? openPolls(polls, slots, votes, actor.id) : [];
   const awaiting = open.filter((row) => row.remaining > 0);
   const answered = open.filter((row) => row.remaining === 0);
-  const canConfirm = hasManagerRights(actor.role);
+  const canConfirm = actor.role === 'admin';
   // Booking a meeting outright skips the poll, so it is admin's escape hatch.
   // Everyone else schedules by proposing times and confirming the winner.
   const canSchedule = actor.role === 'admin';
@@ -172,7 +172,7 @@ export default async function DashboardPage() {
    * not showing it.
    */
   const canRunTheWeek = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
-  const canArrangeOrder = !currentBreak && (hasManagerRights(actor.role) || amThisWeeksLead);
+  const canArrangeOrder = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
   const iLeadThisWeek = canRunTheWeek || canArrangeOrder;
 
   const today = labDay(new Date());

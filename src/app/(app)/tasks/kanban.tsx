@@ -12,12 +12,21 @@ export default function KanbanBoard({
   users = [],
   currentUserId = '',
   canAssign = false,
+  canRemoveAny = false,
   isLeadThisWeek = false
 }: { 
   tasks: TaskRecord[],
   users?: UserRecord[],
   currentUserId?: string,
   canAssign?: boolean,
+  /**
+   * Whether this caller may delete work that is not theirs -- admin only.
+   *
+   * Separate from canAssign, which an advisor has: they hand work out and
+   * edit it, and the button has to say the same thing the action does or it
+   * offers a delete that comes back refused.
+   */
+  canRemoveAny?: boolean,
   /** Whoever is running this week's meeting may clear the board for it. */
   isLeadThisWeek?: boolean
 }) {
@@ -89,7 +98,7 @@ export default function KanbanBoard({
                   // Narrower than editing: work somebody else put on your list
                   // is not yours to make disappear.
                   const removable =
-                    canAssign || isLeadThisWeek || task.owner_id === currentUserId;
+                    canRemoveAny || isLeadThisWeek || task.owner_id === currentUserId;
                   const assigneeNames = assignees.map(id => userMap.get(id)).filter(Boolean).join(', ');
                   
                   let overdue = false;

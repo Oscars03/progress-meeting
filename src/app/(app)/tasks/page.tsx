@@ -52,6 +52,7 @@ export default async function TasksPage() {
         users={members}
         currentUserId={actor.id}
         canAssign={canAssign}
+        canRemoveAny={actor.role === 'admin'}
         isLeadThisWeek={isLeadThisWeek}
       />
     </div>

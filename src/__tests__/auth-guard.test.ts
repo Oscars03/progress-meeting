@@ -17,7 +17,7 @@ const {
   requireRole,
   requireRealAdmin,
   canAssignRole,
-  hasManagerRights,
+  directsWork,
   AuthorizationError,
 } = await import('../lib/auth-guard');
 
@@ -168,10 +168,10 @@ describe('canAssignRole', () => {
   });
 });
 
-describe('hasManagerRights', () => {
+describe('directsWork', () => {
   it('covers professors and admins but not students', () => {
-    expect(hasManagerRights('admin')).toBe(true);
-    expect(hasManagerRights('professor')).toBe(true);
-    expect(hasManagerRights('student')).toBe(false);
+    expect(directsWork('admin')).toBe(true);
+    expect(directsWork('professor')).toBe(true);
+    expect(directsWork('student')).toBe(false);
   });
 });

@@ -5,7 +5,6 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import {
   requireRole,
   requireSession,
-  hasManagerRights,
   canAddTopic,
   canEditAnyTopic,
   type SessionUser,
@@ -119,14 +118,17 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
  * The lead prepares that week's meeting, so the order it runs in is theirs to
  * decide -- it was professor-and-above only, which meant the one person
  * actually running the meeting had to ask somebody else to move a name.
- * Advisors and admin keep it too.
+ * Admin can always step in.
+ *
+ * Not an advisor. They read the order like everybody else; arranging it is
+ * part of running the week, and they do not run it.
  *
  * Judged on the week being arranged, not on today: rearranging last week's
  * agenda answers to whoever led last week.
  */
 async function assertMayArrange(weekKey: string): Promise<SessionUser> {
   const actor = await requireSession();
-  if (hasManagerRights(actor.role)) return actor;
+  if (actor.role === 'admin') return actor;
 
   const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
   if (!actsAsWeekLead(actor, leads, weekKey)) throw new UserError('avail.leadOnly');

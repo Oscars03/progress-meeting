@@ -76,7 +76,9 @@ const { setTopicOrder, clearTopicOrder, addTopic, updateTopic, deleteTopic } = a
   '../app/(app)/presentations/actions'
 );
 const { updatePersonalEventAction } = await import('../app/(app)/settings/schedule-actions');
-const { saveMinutesAction } = await import('../app/(app)/meetings/[id]/actions');
+const { saveMinutesAction, setAgendaAction, deleteActionItemAction } = await import(
+  '../app/(app)/meetings/[id]/actions'
+);
 const { pushMeetingAction, pullMeetingAction } = await import('../app/(app)/calendar-actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
@@ -475,7 +477,7 @@ describe('term breaks', () => {
 
   it('refuses to confirm a week lead for a break week', async () => {
     const { setWeekLead } = await import('../app/(app)/meetings/actions');
-    signedInAs('prof', 'professor');
+    signedInAs('boss', 'admin');
     const result = await setWeekLead(WEEK, 'lead');
     expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
     expect(insert).not.toHaveBeenCalled();
@@ -933,6 +935,53 @@ describe('syncing and recording a meeting', () => {
       error: 'error.notFound',
     });
   });
+
+  /**
+   * The running order of a meeting, and the items it hands out.
+   *
+   * Both were professor-and-above, which gave an advisor the shape of a
+   * meeting they do not run while the student running it could not touch it.
+   * They follow the minutes now: the week's lead, or admin.
+   */
+  describe('the agenda and its action items', () => {
+    beforeEach(() => {
+      tables['meeting_attendees'] = [
+        { id: 'ma1', meeting_id: 'm1', user_id: 'lead', present_order: '', row_version: 1 },
+      ];
+      tables['action_items'] = [
+        { id: 'ai1', meeting_id: 'm1', title: 'Read the paper', owner_id: 'other', row_version: 1 },
+      ];
+    });
+
+    it('refuses a professor setting the order, and writes nothing', async () => {
+      signedInAs('prof', 'professor');
+      await expect(setAgendaAction('m1', ['lead'])).resolves.toMatchObject({
+        ok: false,
+        error: 'avail.leadOnly',
+      });
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('lets the week lead set it', async () => {
+      signedInAs('lead');
+      await expect(setAgendaAction('m1', ['lead'])).resolves.toMatchObject({ ok: true });
+    });
+
+    it("refuses a professor removing somebody's action item", async () => {
+      signedInAs('prof', 'professor');
+      await expect(deleteActionItemAction('m1', 'ai1', 1)).resolves.toMatchObject({
+        ok: false,
+        error: 'avail.leadOnly',
+      });
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it('lets the week lead remove one', async () => {
+      signedInAs('lead');
+      await expect(deleteActionItemAction('m1', 'ai1', 1)).resolves.toMatchObject({ ok: true });
+      expect(remove).toHaveBeenCalledWith('action_items', 'ai1', 1, 'lead');
+    });
+  });
 });
 
 // Renaming yourself. The interesting property is not that it works but that it
@@ -1026,8 +1075,18 @@ describe('arranging the running order', () => {
     expect(update).toHaveBeenCalledWith('topics', 't1', { present_order: 2 }, 1, 'lead');
   });
 
-  it('lets a professor arrange it', async () => {
+  // An advisor reads the order and does not set it: arranging the week is
+  // part of running it, and they do not run it.
+  it('refuses a professor, who does not run the week', async () => {
     signedInAs('prof', 'professor');
+    const result = await setTopicOrder(order, WEEK);
+
+    expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin arrange it', async () => {
+    signedInAs('boss', 'admin');
     const result = await setTopicOrder(order, WEEK);
     expect(result.ok).toBe(true);
   });
@@ -1252,10 +1311,20 @@ describe('removing a piece of work', () => {
     expect(remove).not.toHaveBeenCalledWith('task_updates', 'other', 1, 'me');
   });
 
-  it('lets an advisor remove anything, which is the only way to clear a mistake', async () => {
-    signedInAs('prof', 'professor');
+  it('lets admin remove anything, which is the only way to clear a mistake', async () => {
+    signedInAs('boss', 'admin');
     const result = await deleteTask('tk1', 3);
     expect(result.ok).toBe(true);
+  });
+
+  // An advisor adds work and edits it. Withdrawing an assignment silently is
+  // not part of that -- the record of it should stay and be marked done.
+  it("refuses an advisor removing somebody else's work", async () => {
+    signedInAs('prof', 'professor');
+    const result = await deleteTask('tk1', 3);
+
+    expect(result).toMatchObject({ ok: false });
+    expect(remove).not.toHaveBeenCalled();
   });
 
   // Otherwise a student could answer an assignment by deleting it.

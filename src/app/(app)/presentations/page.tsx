@@ -1,5 +1,5 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession, hasManagerRights, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
+import { requireSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { weekKey } from '@/lib/week';
 import { effectiveTopicOrder, topicsForWeek, lastArrangedBy } from '@/lib/presentation-order';
@@ -45,7 +45,7 @@ export default async function PresentationsPage(props: {
       <OrderBoard
         weekKey={activeWeek}
         custom={custom}
-        canArrange={hasManagerRights(actor.role) || actsAsWeekLead(actor, leads, activeWeek)}
+        canArrange={actor.role === 'admin' || actsAsWeekLead(actor, leads, activeWeek)}
         canAdd={canAddTopic(actor.role)}
         canEditAny={canEditAnyTopic(actor.role)}
         arrangedBy={arrangedById ? nameOf(arrangedById) : null}
