@@ -107,7 +107,15 @@ export async function createMeeting(data: {
 export async function rescheduleMeetingAction(
   meetingId: string,
   data: { start_at: string; end_at: string },
-  rowVersion: number
+  rowVersion: number,
+  /**
+   * Whether everybody invited is mailed about the move.
+   *
+   * Asked rather than assumed. Google mails on every patch unless told not
+   * to, so correcting a time twice in a minute sent the lab two notices of a
+   * meeting that had not started moving yet. Off unless the person says so.
+   */
+  notify = false
 ): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireSession();
@@ -147,7 +155,7 @@ export async function rescheduleMeetingAction(
     // calendar that refuses must not undo a move the app has accepted.
     if (meeting.google_event_id) {
       try {
-        await pushMeeting(meetingId, actor.id);
+        await pushMeeting(meetingId, actor.id, notify);
       } catch (err) {
         console.error('Could not move the Google event for this meeting:', err);
       }

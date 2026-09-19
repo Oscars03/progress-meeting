@@ -4,7 +4,7 @@ import { defineMessages } from './define';
 export const avail = defineMessages({
   th: {
     'avail.title': 'ตารางเวลาว่างรายสัปดาห์',
-    'avail.subtitle': 'รวมเวลาว่างของทุกคนให้อัตโนมัติ ช่องละ 1 ชั่วโมง',
+    'avail.subtitle': 'รวมเวลาว่างของทุกคนให้อัตโนมัติ ช่องละ 30 นาที',
     'avail.prevWeek': 'สัปดาห์ก่อน',
     'avail.thisWeek': 'สัปดาห์นี้',
     'avail.nextWeek': 'สัปดาห์ถัดไป',
@@ -18,6 +18,8 @@ export const avail = defineMessages({
     'avail.editStart': 'เริ่ม',
     'avail.editEnd': 'สิ้นสุด',
     'avail.editSave': 'บันทึกเวลาใหม่',
+    'avail.editNotify': 'แจ้งผู้เข้าร่วมทางอีเมลด้วย',
+    'avail.editNotifyHint': 'ถ้าไม่เลือก เวลาในปฏิทินของทุกคนจะเปลี่ยนให้เงียบ ๆ โดยไม่มีอีเมลแจ้ง',
     'avail.editCancel': 'ยกเลิก',
     'avail.coverage': 'อ่าน Google Calendar ได้ {read} จาก {total} คน — คนที่เหลือระบบรู้แค่ช่วงที่มีประชุมอยู่ในระบบ จึงยังยืนยันไม่ได้ว่าว่าง',
     'avail.coverageAll': 'อ่าน Google Calendar ได้ครบทั้ง {total} คน',
@@ -33,6 +35,9 @@ export const avail = defineMessages({
     'avail.askConfirm': 'สร้างโพลช่วง {when} ให้ทุกคนตอบยืนยัน?',
     'avail.askNotAllFree': 'ช่วง {when} มีคนไม่ว่างหรือยังไม่ทราบสถานะ ยังจะส่งให้ทุกคนยืนยันอยู่ไหม?',
     'avail.pollTitle': 'ยืนยันเวลาประชุม {when}',
+    // The meeting the poll turns into. No time in it on purpose: a meeting
+    // can be moved, and a time written into the name does not move with it.
+    'avail.meetingTitle': 'ประชุมความคืบหน้า',
     'avail.leadOnly': 'เฉพาะผู้รับผิดชอบประจำสัปดาห์นั้นเท่านั้นที่ส่งคำขอยืนยันได้',
     'avail.past': 'ช่วงเวลานี้ผ่านไปแล้ว',
     'avail.loading': 'กำลังรวมเวลาว่าง...',
@@ -40,7 +45,7 @@ export const avail = defineMessages({
   },
   en: {
     'avail.title': 'Weekly availability',
-    'avail.subtitle': "Everyone's free time, gathered automatically, one hour per cell",
+    'avail.subtitle': "Everyone's free time, gathered automatically, half an hour per cell",
     'avail.prevWeek': 'Previous week',
     'avail.thisWeek': 'This week',
     'avail.nextWeek': 'Next week',
@@ -54,6 +59,8 @@ export const avail = defineMessages({
     'avail.editStart': 'Start',
     'avail.editEnd': 'End',
     'avail.editSave': 'Save new time',
+    'avail.editNotify': 'Email everyone about the change',
+    'avail.editNotifyHint': 'Left off, the time changes quietly on everyone’s calendar with no email.',
     'avail.editCancel': 'Cancel',
     'avail.coverage': "Google Calendar read for {read} of {total} people. For the rest, only meetings in this app are known, so they can't be confirmed free.",
     'avail.coverageAll': 'Google Calendar read for all {total} people',
@@ -69,6 +76,7 @@ export const avail = defineMessages({
     'avail.askConfirm': 'Create a poll for {when} for everyone to confirm?',
     'avail.askNotAllFree': 'Not everyone is known to be free at {when}. Ask everyone anyway?',
     'avail.pollTitle': 'Confirm meeting time {when}',
+    'avail.meetingTitle': 'Progress meeting',
     'avail.leadOnly': "Only that week's lead can ask for confirmation",
     'avail.past': 'This time has already passed',
     'avail.loading': 'Gathering availability...',

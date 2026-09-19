@@ -201,6 +201,23 @@ describe('closing, confirming and deleting a poll', () => {
     );
   });
 
+  /**
+   * The meeting is named, not dated.
+   *
+   * It used to take the poll's title, which reads "Confirm the meeting time
+   * for Sat 19 Sep 18:00-19:00". Moving the meeting afterwards could not
+   * change that text, so the invitation in everybody's inbox announced an
+   * hour the meeting was no longer at.
+   */
+  it('gives the meeting a name with no time in it', async () => {
+    signedInAs('lead');
+    await confirmSlotAction('p1', 1, 's1');
+
+    const [, row] = insert.mock.calls.find(([table]) => table === 'meetings')!;
+    expect(row.title).not.toMatch(/\d{1,2}[:.]\d{2}/);
+    expect(row.title).toBeTruthy();
+  });
+
   it('refuses to delete for anyone else, leaving every row in place', async () => {
     signedInAs('other');
     const result = await deletePollAction('p1', 1);

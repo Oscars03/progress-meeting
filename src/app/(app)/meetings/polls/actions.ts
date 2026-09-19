@@ -19,6 +19,7 @@ import type {
 } from '@/lib/db/schema';
 import { breakCovering } from '@/lib/term-breaks';
 import { labMembers, memberIds } from '@/lib/members';
+import { getT } from '@/lib/ui/server-i18n';
 
 function assertChoice(value: string): asserts value is Choice {
   if (!isChoice(value)) {
@@ -261,10 +262,24 @@ export async function confirmSlotAction(
 
   await assertRunsThePoll(actor, [slot]);
 
+  /**
+   * The meeting is named, not dated.
+   *
+   * It used to inherit the poll's title, which is generated as "Confirm the
+   * meeting time for Sat 19 Sep 18:00-19:00" -- the time baked into the text.
+   * Moving the meeting afterwards changed start_at and end_at and could not
+   * change that, so the invitation in everybody's inbox and the block on the
+   * calendar both went on announcing an hour the meeting was no longer at.
+   *
+   * A meeting already carries its time in two columns. The name does not have
+   * to say it again, and cannot be kept honest if it does.
+   */
+  const t = await getT();
+
   const meeting = await SheetRepo.insert(
     'meetings',
     {
-      title: poll.title,
+      title: t('avail.meetingTitle'),
       start_at: slot.start_at,
       end_at: slot.end_at,
       location: '',
