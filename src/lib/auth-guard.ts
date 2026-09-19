@@ -141,7 +141,7 @@ export async function requireRole(minimum: Role): Promise<SessionUser> {
 
 /**
  * Whether a role may direct somebody else's work: adding a task, editing one,
- * and recording progress against it.
+ * recording progress against it, and taking it back.
  *
  * This is all an advisor does in the app now. It used to be one predicate,
  * `hasManagerRights`, covering everything a professor could reach: arranging
@@ -150,8 +150,6 @@ export async function requireRole(minimum: Role): Promise<SessionUser> {
  * -- and running the week belongs to the lead. The advisor's part is the work
  * itself, so that is the only thing left here.
  *
- * Deleting somebody else's task is deliberately not included; see
- * lib/task-rights.ts.
  */
 export function directsWork(role: Role): boolean {
   return RANK[role] >= RANK.professor;

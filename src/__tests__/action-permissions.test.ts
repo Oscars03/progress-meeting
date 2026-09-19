@@ -1334,14 +1334,12 @@ describe('removing a piece of work', () => {
     expect(result.ok).toBe(true);
   });
 
-  // An advisor adds work and edits it. Withdrawing an assignment silently is
-  // not part of that -- the record of it should stay and be marked done.
-  it("refuses an advisor removing somebody else's work", async () => {
+  // The advisor asked for the work, so the advisor can say it is no longer
+  // wanted. Setting it, changing it and taking it back are one job.
+  it('lets an advisor remove anything too', async () => {
     signedInAs('prof', 'professor');
     const result = await deleteTask('tk1', 3);
-
-    expect(result).toMatchObject({ ok: false });
-    expect(remove).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
   });
 
   // Otherwise a student could answer an assignment by deleting it.
