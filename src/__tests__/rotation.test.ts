@@ -32,6 +32,7 @@ function user(
     line_id: '',
     active,
     rotation_order: rotationOrder,
+    permissions: '',
   };
 }
 

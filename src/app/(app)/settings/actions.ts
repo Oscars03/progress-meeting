@@ -16,6 +16,7 @@ import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { breakForWeek } from '@/lib/term-breaks';
+import { ABILITIES, serializeOverrides, storedJson, type Overrides } from '@/lib/permissions';
 
 const ASSIGNABLE_ROLES: Role[] = ['admin', 'professor', 'student'];
 
@@ -27,6 +28,8 @@ export type SafeUser = {
   role: string;
   active: boolean;
   row_version: number;
+  /** The stored override column, '' for anybody on their role's defaults. */
+  permissions: string;
 };
 
 function toSafeUser(u: UserRecord): SafeUser {
@@ -37,6 +40,7 @@ function toSafeUser(u: UserRecord): SafeUser {
     role: u.role,
     active: u.active === true,
     row_version: u.row_version,
+    permissions: storedJson(u.permissions),
   };
 }
 
@@ -207,6 +211,51 @@ export async function updateUserRoleAction(userId: string, role: string, rowVers
 
   await SheetRepo.update<UserRecord>('users', userId, { role: nextRole }, rowVersion, actor.id);
   revalidatePath('/settings');
+}
+
+/**
+ * Grant or withdraw abilities for one person.
+ *
+ * Only what differs from their role is stored, so a later change to what a
+ * role means still reaches everybody left on the default -- see
+ * lib/permissions.ts. Passing a set identical to the role's clears the column
+ * rather than freezing today's defaults into the row.
+ *
+ * Whole rows are written one at a time with the version they were read at, so
+ * two admins editing the table at once get a conflict on the second save
+ * rather than one of them silently winning.
+ */
+export async function setUserPermissionsAction(
+  userId: string,
+  wanted: Record<string, boolean>,
+  rowVersion: number
+): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireRole('admin');
+
+    const target = await SheetRepo.findOne<UserRecord>('users', userId);
+    if (!target) throw new UserError('error.notFound');
+
+    // An admin who could take their own abilities away could lock the lab out
+    // of the only account that can put them back.
+    if (userId === actor.id) throw new UserError('perm.notYourself');
+
+    const role = (['admin', 'professor', 'student'] as const).includes(target.role as Role)
+      ? (target.role as Role)
+      : 'student';
+
+    const clean: Overrides = {};
+    for (const ability of ABILITIES) {
+      if (typeof wanted[ability] === 'boolean') clean[ability] = wanted[ability];
+    }
+
+    const next = serializeOverrides(role, clean);
+    const current = storedJson(target.permissions);
+    if (next === current) return;
+
+    await SheetRepo.update<UserRecord>('users', userId, { permissions: next }, rowVersion, actor.id);
+    revalidatePath('/settings');
+  });
 }
 
 /**

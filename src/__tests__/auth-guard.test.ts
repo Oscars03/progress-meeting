@@ -170,8 +170,17 @@ describe('canAssignRole', () => {
 
 describe('directsWork', () => {
   it('covers professors and admins but not students', () => {
-    expect(directsWork('admin')).toBe(true);
-    expect(directsWork('professor')).toBe(true);
-    expect(directsWork('student')).toBe(false);
+    expect(directsWork({ role: 'admin', abilities: {} })).toBe(true);
+    expect(directsWork({ role: 'professor', abilities: {} })).toBe(true);
+    expect(directsWork({ role: 'student', abilities: {} })).toBe(false);
+  });
+
+  // The point of the per-person overrides: the exception no longer needs a
+  // promotion that would grant six other things by accident.
+  it('follows an override granted to one person', () => {
+    expect(directsWork({ role: 'student', abilities: { assignWork: true } })).toBe(true);
+    expect(
+      directsWork({ role: 'professor', abilities: { assignWork: false, editAnyWork: false } })
+    ).toBe(false);
   });
 });

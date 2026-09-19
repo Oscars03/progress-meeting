@@ -39,6 +39,7 @@ function user(overrides: Partial<UserRecord> = {}): UserRecord {
     line_id: '',
     active: true,
     rotation_order: '',
+    permissions: '',
     ...overrides,
   };
 }

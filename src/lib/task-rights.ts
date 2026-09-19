@@ -1,4 +1,5 @@
-import { directsWork, type SessionUser } from './auth-guard';
+import { type SessionUser } from './auth-guard';
+import { can } from './permissions';
 import type { TaskRecord, WeekLeadRecord } from './db/schema';
 import { actsAsWeekLead } from './rotation';
 
@@ -10,7 +11,7 @@ import { actsAsWeekLead } from './rotation';
  * stays with the advisors.
  */
 export function canAssignWork(actor: SessionUser): boolean {
-  return directsWork(actor.role);
+  return can(actor, 'assignWork');
 }
 
 /**
@@ -26,7 +27,7 @@ export function canAddOwnWork(actor: SessionUser): boolean {
 }
 
 export function canEditWork(actor: SessionUser, task: Pick<TaskRecord, 'assignee_ids'>): boolean {
-  if (directsWork(actor.role)) return true;
+  if (can(actor, 'editAnyWork')) return true;
   const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
   return assignees.includes(actor.id);
 }
@@ -69,7 +70,18 @@ export function canRemoveWork(
   thisWeek: string,
   leads: WeekLeadRecord[]
 ): boolean {
-  if (directsWork(actor.role)) return true;
+  if (can(actor, 'removeAnyWork')) return true;
   if (task.owner_id === actor.id) return true;
   return actsAsWeekLead(actor, leads, thisWeek);
+}
+
+/**
+ * Whether this caller may delete work that is not theirs.
+ *
+ * The button the board draws has to ask exactly what the action asks, or it
+ * offers a delete that comes back refused. Not the same question as editing:
+ * these two have already been answered differently once.
+ */
+export function canRemoveAnyWork(actor: SessionUser): boolean {
+  return can(actor, 'removeAnyWork');
 }

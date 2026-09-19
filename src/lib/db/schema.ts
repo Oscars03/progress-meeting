@@ -1,7 +1,7 @@
 export const COMMON_COLUMNS = ['id', 'created_at', 'updated_at', 'row_version', 'created_by'] as const;
 
 export const SCHEMAS = {
-  users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active', 'rotation_order'],
+  users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active', 'rotation_order', 'permissions'],
   teams: [...COMMON_COLUMNS, 'name'],
   meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at', 'host_id'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
@@ -56,6 +56,16 @@ export type UserRecord = BaseRecord & {
    * in the order they joined, so a new student is not silently skipped.
    */
   rotation_order: number | string;
+  /**
+   * What this person may do, where it differs from their role.
+   *
+   * JSON of `{ "<ability>": true | false }`, and usually '' -- an empty
+   * override means the role decides, which is the case for almost everybody.
+   * Only the abilities an admin actually changed are stored, so a later change
+   * to what a role means still reaches everyone who was left on the default.
+   * See lib/permissions.ts.
+   */
+  permissions: string;
 };
 
 export type TaskRecord = BaseRecord & {

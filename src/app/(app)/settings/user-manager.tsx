@@ -21,6 +21,11 @@ export type SafeUser = {
   role: string;
   active: boolean;
   row_version: number;
+  /**
+   * The stored permission override, '' for anybody on their role's defaults.
+   * Read by the permission table beside this one; nothing here uses it.
+   */
+  permissions: string;
 };
 
 type Message = { type: 'success' | 'error'; text: string };
