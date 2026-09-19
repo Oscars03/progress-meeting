@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import { APP_VERSION, recentChanges } from '@/lib/changelog';
 import { usePrefs } from '@/lib/ui/prefs';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
@@ -104,7 +105,7 @@ function splitName(name: string): [string, string | null] {
  * on a phone the nav is a full-width bar and has nothing to collapse into.
  */
 export default function AppNav({ userName }: { userName: string }) {
-  const { t, sidebar, setSidebar } = usePrefs();
+  const { t, locale, sidebar, setSidebar } = usePrefs();
   const pathname = usePathname();
   const collapsed = sidebar === 'collapsed';
   const toggleLabel = collapsed ? t('nav.expand') : t('nav.collapse');
@@ -112,6 +113,7 @@ export default function AppNav({ userName }: { userName: string }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   return (
@@ -156,7 +158,7 @@ export default function AppNav({ userName }: { userName: string }) {
       {/* md:w-max: the expanded rail is exactly as wide as its widest content --
           today the header -- with no fixed width to leave slack beside short
           menu labels. Collapsed overrides it with a fixed 64px rail. */}
-      <nav className={`fixed inset-y-0 left-0 z-50 w-72 h-dvh md:h-auto overflow-y-auto bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-300 motion-reduce:transition-none md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <nav className={`fixed inset-y-0 left-0 z-50 w-72 h-dvh md:h-auto overflow-hidden bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-300 motion-reduce:transition-none md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Mobile close button */}
         <div className="md:hidden absolute top-4 right-4">
           <button
@@ -240,7 +242,19 @@ export default function AppNav({ userName }: { userName: string }) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 mt-2">
+        {/* The links are the only part that scrolls.
+
+            The rail is the height of the screen everywhere, but its contents
+            are about 600px, so on a short one -- a phone held sideways, a
+            small laptop -- the whole rail used to scroll and the version and
+            sign-out fell off the bottom with nothing to say they were there.
+            The header and the footer hold their size now and the middle
+            gives way, so the bottom of the rail is the bottom of the screen
+            on every device.
+
+            min-h-0: a flex child will not shrink below its content without
+            it, which would push the footer off again. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-1 mt-2 overflow-y-auto">
           {LINKS.map(({ href, key, icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
             return (
@@ -262,7 +276,31 @@ export default function AppNav({ userName }: { userName: string }) {
           })}
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-200">
+        {/* Above the rule, with the app rather than with the person: what
+            version this is belongs to the thing, not to whoever is signed in.
+
+            The lab finds out what is new by noticing it, so a change that
+            moves a familiar button reads as a fault until somebody explains
+            it. This is the explanation, one line per change. */}
+        <button
+          type="button"
+          onClick={() => {
+            closeMobileMenu();
+            setWhatsNewOpen(true);
+          }}
+          title={t('nav.whatsNew')}
+          className="shrink-0 flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+        >
+          <Icon
+            className="h-4 w-4"
+            d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"
+          />
+          <span className="whitespace-nowrap md:collapsed:sr-only">
+            {t('nav.version', { version: APP_VERSION })}
+          </span>
+        </button>
+
+        <div className="shrink-0 flex flex-col gap-3 pt-4 border-t border-gray-200">
           <div className="md:collapsed:hidden">
             {/* w-0 min-w-full: contributes nothing to the rail's max-content
                 width, then fills whatever width the rail settles on. A long
@@ -287,6 +325,57 @@ export default function AppNav({ userName }: { userName: string }) {
           </button>
         </div>
       </nav>
+
+      {whatsNewOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('nav.whatsNew')}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setWhatsNewOpen(false);
+          }}
+        >
+          <div className="flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4">
+              <div>
+                <h3 className="font-semibold text-gray-900">{t('nav.whatsNew')}</h3>
+                <p className="text-xs text-gray-500">
+                  {t('nav.version', { version: APP_VERSION })} · {t('nav.whatsNewHint')}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWhatsNewOpen(false)}
+                aria-label={t('avail.close')}
+                className="h-8 w-8 shrink-0 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <ul className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
+              {recentChanges().map((entry, index) => (
+                <li key={`${entry.date}-${index}`} className="flex items-start gap-2.5">
+                  <span
+                    className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-medium ${
+                      entry.kind === 'new'
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {t(entry.kind === 'new' ? 'nav.changeNew' : 'nav.changeFix')}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-gray-800">{locale === 'en' ? entry.en : entry.th}</span>
+                    <span className="block text-xs text-gray-400 tabular-nums">{entry.date}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {signOutOpen && (
         <div
