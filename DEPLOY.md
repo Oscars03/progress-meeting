@@ -82,8 +82,24 @@ rebase ทำให้ commit ได้ SHA ใหม่ `git branch -d` จึ�
 ```bash
 git checkout master
 git pull --ff-only
+npm run changelog        # อ่าน commit แล้วเขียน src/lib/changelog.generated.ts
+git commit -am "chore: refresh the changelog" || true
 npx vercel --prod --yes
 ```
+
+`npm run changelog` สร้างรายการ "มีอะไรใหม่" ในแถบซ้ายจาก commit บน HEAD
+เก็บเฉพาะ `feat:` กับ `fix:` และต้อง commit ไฟล์ที่ได้ไปด้วย เพราะ Vercel
+clone แบบตื้นจึงอ่านประวัติ commit เองไม่ได้
+
+ข้อความไทยมาจาก trailer บน commit — เขียนบรรทัดนี้ต่อท้าย commit message:
+
+```
+Changelog-TH: กดบล็อกสีเขียวแล้วเลือกช่วงประชุมได้เลย
+```
+
+ถ้าไม่มี trailer จะใช้ subject ภาษาอังกฤษแทน (หรือเติมคำแปลใน
+`TH_BY_SUBJECT` ใน `src/lib/changelog.ts` สำหรับ commit ที่ทำไปแล้ว)
+`npm run changelog -- --check` บอกว่าไฟล์ตรงกับประวัติหรือยัง
 
 ขึ้น `▲ Aliased https://irish-progress.vercel.app` คือสำเร็จ
 
