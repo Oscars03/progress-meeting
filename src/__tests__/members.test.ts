@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isMember, labMembers } from '../lib/members';
+import { isMember, labMembers, pollVoters, memberIds } from '../lib/members';
 import type { UserRecord } from '../lib/db/schema';
 
 function user(over: Partial<UserRecord>): UserRecord {
@@ -65,5 +65,39 @@ describe('labMembers', () => {
 
   it('returns nothing when the lab is only admins', () => {
     expect(labMembers([user({ role: 'admin' }), user({ id: 'u2', role: 'admin' })])).toEqual([]);
+  });
+});
+
+/**
+ * Who a slot poll is asked of: the members who are presenting.
+ *
+ * An advisor is a member -- they attend, and the invitation goes to them --
+ * but the poll is the students saying whether they can make it, so a week
+ * must not stall waiting for a click from somebody not presenting.
+ */
+describe('pollVoters', () => {
+  it('drops the advisors as well as admin and deactivated accounts', () => {
+    const users = [
+      user({ id: 'student', role: 'student' }),
+      user({ id: 'boss', role: 'admin' }),
+      user({ id: 'prof', role: 'professor' }),
+      user({ id: 'gone', role: 'student', active: false }),
+    ];
+    expect(pollVoters(users).map((u) => u.id)).toEqual(['student']);
+  });
+
+  it('is what memberIds counts, so the tally and the gate agree', () => {
+    const users = [
+      user({ id: 'student', role: 'student' }),
+      user({ id: 'prof', role: 'professor' }),
+    ];
+    expect([...memberIds(users)]).toEqual(['student']);
+  });
+
+  // An advisor still shows in the grid and on the invitation.
+  it('leaves an advisor a member of the lab', () => {
+    const users = [user({ id: 'prof', role: 'professor' })];
+    expect(labMembers(users).map((u) => u.id)).toEqual(['prof']);
+    expect(pollVoters(users)).toEqual([]);
   });
 });

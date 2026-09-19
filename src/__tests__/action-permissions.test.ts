@@ -267,11 +267,15 @@ describe('who may answer a poll', () => {
     );
   });
 
-  // A professor advises rather than reports, which is why they take no turn --
-  // but they attend, so the time has to suit them.
-  it('lets a professor answer', async () => {
+  // An advisor's calendar still shapes the choice -- they are in the grid --
+  // but the poll is the students reporting whether they can make it, and a
+  // week must not stall waiting for a click from somebody not presenting.
+  it('refuses a professor, who is not one of the voters', async () => {
     signedInAs('prof', 'professor');
-    await expect(voteAction('p1', 's1', 'no')).resolves.toMatchObject({ ok: true });
+    const result = await voteAction('p1', 's1', 'no');
+
+    expect(result).toMatchObject({ ok: false, error: 'polls.error.notAVoter' });
+    expect(insert).not.toHaveBeenCalled();
   });
 
   it('refuses an admin, and stores nothing', async () => {
@@ -306,6 +310,8 @@ describe('confirming only once everyone has answered', () => {
     tables['users'] = [
       { id: 'lead', name: 'Lead', role: 'student', active: true, row_version: 1 },
       { id: 'other', name: 'Other', role: 'student', active: true, row_version: 1 },
+      // A member of the lab, and not a voter: the advisor attends but does
+      // not report, so the confirm does not wait for them.
       { id: 'prof', name: 'Prof', role: 'professor', active: true, row_version: 1 },
       // Not a member of the lab and has no availability to state.
       { id: 'boss', name: 'Boss', role: 'admin', active: true, row_version: 1 },
@@ -324,14 +330,22 @@ describe('confirming only once everyone has answered', () => {
     }));
 
   it('refuses while somebody has not answered, and names them', async () => {
-    tables['availability_votes'] = voted('lead', 'other');
+    tables['availability_votes'] = voted('lead');
     signedInAs('lead');
 
     const result = await confirmSlotAction('p1', 1, 's1');
 
     expect(result).toMatchObject({ ok: false, error: 'polls.error.notEveryoneAnswered' });
-    expect(result).toMatchObject({ vars: { n: 1, who: 'Prof' } });
+    expect(result).toMatchObject({ vars: { n: 1, who: 'Other' } });
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('does not wait for an advisor, who attends but does not report', async () => {
+    tables['availability_votes'] = voted('lead', 'other');
+    signedInAs('lead');
+
+    // 'prof' never voted and the confirm still goes through.
+    await expect(confirmSlotAction('p1', 1, 's1')).resolves.toMatchObject({ ok: true });
   });
 
   it('confirms once every member has', async () => {

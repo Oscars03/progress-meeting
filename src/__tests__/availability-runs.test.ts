@@ -6,7 +6,7 @@ import type { AvailabilityCell, CellMeeting } from '../lib/availability-grid';
 function cell(
   hour: number,
   minute: 0 | 30,
-  parts: Partial<Pick<AvailabilityCell, 'free' | 'busy' | 'unknown' | 'status' | 'meeting'>>
+  parts: Partial<Pick<AvailabilityCell, 'free' | 'busy' | 'status' | 'meeting'>>
 ): AvailabilityCell {
   const at = (h: number, m: number) =>
     `2026-09-14T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00+07:00`;
@@ -20,7 +20,6 @@ function cell(
     minute,
     free: [],
     busy: [],
-    unknown: [],
     status: 'all-free',
     meeting: null,
     ...parts,
@@ -43,10 +42,10 @@ describe('runState', () => {
     expect(runState(cell(8, 0, { status: 'meeting', meeting }))).toBe('meeting');
   });
 
-  // With two of eight never connected, `incomplete` covered nearly every hour
-  // the lab could actually meet in. Nobody known to be busy is free.
-  it('counts an hour nobody is busy in as free, even with somebody unaccounted for', () => {
-    expect(runState(cell(8, 0, { status: 'incomplete', unknown: ['Kandis'] }))).toBe('free');
+  // An empty calendar is a free hour -- the grid has no third answer left to
+  // give, and `runState` must not invent one.
+  it('counts an hour nobody is busy in as free', () => {
+    expect(runState(cell(8, 0, { status: 'all-free', free: ['Kandis'] }))).toBe('free');
   });
 });
 
@@ -101,17 +100,17 @@ describe('mergeRuns', () => {
     expect(run.busy.sort()).toEqual(['b', 'c']);
   });
 
-  it('reports whoever never answered as unknown rather than free', () => {
+  it('carries the free list across a run nobody is busy in', () => {
     const cells = [
-      cell(8, 0, { status: 'incomplete', free: ['a'], unknown: ['z'] }),
-      cell(8, 30, { status: 'incomplete', free: ['a'], unknown: ['z'] }),
+      cell(8, 0, { status: 'all-free', free: ['a', 'z'] }),
+      cell(8, 30, { status: 'all-free', free: ['a', 'z'] }),
     ];
 
     const [run] = mergeRuns(cells);
 
     expect(run.state).toBe('free');
-    expect(run.free).toEqual(['a']);
-    expect(run.unknown).toEqual(['z']);
+    expect(run.free).toEqual(['a', 'z']);
+    expect(run.busy).toEqual([]);
   });
 
   // Two bookings in a row are two blocks: merging them would offer one block

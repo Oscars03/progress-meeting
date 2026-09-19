@@ -15,7 +15,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import PollGrid, { type SlotView } from './poll-grid';
-import { labMembers, memberIds } from '@/lib/members';
+import { labMembers, memberIds, pollVoters } from '@/lib/members';
 
 export default async function PollDetailPage(props: PageProps<'/meetings/polls/[id]'>) {
   const { id } = await props.params;
@@ -38,14 +38,16 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
     );
   if (!poll) notFound();
 
+  // Names for everyone a meeting involves; the tally counts only the voters.
   const activeUsers = labMembers(users);
   const nameById = new Map(activeUsers.map((u) => [u.id, u.name] as const));
+  const votingUsers = pollVoters(users);
 
-  // A poll is asked of members and counted over members. Admin is a system
-  // account, not somebody a meeting has to suit, so it is neither asked nor
-  // counted -- and a vote already sitting in the sheet from before this rule
-  // is dropped rather than merely uncounted, or a yes from outside the group
-  // would be added to a tally whose denominator leaves that voter out.
+  // A poll is asked of voters and counted over voters: the members who are
+  // presenting, which leaves out admin and the advisors -- see lib/members.ts.
+  // A vote already sitting in the sheet from outside that group is dropped
+  // rather than merely uncounted, or a yes would be added to a tally whose
+  // denominator leaves that voter out.
   const voters = memberIds(users);
   const iMayVote = voters.has(actor.id);
 
@@ -63,7 +65,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
         byUser.set(vote.user_id, choice);
       }
     }
-    return { slot, byUser, tally: tallySlot(slot.id, byUser, activeUsers.length) };
+    return { slot, byUser, tally: tallySlot(slot.id, byUser, votingUsers.length) };
   });
 
   const recommended = bestSlot(tallies.map((t) => t.tally));
@@ -115,7 +117,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
         </div>
         {poll.note && <p className="text-sm text-gray-500">{poll.note}</p>}
         <p className="text-sm text-gray-500">
-          {t('polls.activeUsers', { count: activeUsers.length })}
+          {t('polls.activeUsers', { count: votingUsers.length })}
         </p>
       </div>
 

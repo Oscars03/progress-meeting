@@ -61,29 +61,27 @@ describe('dates', () => {
 });
 
 describe('cellStatus', () => {
-  it('is all-free only when everyone is known and free', () => {
-    expect(cellStatus(0, 0, 3)).toBe('all-free');
+  it('is all-free when nobody is busy', () => {
+    expect(cellStatus(0)).toBe('all-free');
   });
 
-  it('is some-busy as soon as one person is busy, known or not', () => {
-    expect(cellStatus(1, 0, 3)).toBe('some-busy');
-    expect(cellStatus(1, 2, 3)).toBe('some-busy');
+  it('is some-busy as soon as one person is busy', () => {
+    expect(cellStatus(1)).toBe('some-busy');
+    expect(cellStatus(3)).toBe('some-busy');
   });
 
-  it('is incomplete when nobody is busy but someone is unknown', () => {
-    expect(cellStatus(0, 1, 3)).toBe('incomplete');
-  });
-
-  it('does not call an empty group free', () => {
-    expect(cellStatus(0, 0, 0)).toBe('incomplete');
+  // There used to be a third answer, `incomplete`, for an hour nobody was
+  // busy in but somebody's calendar could not be read. It described the app's
+  // knowledge rather than the person's week. An empty calendar is a free hour.
+  it('has no third answer for a calendar it could not read', () => {
+    expect(cellStatus(0)).toBe('all-free');
   });
 });
 
 describe('buildWeekGrid', () => {
-  const person = (name: string, known: boolean, busy: [string, string][] = []): PersonAvailability => ({
+  const person = (name: string, busy: [string, string][] = []): PersonAvailability => ({
     id: name,
     name,
-    known,
     busy: busy.map(([s, e]) => ({ start: at(s), end: at(e) })),
   });
 
@@ -120,32 +118,33 @@ describe('buildWeekGrid', () => {
     expect(grid[0].cells[1].start).toBe('2026-09-14T08:30:00+07:00');
   });
 
-  it('sorts each person into free, busy or unknown', () => {
+  it('sorts each person into free or busy, and nothing else', () => {
     const grid = buildWeekGrid({
       weekStart: '2026-09-14',
       fromHour: 9,
       toHour: 12,
       people: [
-        person('Ann', true, [['2026-09-14T10:30:00+07:00', '2026-09-14T11:30:00+07:00']]),
-        person('Bo', true),
-        person('Cy', false),
+        person('Ann', [['2026-09-14T10:30:00+07:00', '2026-09-14T11:30:00+07:00']]),
+        person('Bo'),
+        // Nothing on Cy's calendar at all, which now means a free week.
+        person('Cy'),
       ],
     });
 
     // Ann is away for part of 10:00, which is enough to hold the hour.
     const tenOClock = cellAt(grid, '2026-09-14', '10:00');
-    expect(tenOClock).toMatchObject({ busy: ['Ann'], free: ['Bo'], unknown: ['Cy'], status: 'some-busy' });
+    expect(tenOClock).toMatchObject({ busy: ['Ann'], free: ['Bo', 'Cy'], status: 'some-busy' });
 
     const nineOClock = cellAt(grid, '2026-09-14', '09:00');
-    expect(nineOClock).toMatchObject({ busy: [], free: ['Ann', 'Bo'], unknown: ['Cy'], status: 'incomplete' });
+    expect(nineOClock).toMatchObject({ busy: [], free: ['Ann', 'Bo', 'Cy'], status: 'all-free' });
   });
 
-  it('marks a slot green only when every known person is free', () => {
+  it('marks a slot green only when nobody at all is busy', () => {
     const grid = buildWeekGrid({
       weekStart: '2026-09-14',
       fromHour: 9,
       toHour: 10,
-      people: [person('Ann', true), person('Bo', true)],
+      people: [person('Ann'), person('Bo')],
     });
     expect(cellAt(grid, '2026-09-14', '09:00').status).toBe('all-free');
   });
@@ -155,7 +154,7 @@ describe('buildWeekGrid', () => {
       weekStart: '2026-09-14',
       fromHour: 11,
       toHour: 12,
-      people: [person('Ann', true, [['2026-09-14T10:00:00+07:00', '2026-09-14T11:00:00+07:00']])],
+      people: [person('Ann', [['2026-09-14T10:00:00+07:00', '2026-09-14T11:00:00+07:00']])],
     });
     expect(cellAt(grid, '2026-09-14', '11:00').status).toBe('all-free');
   });
@@ -165,7 +164,7 @@ describe('buildWeekGrid', () => {
       weekStart: '2026-09-14',
       fromHour: 14,
       toHour: 15,
-      people: [person('Ann', true, [['2026-09-14T14:50:00+07:00', '2026-09-14T15:10:00+07:00']])],
+      people: [person('Ann', [['2026-09-14T14:50:00+07:00', '2026-09-14T15:10:00+07:00']])],
     });
     expect(cellAt(grid, '2026-09-14', '14:00').busy).toEqual(['Ann']);
   });
@@ -176,7 +175,7 @@ describe('buildWeekGrid', () => {
       weekStart: '2026-09-14',
       fromHour: 9,
       toHour: 11,
-      people: [person('Ann', true, [['2026-09-14T03:00:00Z', '2026-09-14T04:00:00Z']])],
+      people: [person('Ann', [['2026-09-14T03:00:00Z', '2026-09-14T04:00:00Z']])],
     });
     expect(cellAt(grid, '2026-09-14', '09:00').status).toBe('all-free');
     expect(cellAt(grid, '2026-09-14', '10:00').status).toBe('some-busy');
@@ -196,7 +195,7 @@ describe('buildWeekGrid', () => {
         weekStart: '2026-09-14',
         fromHour: 12,
         toHour: 15,
-        people: [person('Ann', true), person('Bo', true)],
+        people: [person('Ann'), person('Bo')],
         meetings: [booked],
       });
 
@@ -235,7 +234,6 @@ describe('buildWeekGrid', () => {
       const attending = (name: string, busy: Interval[]): PersonAvailability => ({
         id: name,
         name,
-        known: true,
         busy,
       });
 

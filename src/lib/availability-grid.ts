@@ -1,5 +1,5 @@
 /**
- * The weekly availability grid: who is free, busy or unknown for each hour.
+ * The weekly availability grid: who is free and who is busy, each hour.
  *
  * Pure -- no I/O -- so the colour rules can be tested directly. The server
  * action gathers busy intervals from Google Calendar and from meetings in the
@@ -29,26 +29,25 @@ export type Interval = {
 export type PersonAvailability = {
   id: string;
   name: string;
-  /**
-   * True only when this person's whole calendar could be read. Without it, the
-   * absence of a busy interval proves nothing -- they may simply not have told
-   * the app about their day.
-   */
-  known: boolean;
   busy: Interval[];
 };
 
 /**
- * all-free:   every person is known and none is busy.
- * some-busy:  at least one person is busy.
- * incomplete: nobody is busy, but at least one person's calendar is unknown,
- *             so "everyone is free" cannot honestly be claimed.
- * meeting:    a confirmed meeting already holds this slot. It outranks the
- *             other three: once the time is settled, what the grid has to say
- *             about it is that it is taken, not how many people were free
- *             before it was booked.
+ * all-free:  nobody is busy.
+ * some-busy: at least one person is busy.
+ * meeting:   a confirmed meeting already holds this slot. It outranks the
+ *            other two: once the time is settled, what the grid has to say
+ *            about it is that it is taken, not how many people were free
+ *            before it was booked.
+ *
+ * There used to be a fourth, `incomplete`: nobody busy, but somebody's
+ * calendar unreadable, so "everyone is free" could not honestly be claimed.
+ * It was the honest answer to a question nobody was asking. An empty calendar
+ * now means a free hour -- that is what an empty calendar means to the person
+ * who owns it, and the lab would rather be asked about an hour that turns out
+ * not to suit somebody than never be offered it at all.
  */
-export type CellStatus = 'all-free' | 'some-busy' | 'incomplete' | 'meeting';
+export type CellStatus = 'all-free' | 'some-busy' | 'meeting';
 
 /**
  * A meeting already in the diary, as the grid needs to know it.
@@ -85,7 +84,6 @@ export type AvailabilityCell = {
   minute: number;
   free: string[];
   busy: string[];
-  unknown: string[];
   status: CellStatus;
   /** The confirmed meeting holding this slot, if there is one. */
   meeting: CellMeeting | null;
@@ -162,11 +160,8 @@ function overlaps(start: number, end: number, interval: Interval): boolean {
   return start < interval.end && interval.start < end;
 }
 
-export function cellStatus(busy: number, unknown: number, people: number): CellStatus {
-  if (busy > 0) return 'some-busy';
-  // With nobody to ask, nobody is known to be free either.
-  if (unknown > 0 || people === 0) return 'incomplete';
-  return 'all-free';
+export function cellStatus(busy: number): CellStatus {
+  return busy > 0 ? 'some-busy' : 'all-free';
 }
 
 /**
@@ -233,15 +228,13 @@ export function buildWeekGrid(input: {
 
       const free: string[] = [];
       const busy: string[] = [];
-      const unknown: string[] = [];
 
       for (const person of input.people) {
         const clash = person.busy.some(
           (b) => !isTheMeetingItself(b) && overlaps(startMs, endMs, b)
         );
         if (clash) busy.push(person.name);
-        else if (person.known) free.push(person.name);
-        else unknown.push(person.name);
+        else free.push(person.name);
       }
 
       return {
@@ -251,8 +244,7 @@ export function buildWeekGrid(input: {
         minute,
         free,
         busy,
-        unknown,
-        status: meeting ? ('meeting' as const) : cellStatus(busy.length, unknown.length, input.people.length),
+        status: meeting ? ('meeting' as const) : cellStatus(busy.length),
         meeting: meeting
           ? {
               id: meeting.id,
