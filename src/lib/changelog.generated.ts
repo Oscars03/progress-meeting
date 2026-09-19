@@ -13,6 +13,12 @@ export const GENERATED_CHANGELOG: ChangeEntry[] = [
   {
     date: "2026-09-19",
     kind: "new",
+    th: "รายการ \"มีอะไรใหม่\" สร้างจาก commit อัตโนมัติแล้ว",
+    en: "the changelog writes itself from the commits",
+  },
+  {
+    date: "2026-09-19",
+    kind: "new",
     th: "the sidebar says which version this is, and holds its footer",
     en: "the sidebar says which version this is, and holds its footer",
   },
