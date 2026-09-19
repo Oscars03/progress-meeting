@@ -299,7 +299,48 @@ export default function CalendarView({
     }
   }
 
+  /**
+   * The events that let a drag through -- somebody else's busy block and
+   * anything imported from Google -- see the pointer-events rules in
+   * globals.css.
+   *
+   * They cannot be clicked, because the grid underneath them has to stay
+   * draggable: the hours you most need to mark yourself busy in are the ones
+   * a colleague is already busy in. So they are opened from below instead --
+   * a click on the grid reports the instant, and whatever passes the pointer
+   * through at that instant is what the reader meant to open.
+   */
+  const passThroughEventAt = (at: Date) =>
+    allEvents.find((ev) => {
+      const classes = Array.isArray(ev.classNames) ? ev.classNames : [];
+      if (!classes.includes('cal-ev-theirs') && !classes.includes('cal-ev-google')) return false;
+      const from = ev.start ? new Date(ev.start as string | Date).getTime() : NaN;
+      const to = ev.end ? new Date(ev.end as string | Date).getTime() : NaN;
+      return !Number.isNaN(from) && !Number.isNaN(to) && at.getTime() >= from && at.getTime() < to;
+    });
+
   const handleSelect = (info: DateSelectArg) => {
+    // A click and a one-slot drag arrive identically, so a click on top of a
+    // pass-through event is read as wanting to see it rather than to mark the
+    // same half hour busy. Anything longer is unambiguously a drag and still
+    // creates, however many of other people's blocks it crosses.
+    if (!info.allDay && info.end.getTime() - info.start.getTime() <= 30 * 60 * 1000) {
+      const under = passThroughEventAt(info.start);
+      if (under) {
+        info.view.calendar.unselect();
+        setSelectedEventInfo({
+          id: String(under.id ?? ''),
+          title: String(under.title ?? ''),
+          start: under.start ? new Date(under.start as string | Date) : null,
+          end: under.end ? new Date(under.end as string | Date) : null,
+          type: String(under.extendedProps?.type ?? ''),
+          isMine: false,
+        });
+        setDetailModalOpen(true);
+        return;
+      }
+    }
+
     setError('');
     setCreateTitle('');
     setCreateColor('');

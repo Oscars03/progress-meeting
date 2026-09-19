@@ -244,31 +244,43 @@ body {
 }
 
 /**
- * Every entry opens; the empty grid around it still starts a selection.
+ * Who takes the pointer, and who lets a drag through.
  *
- * The harness is a wrapper positioned over the whole column, so leaving it
- * clickable meant a colleague's block swallowed the pointer for an hour you
- * were only trying to drag across -- and the times you most want to mark are
- * exactly the ones already crowded. It passes the pointer through, and the
- * events themselves take it back.
+ * The harness is a wrapper positioned over the whole column, so it always
+ * passes the pointer through -- left clickable it swallowed drags across an
+ * entire column.
  *
- * Somebody else's entry used to be excluded from that on the grounds that it
- * was "information, not something you can open". It is still not something you
- * can edit, but it is worth reading -- whose it is, and when it really ends --
- * and the dialog already showed exactly that much for any kind, offering edit
- * and delete only for your own. So all four kinds open now, and the drag still
- * works because the harness, not the event, was what blocked it.
+ * The events themselves are split, and the split is the whole point. Marking
+ * your own busy time means dragging across the grid, and the hours you most
+ * need to mark are exactly the ones a colleague is already busy in. An event
+ * that takes the pointer cannot be dragged across.
+ *
+ * So the two kinds you can *act* on -- your own blocks, and the lab's meetings
+ * -- keep the pointer, because opening them is worth more than dragging over
+ * them and there are few of them. Somebody else's block and a Google entry let
+ * it through, so a drag starting on top of them still selects the grid
+ * underneath. They are still readable: a click that is not a drag opens their
+ * detail through `dateClick`, which fires on the grid beneath them. See
+ * `passThroughEventAt` in meetings/calendar.tsx.
+ *
+ * This was briefly wrong in both directions. All four kinds were given the
+ * pointer so that every entry could be opened, on the reasoning that the
+ * harness was what had blocked the drag. The harness was only half of it --
+ * the event blocks it too -- and marking your own time over a busy hour
+ * stopped working.
  */
 .fc .fc-timegrid-event-harness,
 .fc .fc-daygrid-event-harness {
   pointer-events: none;
 }
 .fc .fc-event.cal-ev-mine,
-.fc .fc-event.cal-ev-meeting,
-.fc .fc-event.cal-ev-theirs,
-.fc .fc-event.cal-ev-google {
+.fc .fc-event.cal-ev-meeting {
   pointer-events: auto;
   cursor: pointer;
+}
+.fc .fc-event.cal-ev-theirs,
+.fc .fc-event.cal-ev-google {
+  pointer-events: none;
 }
 .fc .fc-event:focus-visible {
   outline: 2px solid #2563eb;
