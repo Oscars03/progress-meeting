@@ -2,7 +2,7 @@ import Link from 'next/link';
 import BackLink from '@/lib/ui/back-link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession, hasManagerRights } from '@/lib/auth-guard';
+import { requireSession } from '@/lib/auth-guard';
 import type {
   ActionItemRecord,
   MeetingRecord,
@@ -54,7 +54,9 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
     .filter((t) => t.status !== 'done')
     .map((t) => ({ id: t.id, title: t.title }));
 
-  const canManage = hasManagerRights(actor.role);
+  // Naming the week's lead is admin's; everything else this page can change
+  // belongs to whoever runs the week -- see canRemove.
+  const canManage = actor.role === 'admin';
   const students = rotationMembers(users);
   // The duty is the week's, so this meeting shows whoever holds the week it
   // falls in -- the same person the dashboard shows, by construction.
@@ -189,7 +191,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
         }))}
         people={people}
         openTasks={openTasks}
-        canDelete={canManage}
+        canDelete={canRemove}
       />
 
       {/* Last, and apart: it is the one thing on this page that cannot be

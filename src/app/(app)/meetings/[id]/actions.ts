@@ -38,15 +38,24 @@ function revalidate(meetingId: string) {
 /**
  * Whoever runs the week the meeting falls in, or an admin.
  *
+ * This is the rule for everything that shapes a meeting rather than merely
+ * takes part in it: writing the minutes, setting the running order, and
+ * removing an action item somebody was given.
+ *
  * Writing the minutes is writing the lab's record of what was decided, and it
  * is one row per meeting -- a save replaces what is there. Any signed-in
  * member could do it, so anyone could overwrite the agreed account of a
  * meeting they did not run. Preparing the meeting and recording it are the
  * same job, and it belongs to the week's lead.
  *
- * Everybody still reads them. Only writing is narrowed.
+ * The other two were professor-and-above. That gave an advisor the ordering
+ * of a meeting they do not run, while the student who does run it could not
+ * touch it -- the same inversion this file already fixed once for the
+ * minutes.
+ *
+ * Everybody still reads all three. Only writing is narrowed.
  */
-async function assertRecordsTheMeeting(
+async function assertRunsTheMeeting(
   actor: { id: string; role: string; previewingLead?: boolean },
   meetingId: string
 ): Promise<void> {
@@ -76,7 +85,7 @@ export async function saveMinutesAction(
   return toResult(async () => {
     const actor = await requireSession();
     requireMeetingId(meetingId);
-    await assertRecordsTheMeeting(actor, meetingId);
+    await assertRunsTheMeeting(actor, meetingId);
 
     if (existingId && rowVersion !== null) {
       await SheetRepo.update<MinutesRecord>(
@@ -161,8 +170,10 @@ export async function deleteActionItemAction(
   rowVersion: number
 ): Promise<ActionResult> {
   return toResult(async () => {
-    // Removing someone else's assigned work is a manager call, not a member one.
-    const actor = await requireRole('professor');
+    // Removing someone else's assigned work belongs to whoever runs the
+    // meeting it came out of, not to any member who can see it.
+    const actor = await requireSession();
+    await assertRunsTheMeeting(actor, meetingId);
     await SheetRepo.delete('action_items', itemId, rowVersion, actor.id);
     revalidate(meetingId);
   });
@@ -176,8 +187,9 @@ export async function deleteActionItemAction(
  */
 export async function setAgendaAction(meetingId: string, userIds: string[]): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('professor');
+    const actor = await requireSession();
     requireMeetingId(meetingId);
+    await assertRunsTheMeeting(actor, meetingId);
 
     const all = await SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees');
     const mine = all.filter((a) => a.meeting_id === meetingId);

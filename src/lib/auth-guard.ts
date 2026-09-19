@@ -140,13 +140,20 @@ export async function requireRole(minimum: Role): Promise<SessionUser> {
 }
 
 /**
- * Whether a role carries manager-level abilities -- ordering the agenda,
- * closing a poll, confirming the week's lead, removing other people's rows.
+ * Whether a role may direct somebody else's work: adding a task, editing one,
+ * and recording progress against it.
  *
- * Pages asked for the roles by name in four places, which silently excluded
- * any role added later. Ask this instead.
+ * This is all an advisor does in the app now. It used to be one predicate,
+ * `hasManagerRights`, covering everything a professor could reach: arranging
+ * the agenda, confirming the week's lead, deleting other people's rows. That
+ * bundled two unrelated ideas -- who assigns the work, and who runs the week
+ * -- and running the week belongs to the lead. The advisor's part is the work
+ * itself, so that is the only thing left here.
+ *
+ * Deleting somebody else's task is deliberately not included; see
+ * lib/task-rights.ts.
  */
-export function hasManagerRights(role: Role): boolean {
+export function directsWork(role: Role): boolean {
   return RANK[role] >= RANK.professor;
 }
 

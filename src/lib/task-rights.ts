@@ -1,4 +1,4 @@
-import { hasManagerRights, type SessionUser } from './auth-guard';
+import { directsWork, type SessionUser } from './auth-guard';
 import type { TaskRecord, WeekLeadRecord } from './db/schema';
 import { actsAsWeekLead } from './rotation';
 
@@ -10,7 +10,7 @@ import { actsAsWeekLead } from './rotation';
  * stays with the advisors.
  */
 export function canAssignWork(actor: SessionUser): boolean {
-  return hasManagerRights(actor.role);
+  return directsWork(actor.role);
 }
 
 /**
@@ -26,7 +26,7 @@ export function canAddOwnWork(actor: SessionUser): boolean {
 }
 
 export function canEditWork(actor: SessionUser, task: Pick<TaskRecord, 'assignee_ids'>): boolean {
-  if (hasManagerRights(actor.role)) return true;
+  if (directsWork(actor.role)) return true;
   const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
   return assignees.includes(actor.id);
 }
@@ -53,8 +53,12 @@ export function canRecordProgress(actor: SessionUser, task: Pick<TaskRecord, 'as
  *
  * Three can: whoever wrote it down, because they can withdraw their own; the
  * lead of the week, because tidying the board is part of preparing the meeting
- * that reads from it; and an advisor or admin, which is the only way to clear
- * somebody else's mistake.
+ * that reads from it; and admin, which is the only way to clear somebody
+ * else's mistake.
+ *
+ * Not an advisor. They add work and edit it, which is the whole of their part
+ * here -- an assignment that can be withdrawn silently by the person who set
+ * it is a worse record than one that stays and is marked done.
  *
  * The lead is judged on the current week rather than any week they have ever
  * held -- the claim is "I am running this week's meeting", not "I ran one once".
@@ -65,7 +69,7 @@ export function canRemoveWork(
   thisWeek: string,
   leads: WeekLeadRecord[]
 ): boolean {
-  if (hasManagerRights(actor.role)) return true;
+  if (actor.role === 'admin') return true;
   if (task.owner_id === actor.id) return true;
   return actsAsWeekLead(actor, leads, thisWeek);
 }

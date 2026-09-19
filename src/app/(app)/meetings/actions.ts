@@ -169,10 +169,15 @@ export async function rescheduleMeetingAction(
  *
  * Passing an empty userId clears the week, so a wrong confirmation can be
  * undone without editing the sheet by hand.
+ *
+ * Admin settles it. This was professor-and-above, on the reading that naming
+ * whose turn it is looks like an advisor's call; the rotation decides it
+ * anyway, and what the app needs is one account that can correct a wrong
+ * entry rather than a second opinion about the order.
  */
 export async function setWeekLead(weekKey: string, userId: string): Promise<ActionResult> {
   return toResult(async () => {
-    const actor = await requireRole('professor');
+    const actor = await requireRole('admin');
 
     if (!/^\d{4}-W\d{2}$/.test(weekKey)) {
       throw new UserError('error.invalidValue', { value: weekKey });
