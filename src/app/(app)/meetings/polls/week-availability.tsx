@@ -596,12 +596,13 @@ export default function WeekAvailabilityGrid({
             </div>
           )}
 
-          <dl className="grid gap-2 text-sm sm:grid-cols-3">
+          {/* Two lists, not three. An empty calendar is a free hour now, so
+              there is nobody left to file under "we do not know". */}
+          <dl className="grid gap-2 text-sm sm:grid-cols-2">
             {(
               [
                 ['avail.free', selected.free, 'text-green-700'],
                 ['avail.busy', selected.busy, 'text-red-700'],
-                ['avail.unknown', selected.unknown, 'text-gray-500'],
               ] as const
             ).map(([key, names, tone]) => (
               <div key={key}>

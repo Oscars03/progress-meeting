@@ -8,8 +8,8 @@
  * turned up in every people picker. A meeting does not have to suit the
  * account that administers the app.
  *
- * Professors stay. They advise rather than report -- which is why they take no
- * turn in the rotation -- but they attend, so a time has to suit them.
+ * Professors are members: they attend, so a time has to suit them and they
+ * belong on the invitation. They are not *voters* -- see pollVoters.
  *
  * Deactivated accounts are not members either: they cannot sign in, so counting
  * them would mean waiting on availability that can never arrive.
@@ -30,15 +30,29 @@ export function labMembers<T extends Pick<UserRecord, 'active' | 'role'>>(users:
 }
 
 /**
- * The same set, as ids, for filtering rows that only carry a user id.
+ * Who a slot poll is asked of, and counted over.
  *
- * A poll is asked of members and counted over members, so a vote from anybody
- * else has to be dropped rather than merely uncounted -- an admin's yes was
- * being added to the tally while admin was left out of the denominator, which
- * could read as "everyone can make it" while a real member had not answered.
+ * Members, minus the advisors. An advisor's calendar still shapes the choice
+ * -- they are in the grid, and a lead who picks an hour they are busy in has
+ * picked badly -- but the poll is the students reporting whether they can
+ * make it, and a week should not stall waiting for a click from somebody who
+ * is not presenting. The same reason admin was taken out: the tally has to
+ * mean "everyone who owes an answer has given one".
+ */
+export function pollVoters<T extends Pick<UserRecord, 'active' | 'role'>>(users: T[]): T[] {
+  return labMembers(users).filter((u) => u.role !== 'professor');
+}
+
+/**
+ * The voters as ids, for filtering rows that only carry a user id.
+ *
+ * A vote from anybody else is dropped rather than merely uncounted -- an
+ * admin's yes was once added to the tally while admin was left out of the
+ * denominator, which could read as "everyone can make it" while a real member
+ * had not answered.
  */
 export function memberIds<T extends Pick<UserRecord, 'id' | 'active' | 'role'>>(
   users: T[]
 ): Set<string> {
-  return new Set(labMembers(users).map((u) => u.id));
+  return new Set(pollVoters(users).map((u) => u.id));
 }

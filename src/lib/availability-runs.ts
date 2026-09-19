@@ -37,20 +37,9 @@ export type AvailabilityRun = {
   /** Free in *every* cell of the run -- see `runPeople`. */
   free: string[];
   busy: string[];
-  unknown: string[];
 };
 
-/**
- * An hour where nobody is known to be busy counts as free, whether or not
- * everyone has been accounted for.
- *
- * `incomplete` -- nobody busy, but somebody never connected a calendar -- was
- * its own grey state. With two of eight unconnected it covered nearly every
- * hour the lab could actually meet in, so the one colour that meant "this is
- * possible" was a colour that also meant "we are not sure". Whether anybody is
- * unaccounted for is a fact about the run, and it is told by name in the
- * panel rather than by tinting the block.
- */
+/** Busy is busy; everything else is free. */
 export function runState(cell: AvailabilityCell): RunState {
   if (cell.status === 'meeting') return 'meeting';
   return cell.status === 'some-busy' ? 'busy' : 'free';
@@ -61,11 +50,10 @@ export function runState(cell: AvailabilityCell): RunState {
  *
  * Free means free in every cell of it: a run is offered as one stretch, and
  * somebody free for half of it cannot take the meeting. Busy is the opposite
- * -- busy anywhere is busy -- and whoever is in neither list never answered.
+ * -- busy anywhere in the run is busy for it.
  */
-function runPeople(cells: AvailabilityCell[]): Pick<AvailabilityRun, 'free' | 'busy' | 'unknown'> {
+function runPeople(cells: AvailabilityCell[]): Pick<AvailabilityRun, 'free' | 'busy'> {
   const busy = new Set<string>();
-  const seen = new Set<string>();
   // Null until the first cell, which seeds it: an empty set would intersect
   // to nothing and report that nobody is ever free.
   let free: Set<string> | null = null;
@@ -73,18 +61,13 @@ function runPeople(cells: AvailabilityCell[]): Pick<AvailabilityRun, 'free' | 'b
 
   for (const cell of cells) {
     for (const name of cell.busy) busy.add(name);
-    for (const name of [...cell.free, ...cell.busy, ...cell.unknown]) seen.add(name);
-
     const here = new Set(cell.free);
     free = free === null ? here : narrow(free, here);
   }
 
-  const freeAll = [...(free ?? new Set<string>())].filter((name) => !busy.has(name));
-  const accounted = new Set([...freeAll, ...busy]);
   return {
-    free: freeAll,
+    free: [...(free ?? new Set<string>())].filter((name) => !busy.has(name)),
     busy: [...busy],
-    unknown: [...seen].filter((name) => !accounted.has(name)),
   };
 }
 

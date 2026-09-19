@@ -77,15 +77,18 @@ export type WeekAvailability = {
 };
 
 /**
- * Who is free, busy or unknown for every hour of a week.
+ * Who is free and who is busy, every hour of a week.
  *
- * Two sources, both honest about what they cannot see:
- * - Google Calendar free/busy for members who connected it. Reading it
- *   successfully is the only thing that makes a person "known", because only
- *   then does an empty hour mean free.
- * - Meetings already in the app, for their owner and attendees. That can mark
- *   someone busy even without Google, but never free -- the app does not know
- *   the rest of their day.
+ * Three sources of "busy", and nothing else:
+ * - Google Calendar free/busy, for members who connected it.
+ * - Meetings already in the app, for their owner and attendees.
+ * - Hours a member blocked out by hand.
+ *
+ * An hour none of them claims is free. The app used to hold a fourth answer,
+ * "we cannot say", for anyone whose calendar it could not read -- true about
+ * the app, and useless to whoever is trying to find an hour for a meeting. An
+ * empty calendar means a free hour, which is what it means to the person who
+ * owns it.
  */
 export async function weekAvailabilityAction(requestedWeek?: string): Promise<WeekAvailability> {
   await requireSession();
@@ -170,11 +173,6 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
   const people: PersonAvailability[] = active.map((u, i) => {
     const busy = [...(appBusy.get(u.id) ?? [])];
     const result = google[i];
-    
-    // User is "known" if they connected Google Calendar, OR if they added at least one manual event
-    // somewhere in the database (Option B).
-    const hasManualEvents = personalEvents.some(pe => pe.user_id === u.id);
-    let known = hasManualEvents;
 
     if (result.status === 'fulfilled' && result.value) {
       for (const b of result.value) {
@@ -182,13 +180,17 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
         const end = Date.parse(b.end);
         if (!Number.isNaN(start) && !Number.isNaN(end)) busy.push({ start, end });
       }
-      known = true;
       readCount++;
     } else if (result.status === 'rejected' && !(result.reason instanceof NotConnectedError)) {
       console.error(`freebusy failed for ${u.id}:`, result.reason);
     }
 
-    return { id: u.id, name: u.name, known, busy };
+    // Nothing on the calendar is a free hour. There used to be a third answer
+    // -- "we cannot say" -- for anyone who had not connected Google and had
+    // written nothing down. It described the app's knowledge rather than the
+    // person's week, and with two of eight unconnected it covered almost
+    // every hour the lab could have met in.
+    return { id: u.id, name: u.name, busy };
   });
 
   return {

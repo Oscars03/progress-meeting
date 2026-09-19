@@ -18,7 +18,7 @@ import type {
   UserRecord,
 } from '@/lib/db/schema';
 import { breakCovering } from '@/lib/term-breaks';
-import { labMembers, memberIds } from '@/lib/members';
+import { memberIds, pollVoters } from '@/lib/members';
 import { getT } from '@/lib/ui/server-i18n';
 
 function assertChoice(value: string): asserts value is Choice {
@@ -246,7 +246,8 @@ export async function confirmSlotAction(
   const answered = new Set(
     allVotes.filter((v) => v.slot_id === slotId).map((v) => v.user_id)
   );
-  const silent = labMembers(users).filter((u) => !answered.has(u.id));
+  // Voters, not members: an advisor is not waited on -- see lib/members.ts.
+  const silent = pollVoters(users).filter((u) => !answered.has(u.id));
 
   if (silent.length > 0) {
     throw new UserError('polls.error.notEveryoneAnswered', {
