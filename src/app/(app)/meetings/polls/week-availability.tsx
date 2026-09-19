@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { addDays, type CellMeeting } from '@/lib/availability-grid';
@@ -125,6 +125,17 @@ export default function WeekAvailabilityGrid({
    * is not silently reused for the next one.
    */
   const [editNotify, setEditNotify] = useState(false);
+
+  // Escape closes the dialog. A modal that can only be dismissed by aiming at
+  // a small ✕ is worse on a phone than the panel it replaced.
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelected(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected]);
 
   const intl = locale === 'th' ? 'th-TH' : 'en-GB';
 
@@ -317,10 +328,25 @@ export default function WeekAvailabilityGrid({
         </div>
       </div>
 
+      {/* The week on screen, and whose turn it is to arrange it.
+
+          The grid walks between weeks and the duty belongs to a week, so the
+          two belong on one line: the page where the lab decides when to meet
+          did not say who was doing the arranging, and the answer lived on
+          another page entirely. */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-        <p className="font-medium text-gray-900 tabular-nums">
-          {firstDay && lastDay ? `${dayLabel(firstDay)} – ${dayLabel(lastDay)}` : ''}
-          {isPending && !asking && <span className="ml-2 text-xs text-gray-500">{t('avail.loading')}</span>}
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-gray-900 tabular-nums">
+          <span>{firstDay && lastDay ? `${dayLabel(firstDay)} – ${dayLabel(lastDay)}` : ''}</span>
+          {data.leadName ? (
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+              {t('avail.weekLead')}: {data.leadName}
+            </span>
+          ) : (
+            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+              {t('avail.weekNoLead')}
+            </span>
+          )}
+          {isPending && !asking && <span className="text-xs text-gray-500">{t('avail.loading')}</span>}
         </p>
         <ul className="flex flex-wrap items-center gap-3 text-xs">
           {LEGEND.map((state) => (
@@ -430,13 +456,41 @@ export default function WeekAvailabilityGrid({
       </div>
 
 
-      {selected ? (
-        <div className="space-y-3 rounded-lg border border-gray-200 p-4">
+      <p className="text-xs text-gray-500">{t('avail.pickHint')}</p>
+
+      {/* A dialog, not a panel under the grid.
+
+          It used to be written below, which on a week that fills the screen
+          meant pressing a block, losing sight of it, scrolling down to read
+          who was free and scrolling back. The answer to "what is this block"
+          belongs over the block, where the question was asked. */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={whenLabel(selected)}
+          onClick={(e) => {
+            // The backdrop closes it; a press inside must not.
+            if (e.target === e.currentTarget) setSelected(null);
+          }}
+        >
+          <div className="max-h-[85vh] w-full space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-2xl sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold text-gray-900">{whenLabel(selected)}</p>
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${RUN_TONE[selected.state]}`}>
-              {t(RUN_LABEL[selected.state])}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${RUN_TONE[selected.state]}`}>
+                {t(RUN_LABEL[selected.state])}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                aria-label={t('avail.close')}
+                className="h-7 w-7 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* A booked slot answers a different question from a free one: not
@@ -634,9 +688,8 @@ export default function WeekAvailabilityGrid({
           ) : (
             <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
           )}
+          </div>
         </div>
-      ) : (
-        <p className="text-xs text-gray-500">{t('avail.pickHint')}</p>
       )}
     </section>
   );

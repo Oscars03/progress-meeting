@@ -20,7 +20,7 @@ import {
   type PersonAvailability,
 } from '@/lib/availability-grid';
 import { labInstant } from '@/lib/lab-time';
-import { actsAsWeekLead } from '@/lib/rotation';
+import { actsAsWeekLead, leadForWeek } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import { UserError } from '@/lib/user-error';
 import type { TranslationKey } from '@/lib/ui/i18n';
@@ -64,6 +64,16 @@ export type WeekAvailability = {
   connectedCount: number;
   /** Of those, how many calendars were actually read this time. */
   readCount: number;
+  /**
+   * Who is responsible for the week on screen, by name, or '' while nobody is
+   * confirmed.
+   *
+   * The grid walks between weeks and the duty belongs to a week, so whose turn
+   * it is has to travel with the data rather than be read once for today. It
+   * was not shown here at all: the page that decides when the lab meets did
+   * not say who is arranging it.
+   */
+  leadName: string;
 };
 
 /**
@@ -84,13 +94,17 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
   const windowStart = Date.parse(slotStart(weekStart, DAY_FROM_HOUR));
   const windowEnd = Date.parse(slotStart(addDays(weekStart, 6), DAY_TO_HOUR));
 
-  const [users, connected, meetings, attendees, personalEvents] = await Promise.all([
+  const [users, connected, meetings, attendees, personalEvents, leads] = await Promise.all([
     SheetRepo.find<UserRecord>('users'),
     getConnectedUserIds(),
     SheetRepo.find<MeetingRecord>('meetings'),
     SheetRepo.find<MeetingAttendeeRecord>('meeting_attendees'),
     SheetRepo.find<PersonalEventRecord>('personal_events'),
+    SheetRepo.find<WeekLeadRecord>('week_leads'),
   ]);
+
+  const lead = leadForWeek(leads, weekKey(new Date(`${weekStart}T00:00:00+07:00`)));
+  const leadName = users.find((u) => u.id === lead?.user_id)?.name ?? '';
 
   const active = labMembers(users);
 
@@ -190,6 +204,7 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     activeCount: active.length,
     connectedCount: active.filter((u) => connected.has(u.id)).length,
     readCount,
+    leadName,
   };
 }
 
