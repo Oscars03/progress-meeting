@@ -21,6 +21,7 @@ import {
   googleColor,
 } from '@/lib/event-colors';
 import type { EventInput, DateSelectArg, EventClickArg } from '@fullcalendar/core';
+import type { DateClickArg } from '@fullcalendar/interaction';
 import type { MappedMeeting, MappedPersonalEvent } from './page';
 import type { TermBreakRecord } from '@/lib/db/schema';
 import { breakCovering } from '@/lib/term-breaks';
@@ -319,24 +320,47 @@ export default function CalendarView({
       return !Number.isNaN(from) && !Number.isNaN(to) && at.getTime() >= from && at.getTime() < to;
     });
 
+  /** Show the pass-through event covering this instant, if there is one. */
+  const openPassThroughAt = (at: Date): boolean => {
+    const under = passThroughEventAt(at);
+    if (!under) return false;
+
+    setSelectedEventInfo({
+      id: String(under.id ?? ''),
+      title: String(under.title ?? ''),
+      start: under.start ? new Date(under.start as string | Date) : null,
+      end: under.end ? new Date(under.end as string | Date) : null,
+      type: String(under.extendedProps?.type ?? ''),
+      isMine: false,
+    });
+    setDetailModalOpen(true);
+    return true;
+  };
+
+  /**
+   * A plain click or tap on the grid.
+   *
+   * This is the half `select` does not cover. On a touch screen a tap fires
+   * only `dateClick` -- selecting needs the long press the hint describes --
+   * so a tap on somebody else's block reached nothing at all and their entries
+   * were unopenable on a phone.
+   */
+  const handleDateClick = (info: DateClickArg) => {
+    if (openPassThroughAt(info.date)) info.view.calendar.unselect();
+  };
+
   const handleSelect = (info: DateSelectArg) => {
     // A click and a one-slot drag arrive identically, so a click on top of a
     // pass-through event is read as wanting to see it rather than to mark the
     // same half hour busy. Anything longer is unambiguously a drag and still
     // creates, however many of other people's blocks it crosses.
+    //
+    // dateClick has usually opened it already by this point; reaching the same
+    // state twice costs nothing, and with a mouse this is what stops the
+    // create dialog opening on top of the detail.
     if (!info.allDay && info.end.getTime() - info.start.getTime() <= 30 * 60 * 1000) {
-      const under = passThroughEventAt(info.start);
-      if (under) {
+      if (openPassThroughAt(info.start)) {
         info.view.calendar.unselect();
-        setSelectedEventInfo({
-          id: String(under.id ?? ''),
-          title: String(under.title ?? ''),
-          start: under.start ? new Date(under.start as string | Date) : null,
-          end: under.end ? new Date(under.end as string | Date) : null,
-          type: String(under.extendedProps?.type ?? ''),
-          isMine: false,
-        });
-        setDetailModalOpen(true);
         return;
       }
     }
@@ -569,6 +593,7 @@ export default function CalendarView({
           longPressDelay={200}
           selectLongPressDelay={200}
           select={handleSelect}
+          dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventContent={
             showHeat
