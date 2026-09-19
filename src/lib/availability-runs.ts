@@ -88,6 +88,39 @@ function runPeople(cells: AvailabilityCell[]): Pick<AvailabilityRun, 'free' | 'b
   };
 }
 
+/** `2026-09-14T11:30:00+07:00` -> `11:30`. */
+const clock = (instant: string) => instant.slice(11, 16);
+
+const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+// 1440 is midnight at the far end of the day, written the way a clock writes
+// it rather than as 24:00, which no time field accepts.
+const hhmm = (minutes: number) =>
+  `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+/**
+ * Every meeting of `minutes` that fits inside a run, half an hour apart.
+ *
+ * A block is as long as the state lasts, which can be most of a day, and no
+ * meeting is. Two dropdowns could express the span but made the reader do the
+ * arithmetic; these are the answers, ready to press. The step is the half hour
+ * the grid is built on, so a slot always lines up with the cells underneath.
+ */
+export function slotOptions(
+  run: Pick<AvailabilityRun, 'start' | 'end'>,
+  minutes: number
+): { start: string; end: string }[] {
+  const from = minutesOf(clock(run.start));
+  // Midnight closes the day rather than starting it again.
+  const until = clock(run.end) === '00:00' ? 24 * 60 : minutesOf(clock(run.end));
+
+  const out: { start: string; end: string }[] = [];
+  for (let at = from; at + minutes <= until; at += 30) {
+    out.push({ start: hhmm(at), end: hhmm(at + minutes) });
+  }
+  return out;
+}
+
 /**
  * Split one day's cells into runs.
  *

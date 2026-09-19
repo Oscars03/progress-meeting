@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeRuns, runState } from '../lib/availability-runs';
+import { mergeRuns, runState, slotOptions } from '../lib/availability-runs';
 import type { AvailabilityCell, CellMeeting } from '../lib/availability-grid';
 
 /** A cell at `hour`, with whoever is free and whoever is not. */
@@ -134,5 +134,43 @@ describe('mergeRuns', () => {
 
   it('has nothing to say about an empty day', () => {
     expect(mergeRuns([])).toEqual([]);
+  });
+});
+
+describe('slotOptions', () => {
+  const run = (start: string, end: string) => ({
+    start: `2026-09-14T${start}:00+07:00`,
+    end: `2026-09-14T${end}:00+07:00`,
+  });
+
+  it('offers every hour that fits, half an hour apart', () => {
+    expect(slotOptions(run('18:30', '21:00'), 60)).toEqual([
+      { start: '18:30', end: '19:30' },
+      { start: '19:00', end: '20:00' },
+      { start: '19:30', end: '20:30' },
+      { start: '20:00', end: '21:00' },
+    ]);
+  });
+
+  it('never runs past the end of the block', () => {
+    expect(slotOptions(run('09:00', '10:00'), 90)).toEqual([]);
+    expect(slotOptions(run('09:00', '10:30'), 90)).toEqual([{ start: '09:00', end: '10:30' }]);
+  });
+
+  it('takes a half-hour meeting too', () => {
+    expect(slotOptions(run('13:00', '14:00'), 30)).toEqual([
+      { start: '13:00', end: '13:30' },
+      { start: '13:30', end: '14:00' },
+    ]);
+  });
+
+  // The last block of the day ends at midnight, which closes it rather than
+  // starting it again -- read as 00:00 the block would have negative length
+  // and offer nothing at all.
+  it('reads a block ending at midnight as the end of the day', () => {
+    expect(slotOptions(run('22:30', '00:00'), 60)).toEqual([
+      { start: '22:30', end: '23:30' },
+      { start: '23:00', end: '00:00' },
+    ]);
   });
 });

@@ -4,7 +4,12 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { addDays, type CellMeeting } from '@/lib/availability-grid';
-import { mergeRuns, type AvailabilityRun, type RunState } from '@/lib/availability-runs';
+import {
+  mergeRuns,
+  slotOptions,
+  type AvailabilityRun,
+  type RunState,
+} from '@/lib/availability-runs';
 import { labWallClock } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
 import { weekAvailabilityAction, type WeekAvailability } from '../../calendar-actions';
@@ -50,6 +55,20 @@ const RUN_LABEL: Record<RunState, 'avail.runFree' | 'avail.runBusy' | 'avail.run
  */
 const CELL_PX = 22;
 
+/**
+ * How long the meeting is, offered as a few lengths rather than a free number.
+ *
+ * These are the lengths this lab actually books. A minutes field would accept
+ * 47 and then have to explain why the grid cannot honour it -- everything here
+ * is built on the half hour.
+ */
+const LENGTHS: { minutes: number; key: 'avail.mins30' | 'avail.hours1' | 'avail.hours1h' | 'avail.hours2' }[] = [
+  { minutes: 30, key: 'avail.mins30' },
+  { minutes: 60, key: 'avail.hours1' },
+  { minutes: 90, key: 'avail.hours1h' },
+  { minutes: 120, key: 'avail.hours2' },
+];
+
 const LEGEND: RunState[] = ['free', 'busy', 'meeting'];
 
 /** The wall clock of a cell edge. `2026-09-14T11:30:00+07:00` -> `11:30`. */
@@ -89,9 +108,9 @@ export default function WeekAvailabilityGrid({
    * what somebody points at is a stretch.
    */
   const [selected, setSelected] = useState<AvailabilityRun | null>(null);
-  /** The span inside it a poll would be opened for -- see askStart/askEnd. */
+  /** The slot inside it a poll would be opened for, and how long it runs. */
   const [askStart, setAskStart] = useState('');
-  const [askEnd, setAskEnd] = useState('');
+  const [askLength, setAskLength] = useState(60);
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const [asking, setAsking] = useState(false);
@@ -153,22 +172,22 @@ export default function WeekAvailabilityGrid({
     isAdmin || leadWeeks.includes(weekKey(new Date(span.start)));
 
   /**
-   * Open a poll for the span chosen inside the block.
+   * Open a poll for the slot pressed inside the block.
    *
-   * A block can be nine hours long, and nobody meets for nine hours. The two
-   * clocks below it start at the block's own beginning and an hour later, so
-   * the common case is one press, and a longer or later slot is two changes
-   * away instead of impossible.
+   * A block is as long as the state lasts, which can be most of a day, and no
+   * meeting is. So opening a free block lists the hours inside it, and asking
+   * is pressing one of them.
    */
-  const ask = (run: AvailabilityRun) => {
+  const ask = (run: AvailabilityRun, slot: { start: string; end: string }) => {
     const day = run.start.slice(0, 10);
     const offset = run.start.slice(19);
-    const span = { start: `${day}T${askStart}:00${offset}`, end: `${day}T${askEnd}:00${offset}` };
-
-    if (askEnd <= askStart) {
-      setError(t('polls.error.invalidTime'));
-      return;
-    }
+    // An end of 00:00 belongs to the next day, which is the one case where the
+    // slot does not share the block's date.
+    const endDay = slot.end === '00:00' ? addDays(day, 1) : day;
+    const span = {
+      start: `${day}T${slot.start}:00${offset}`,
+      end: `${endDay}T${slot.end}:00${offset}`,
+    };
 
     const when = whenLabel(span);
     const message =
@@ -208,14 +227,15 @@ export default function WeekAvailabilityGrid({
     setSelected(run);
     setSelectedIsPast(isPast);
 
-    // An hour from the start of the block, or the whole block when it is
-    // shorter than that.
-    const start = clock(run.start);
-    const end = clock(run.end);
-    const plusHour = HALF_HOURS[Math.min(HALF_HOURS.indexOf(start) + 2, HALF_HOURS.length - 1)];
-    setAskStart(start);
-    setAskEnd(end < plusHour || end === '00:00' ? end : plusHour);
+    // The block's own beginning, which is the slot people want most often.
+    setAskStart(clock(run.start));
   };
+
+  // The hours on offer inside the block being read, and whichever of them is
+  // chosen. Derived rather than stored: the list changes with the length, and
+  // a stored copy would go stale the moment either changed.
+  const slots = selected ? slotOptions(selected, askLength) : [];
+  const chosen = slots.find((slot) => slot.start === askStart) ?? slots[0];
 
   /** The meeting's own span in the lab's zone, e.g. `Mon 14 Sep 13:00–15:00`. */
   const meetingSpan = (meeting: CellMeeting) => {
@@ -544,45 +564,72 @@ export default function WeekAvailabilityGrid({
           {selected.meeting ? null : selectedIsPast ? (
             <p className="text-xs text-gray-500">{t('avail.past')}</p>
           ) : canAsk(selected) ? (
-            <div className="space-y-2">
-              {/* A block is as long as the state lasts, which can be most of a
-                  day. The meeting is not, so the span is chosen here before
-                  anybody is asked to confirm it. */}
+            <div className="space-y-3">
+              {/* The hours inside the block, ready to press.
+
+                  Choosing when to meet used to be two dropdowns of 48 times
+                  each, which asked the reader to work out for themselves which
+                  of those 48 were inside the block they had just pressed. The
+                  block already knows. */}
               <div>
-                <p className="text-xs font-medium text-gray-700">{t('avail.askRange')}</p>
+                <p className="text-sm font-medium text-gray-900">{t('avail.askRange')}</p>
                 <p className="text-xs text-gray-500">{t('avail.askRangeHint')}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {(
-                  [
-                    [askStart, setAskStart, 'avail.editStart'],
-                    [askEnd, setAskEnd, 'avail.editEnd'],
-                  ] as const
-                ).map(([value, set, key]) => (
-                  <label key={key} className="text-xs text-gray-600">
-                    <span className="sr-only">{t(key)}</span>
-                    <select
-                      value={value}
-                      onChange={(e) => set(e.target.value)}
-                      className="px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
-                    >
-                      {HALF_HOURS.map((time) => (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-gray-500">{t('avail.askLength')}</span>
+                {LENGTHS.map(({ minutes, key }) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    onClick={() => setAskLength(minutes)}
+                    aria-pressed={askLength === minutes}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                      askLength === minutes
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {t(key)}
+                  </button>
                 ))}
+              </div>
+
+              {slots.length === 0 ? (
+                <p className="text-xs text-gray-500">{t('avail.askNoRoom')}</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {slots.map((slot) => {
+                    const isChosen = slot.start === askStart;
+                    return (
+                      <button
+                        key={slot.start}
+                        type="button"
+                        onClick={() => setAskStart(slot.start)}
+                        aria-pressed={isChosen}
+                        className={`rounded-lg border px-3 py-1.5 text-sm tabular-nums transition ${
+                          isChosen
+                            ? 'border-blue-600 bg-blue-50 font-semibold text-blue-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        {slot.start}–{slot.end}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {chosen && (
                 <button
                   type="button"
-                  onClick={() => ask(selected)}
+                  onClick={() => ask(selected, chosen)}
                   disabled={isPending}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
                 >
                   {asking ? t('avail.asking') : t('avail.ask')}
                 </button>
-              </div>
+              )}
             </div>
           ) : (
             <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
