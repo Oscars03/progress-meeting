@@ -172,16 +172,26 @@ export async function createEvent(
   });
 }
 
+/**
+ * Change an event that already exists.
+ *
+ * `notify` decides whether Google mails everybody about the change. It is a
+ * question the person making the change has to answer, because both answers
+ * are right on different days: moving the meeting an hour is worth an email,
+ * fixing a typo in the title at eleven at night is not. Silent is the safer
+ * default for an accident, so the caller has to ask for the mail.
+ */
 export async function updateEvent(
   organiserUserId: string,
   eventId: string,
-  input: EventInput
+  input: EventInput,
+  notify = false
 ): Promise<void> {
   await asUser(organiserUserId, async (calendar) => {
     await calendar.events.patch({
       calendarId: PRIMARY,
       eventId,
-      sendUpdates: 'all',
+      sendUpdates: notify ? 'all' : 'none',
       requestBody: {
         summary: input.title,
         description: input.description || undefined,

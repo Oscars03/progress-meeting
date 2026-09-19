@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:migrate-schema": "node --env-file=.env.local --import tsx scripts/db-migrate-schema.ts",
     "db:migrate-passwords": "node --env-file=.env.local --import tsx scripts/migrate-passwords.ts",
-    "db:trim-audit": "node --env-file=.env.local --import tsx scripts/trim-audit-log.ts"
+    "db:trim-audit": "node --env-file=.env.local --import tsx scripts/trim-audit-log.ts",
+    "db:rename-meetings": "node --env-file=.env.local --import tsx scripts/rename-dated-meetings.ts"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",

@@ -81,6 +81,13 @@ export default function WeekAvailabilityGrid({
   const [editDate, setEditDate] = useState('');
   const [editStart, setEditStart] = useState('');
   const [editEnd, setEditEnd] = useState('');
+  /**
+   * Whether moving the meeting mails everybody.
+   *
+   * Reset to off each time the form opens, so a decision made about one move
+   * is not silently reused for the next one.
+   */
+  const [editNotify, setEditNotify] = useState(false);
 
   const intl = locale === 'th' ? 'th-TH' : 'en-GB';
 
@@ -164,6 +171,7 @@ export default function WeekAvailabilityGrid({
     setEditDate(from.date);
     setEditStart(from.time);
     setEditEnd(to.time);
+    setEditNotify(false);
     setEditing(true);
   };
 
@@ -175,7 +183,8 @@ export default function WeekAvailabilityGrid({
         // Bare wall clocks. The action reads them as Thailand, which is what
         // the person typing them meant.
         { start_at: `${editDate}T${editStart}`, end_at: `${editDate}T${editEnd}` },
-        meeting.rowVersion
+        meeting.rowVersion,
+        editNotify
       );
       if (!result.ok) {
         setError(t(result.error as Parameters<typeof t>[0]));
@@ -274,11 +283,15 @@ export default function WeekAvailabilityGrid({
               <tr key={rowCell.start}>
                 {/* The half hours are set back rather than left blank: you
                     have to be able to aim at 11:30, but the hour is still what
-                    you read the column by. */}
+                    you read the column by. Twice the rows is twice the height,
+                    so the half hour is drawn shorter and lighter -- the week
+                    still fits a screen, and the eye lands on the hours. */}
                 <th
                   scope="row"
                   className={`pr-1 text-left font-normal tabular-nums whitespace-nowrap ${
-                    rowCell.minute === 0 ? 'text-gray-500' : 'text-gray-400 text-[0.65rem]'
+                    rowCell.minute === 0
+                      ? 'text-gray-500'
+                      : 'text-gray-400 text-[0.6rem] leading-none'
                   }`}
                 >
                   {clock(rowCell.start)}
@@ -306,9 +319,9 @@ export default function WeekAvailabilityGrid({
                         aria-pressed={isSelected}
                         aria-label={label}
                         title={label}
-                        className={`w-full min-w-14 rounded-md border px-1 py-1 font-semibold tabular-nums transition hover:brightness-95 ${TONE[cell.status]} ${
-                          isSelected ? 'ring-2 ring-blue-600' : ''
-                        }`}
+                        className={`w-full min-w-14 rounded-md border px-1 font-semibold tabular-nums leading-tight transition hover:brightness-95 ${TONE[cell.status]} ${
+                          cell.minute === 0 ? 'py-1' : 'py-0 text-[0.7rem]'
+                        } ${isSelected ? 'ring-2 ring-blue-600' : ''}`}
                       >
                         {cell.meeting ? '●' : `${cell.free.length}/${total}`}
                       </button>
@@ -386,6 +399,21 @@ export default function WeekAvailabilityGrid({
                         </label>
                       ))}
                     </div>
+                    {/* Asked here rather than assumed: the same move is worth
+                        an email on Monday and not worth one at eleven at
+                        night, and only the person making it knows which. */}
+                    <label className="flex items-start gap-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={editNotify}
+                        onChange={(e) => setEditNotify(e.target.checked)}
+                        className="mt-0.5 rounded text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>
+                        <span className="font-medium text-gray-700">{t('avail.editNotify')}</span>
+                        <span className="block text-gray-500">{t('avail.editNotifyHint')}</span>
+                      </span>
+                    </label>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="submit"

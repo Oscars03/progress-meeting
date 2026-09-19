@@ -82,10 +82,14 @@ function failed(err: unknown): TranslationKey {
  * that anybody be able to schedule. Once an event exists it stays on its
  * original organiser's calendar, because moving an event between calendars
  * means deleting and recreating it, which re-notifies everybody.
+ *
+ * `notify` only reaches an event that already exists; creating one always
+ * mails the invitation, since an invitation nobody is told about is not one.
  */
 export async function pushMeeting(
   meetingId: string,
-  organiserUserId: string
+  organiserUserId: string,
+  notify = false
 ): Promise<SyncOutcome> {
   const meetings = await SheetRepo.find<MeetingRecord>('meetings');
   const meeting = meetings.find((m) => m.id === meetingId);
@@ -105,7 +109,7 @@ export async function pushMeeting(
 
   try {
     if (meeting.google_event_id) {
-      await updateEvent(owner, meeting.google_event_id, eventInputFrom(meeting, emails));
+      await updateEvent(owner, meeting.google_event_id, eventInputFrom(meeting, emails), notify);
       await SheetRepo.update<MeetingRecord>(
         'meetings',
         meeting.id,

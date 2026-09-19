@@ -42,11 +42,19 @@ const DAY_FROM_HOUR = 8;
 const DAY_TO_HOUR = 22;
 
 /**
- * One cell an hour. Half-hour cells were tried and made a week of seven
- * columns 28 rows of mostly repeated numbers; picking a half hour belongs on
- * the calendar, while this grid is for reading a week at a glance.
+ * One cell a half hour.
+ *
+ * It was an hour, because the first attempt at half hours made a week of
+ * seven columns into 28 rows of mostly repeated numbers. But the lab meets at
+ * 17:30 as readily as at 17:00, and an hour grid cannot offer that at all --
+ * the time had to be corrected by hand afterwards, which is how a meeting
+ * ended up announced at one time and held at another.
+ *
+ * The rows the hour grid could not show are back, drawn at about half the
+ * height with a lighter label, so the hour is still what the eye lands on and
+ * the half hour is there when it is wanted. See week-availability.tsx.
  */
-const GRID_STEP_MINUTES = 60;
+const GRID_STEP_MINUTES = 30;
 
 export type WeekAvailability = {
   weekStart: string;
@@ -258,7 +266,8 @@ export async function pushMeetingAction(meetingId: string) {
     return refused(err instanceof UserError ? err.key : 'error.generic');
   }
 
-  const result = await pushMeeting(meetingId, actor.id);
+  // Pressing this button is the act of telling people, so it tells them.
+  const result = await pushMeeting(meetingId, actor.id, true);
   revalidatePath(`/meetings/${meetingId}`);
   revalidatePath('/meetings');
   return result;
