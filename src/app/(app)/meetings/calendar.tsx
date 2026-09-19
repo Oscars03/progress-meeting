@@ -581,17 +581,22 @@ export default function CalendarView({
           selectMirror={true}
           /**
            * On a touch screen a plain drag scrolls the page, so FullCalendar
-           * only starts a selection after a long press. The default is a full
-           * second, which reads as "dragging does nothing" -- long enough that
-           * people give up before it fires.
+           * only starts a selection after a long press. The delay is the only
+           * thing separating the two gestures, and it has to be long enough
+           * that scrolling never turns into one.
            *
-           * 200ms: still well short of a deliberate press-and-hold, and enough
-           * of a gap above a tap that opening an event and starting a drag are
-           * not the same gesture. At 150 they were close enough to be mistaken
-           * for each other.
+           * The default is a full second, which reads as "dragging does
+           * nothing" -- long enough that people give up before it fires. 200ms
+           * was the other end of the same mistake: a finger settles on the
+           * glass for about that long before a swipe gets going, so scrolling
+           * the week kept painting a selection down the column instead of
+           * moving the page.
+           *
+           * 500ms is the press-and-hold the rest of the phone uses. Holding
+           * still for half a second is a decision; a scroll never is.
            */
-          longPressDelay={200}
-          selectLongPressDelay={200}
+          longPressDelay={500}
+          selectLongPressDelay={500}
           select={handleSelect}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
