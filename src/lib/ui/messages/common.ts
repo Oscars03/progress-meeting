@@ -18,6 +18,11 @@ export const common = defineMessages({
     'nav.report': 'รายงาน',
     'nav.settings': 'การตั้งค่า',
     'nav.signOut': 'ออกจากระบบ',
+    'nav.version': 'เวอร์ชัน {version}',
+    'nav.whatsNew': 'มีอะไรใหม่',
+    'nav.whatsNewHint': 'สิ่งที่เปลี่ยนล่าสุดในระบบ',
+    'nav.changeNew': 'ใหม่',
+    'nav.changeFix': 'แก้',
     'nav.collapse': 'ยุบแถบเมนู',
     'nav.expand': 'ขยายแถบเมนู',
 
@@ -225,6 +230,11 @@ export const common = defineMessages({
     'nav.report': 'Report',
     'nav.settings': 'Settings',
     'nav.signOut': 'Sign out',
+    'nav.version': 'Version {version}',
+    'nav.whatsNew': "What's new",
+    'nav.whatsNewHint': 'The most recent changes',
+    'nav.changeNew': 'New',
+    'nav.changeFix': 'Fix',
     'nav.collapse': 'Collapse sidebar',
     'nav.expand': 'Expand sidebar',
 
