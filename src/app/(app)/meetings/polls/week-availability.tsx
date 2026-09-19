@@ -3,12 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
-import {
-  addDays,
-  type AvailabilityCell,
-  type CellMeeting,
-  type CellStatus,
-} from '@/lib/availability-grid';
+import { addDays, type CellMeeting } from '@/lib/availability-grid';
+import { mergeRuns, type AvailabilityRun, type RunState } from '@/lib/availability-runs';
 import { labWallClock } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
 import { weekAvailabilityAction, type WeekAvailability } from '../../calendar-actions';
@@ -24,22 +20,37 @@ import { createPollAction } from './actions';
  * thing, and reading it as "very busy" is exactly the mistake to avoid. Solid
  * blue on white needs no remap, which is why the buttons elsewhere use it.
  */
-const TONE: Record<CellStatus, string> = {
-  'all-free': 'bg-green-50 text-green-700 border-green-200',
-  'some-busy': 'bg-red-50 text-red-700 border-red-200',
-  incomplete: 'bg-gray-100 text-gray-500 border-gray-200',
+/**
+ * Three states, three colours, no shades between them.
+ *
+ * There used to be a fourth: `incomplete`, grey, for an hour nobody is busy in
+ * but somebody never answered. With two of eight unconnected it covered nearly
+ * every hour the lab could actually meet in, so the colour meaning "this is
+ * possible" was also the colour meaning "we are not sure". Who never answered
+ * is a fact about the block, and the panel below says it by name.
+ */
+const RUN_TONE: Record<RunState, string> = {
+  free: 'bg-green-50 text-green-700 border-green-200',
+  busy: 'bg-red-50 text-red-700 border-red-200',
   meeting: 'bg-blue-600 text-white border-blue-600',
 };
 
-const LEGEND: {
-  status: CellStatus;
-  key: 'avail.legendAllFree' | 'avail.legendSomeBusy' | 'avail.legendIncomplete' | 'avail.legendMeeting';
-}[] = [
-  { status: 'all-free', key: 'avail.legendAllFree' },
-  { status: 'some-busy', key: 'avail.legendSomeBusy' },
-  { status: 'incomplete', key: 'avail.legendIncomplete' },
-  { status: 'meeting', key: 'avail.legendMeeting' },
-];
+const RUN_LABEL: Record<RunState, 'avail.runFree' | 'avail.runBusy' | 'avail.runMeeting'> = {
+  free: 'avail.runFree',
+  busy: 'avail.runBusy',
+  meeting: 'avail.runMeeting',
+};
+
+/**
+ * One half hour's worth of height, in pixels.
+ *
+ * Runs are sized rather than stacked, so an hour is an hour tall wherever it
+ * is: a block twice as tall really is twice as long, which is the whole reason
+ * the grid keeps a time axis instead of becoming a list.
+ */
+const CELL_PX = 22;
+
+const LEGEND: RunState[] = ['free', 'busy', 'meeting'];
 
 /** The wall clock of a cell edge. `2026-09-14T11:30:00+07:00` -> `11:30`. */
 const clock = (instant: string) => instant.slice(11, 16);
@@ -73,7 +84,14 @@ export default function WeekAvailabilityGrid({
   const { t, locale } = usePrefs();
   const router = useRouter();
   const [data, setData] = useState(initial);
-  const [selected, setSelected] = useState<AvailabilityCell | null>(null);
+  /**
+   * The block being read, not the half hour: the grid draws stretches, so
+   * what somebody points at is a stretch.
+   */
+  const [selected, setSelected] = useState<AvailabilityRun | null>(null);
+  /** The span inside it a poll would be opened for -- see askStart/askEnd. */
+  const [askStart, setAskStart] = useState('');
+  const [askEnd, setAskEnd] = useState('');
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const [asking, setAsking] = useState(false);
@@ -101,12 +119,18 @@ export default function WeekAvailabilityGrid({
       timeZone: 'UTC',
     });
 
-  const whenLabel = (cell: AvailabilityCell) =>
-    `${dayLabel(cell.start.slice(0, 10))} ${clock(cell.start)}–${clock(cell.end)}`;
+  const whenLabel = (span: { start: string; end: string }) =>
+    `${dayLabel(span.start.slice(0, 10))} ${clock(span.start)}–${clock(span.end)}`;
 
-  // One row per slot. The first day's cells define the rows; every day is
-  // built from the same list of starts, so they line up by index.
+  // The hour marks down the left. Every day is built from the same list of
+  // starts, so a run's index positions it against these.
   const rows = data.days[0]?.cells ?? [];
+  const hourMarks = rows.filter((cell) => cell.minute === 0);
+  const gridHeight = rows.length * CELL_PX;
+
+  // One pass per day: consecutive half hours in the same state become one
+  // block. See lib/availability-runs.ts for why the headcount left the grid.
+  const runsByDay = data.days.map((day) => mergeRuns(day.cells));
   const total = data.activeCount;
   const firstDay = data.days[0]?.date;
   const lastDay = data.days[data.days.length - 1]?.date;
@@ -125,13 +149,30 @@ export default function WeekAvailabilityGrid({
 
   // Judged per cell, not once for the page: the grid walks between weeks, and
   // the duty belongs to whichever week the chosen hour falls in.
-  const canAsk = (cell: AvailabilityCell) =>
-    isAdmin || leadWeeks.includes(weekKey(new Date(cell.start)));
+  const canAsk = (span: { start: string }) =>
+    isAdmin || leadWeeks.includes(weekKey(new Date(span.start)));
 
-  const ask = (cell: AvailabilityCell) => {
-    const when = whenLabel(cell);
+  /**
+   * Open a poll for the span chosen inside the block.
+   *
+   * A block can be nine hours long, and nobody meets for nine hours. The two
+   * clocks below it start at the block's own beginning and an hour later, so
+   * the common case is one press, and a longer or later slot is two changes
+   * away instead of impossible.
+   */
+  const ask = (run: AvailabilityRun) => {
+    const day = run.start.slice(0, 10);
+    const offset = run.start.slice(19);
+    const span = { start: `${day}T${askStart}:00${offset}`, end: `${day}T${askEnd}:00${offset}` };
+
+    if (askEnd <= askStart) {
+      setError(t('polls.error.invalidTime'));
+      return;
+    }
+
+    const when = whenLabel(span);
     const message =
-      cell.status === 'all-free' ? t('avail.askConfirm', { when }) : t('avail.askNotAllFree', { when });
+      run.state === 'free' ? t('avail.askConfirm', { when }) : t('avail.askNotAllFree', { when });
     if (!confirm(message)) return;
 
     setError('');
@@ -141,7 +182,7 @@ export default function WeekAvailabilityGrid({
         const result = await createPollAction({
           title: t('avail.pollTitle', { when }),
           note: '',
-          slots: [{ start: cell.start, end: cell.end }],
+          slots: [{ start: span.start, end: span.end }],
         });
         if (!result.ok) throw new Error(t(result.error as Parameters<typeof t>[0]));
         router.push(`/meetings/polls/${result.pollId}`);
@@ -156,6 +197,25 @@ export default function WeekAvailabilityGrid({
   // every render: reading the clock during render is impure, and would differ
   // between the server's HTML and the browser's.
   const [selectedIsPast, setSelectedIsPast] = useState(false);
+
+  const pick = (run: AvailabilityRun, alreadyOpen: boolean, isPast: boolean) => {
+    setEditing(false);
+    if (alreadyOpen) {
+      setSelected(null);
+      return;
+    }
+
+    setSelected(run);
+    setSelectedIsPast(isPast);
+
+    // An hour from the start of the block, or the whole block when it is
+    // shorter than that.
+    const start = clock(run.start);
+    const end = clock(run.end);
+    const plusHour = HALF_HOURS[Math.min(HALF_HOURS.indexOf(start) + 2, HALF_HOURS.length - 1)];
+    setAskStart(start);
+    setAskEnd(end < plusHour || end === '00:00' ? end : plusHour);
+  };
 
   /** The meeting's own span in the lab's zone, e.g. `Mon 14 Sep 13:00–15:00`. */
   const meetingSpan = (meeting: CellMeeting) => {
@@ -243,10 +303,10 @@ export default function WeekAvailabilityGrid({
           {isPending && !asking && <span className="ml-2 text-xs text-gray-500">{t('avail.loading')}</span>}
         </p>
         <ul className="flex flex-wrap items-center gap-3 text-xs">
-          {LEGEND.map(({ status, key }) => (
-            <li key={status} className="flex items-center gap-1.5 text-gray-600">
-              <span className={`inline-block h-3 w-3 rounded border ${TONE[status]}`} aria-hidden="true" />
-              {t(key)}
+          {LEGEND.map((state) => (
+            <li key={state} className="flex items-center gap-1.5 text-gray-600">
+              <span className={`inline-block h-3 w-3 rounded border ${RUN_TONE[state]}`} aria-hidden="true" />
+              {t(RUN_LABEL[state])}
             </li>
           ))}
         </ul>
@@ -264,82 +324,98 @@ export default function WeekAvailabilityGrid({
         </div>
       )}
 
+      {/* Blocks, not cells. The old grid drew one button per half hour per
+          day -- 196 of them, each carrying a headcount, and a column would
+          repeat the same number eight rows running because a commitment
+          lasts hours and a cell does not. A run of half hours in the same
+          state is one block now, labelled once. See lib/availability-runs.ts.
+
+          Runs are positioned rather than stacked, so an hour is the same
+          height wherever it falls and the time axis on the left still means
+          something. */}
       <div className="overflow-x-auto">
-        <table className={`w-full border-separate border-spacing-1 text-xs ${isPending && !asking ? 'opacity-60' : ''}`}>
-          <thead>
-            <tr>
-              <th scope="col" className="w-12 text-left font-normal text-gray-500">
-                {t('avail.time')}
-              </th>
-              {data.days.map((day) => (
-                <th key={day.date} scope="col" className="px-1 py-1 font-medium text-gray-600 whitespace-nowrap">
-                  {dayLabel(day.date)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((rowCell, row) => (
-              <tr key={rowCell.start}>
-                {/* The half hours are set back rather than left blank: you
-                    have to be able to aim at 11:30, but the hour is still what
-                    you read the column by. Twice the rows is twice the height,
-                    so the half hour is drawn shorter and lighter -- the week
-                    still fits a screen, and the eye lands on the hours. */}
-                <th
-                  scope="row"
-                  className={`pr-1 text-left font-normal tabular-nums whitespace-nowrap ${
-                    rowCell.minute === 0
-                      ? 'text-gray-500'
-                      : 'text-gray-400 text-[0.6rem] leading-none'
-                  }`}
+        <div className={`flex gap-1.5 min-w-[640px] ${isPending && !asking ? 'opacity-60' : ''}`}>
+          <div className="w-12 shrink-0">
+            <div className="h-9 text-xs text-gray-500">{t('avail.time')}</div>
+            <div className="relative" style={{ height: gridHeight }}>
+              {hourMarks.map((mark, index) => (
+                <div
+                  key={mark.start}
+                  className="absolute left-0 right-1 text-right text-[0.7rem] tabular-nums text-gray-400"
+                  style={{ top: index * CELL_PX * 2 - 6 }}
                 >
-                  {clock(rowCell.start)}
-                </th>
-                {data.days.map((day) => {
-                  const cell = day.cells[row];
-                  const isSelected = selected?.start === cell.start;
-                  const label = cell.meeting
-                    ? t('avail.cellMeeting', { when: whenLabel(cell), title: cell.meeting.title })
-                    : t('avail.cellTitle', {
-                        when: whenLabel(cell),
-                        free: cell.free.length,
-                        busy: cell.busy.length,
-                        unknown: cell.unknown.length,
-                      });
+                  {clock(mark.start)}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {data.days.map((day, dayIndex) => (
+            <div key={day.date} className="flex-1 min-w-20">
+              <div className="h-9 text-center text-xs font-medium text-gray-600 whitespace-nowrap">
+                {dayLabel(day.date)}
+              </div>
+              <div className="relative" style={{ height: gridHeight }}>
+                {/* One faint rule an hour, behind the blocks, so a block can
+                    be read against the clock without being boxed in. */}
+                {hourMarks.map((mark, index) => (
+                  <div
+                    key={mark.start}
+                    className="absolute left-0 right-0 border-t border-gray-100"
+                    style={{ top: index * CELL_PX * 2 }}
+                    aria-hidden="true"
+                  />
+                ))}
+
+                {runsByDay[dayIndex].map((run) => {
+                  const isSelected = selected?.start === run.start;
+                  const state = t(RUN_LABEL[run.state]);
+                  const label = run.meeting
+                    ? t('avail.cellMeeting', { when: whenLabel(run), title: run.meeting.title })
+                    : t('avail.runTitle', { when: whenLabel(run), state });
+                  const tall = run.length > 1;
+
                   return (
-                    <td key={cell.start} className="p-0">
+                    <div
+                      key={run.start}
+                      className="absolute left-0 right-0 p-px"
+                      style={{ top: run.from * CELL_PX, height: run.length * CELL_PX }}
+                    >
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelected(isSelected ? null : cell);
-                          setSelectedIsPast(!isSelected && Date.parse(cell.end) <= Date.now());
-                          setEditing(false);
-                        }}
+                        onClick={() => pick(run, isSelected, Date.parse(run.end) <= Date.now())}
                         aria-pressed={isSelected}
                         aria-label={label}
                         title={label}
-                        className={`w-full min-w-14 rounded-md border px-1 font-semibold tabular-nums leading-tight transition hover:brightness-95 ${TONE[cell.status]} ${
-                          cell.minute === 0 ? 'py-1' : 'py-0 text-[0.7rem]'
+                        className={`flex h-full w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border px-1 leading-tight transition hover:brightness-95 ${
+                          RUN_TONE[run.state]
                         } ${isSelected ? 'ring-2 ring-blue-600' : ''}`}
                       >
-                        {cell.meeting ? '●' : `${cell.free.length}/${total}`}
+                        {tall && (
+                          <span className="text-[0.65rem] tabular-nums opacity-80">
+                            {clock(run.start)}–{clock(run.end)}
+                          </span>
+                        )}
+                        <span className="text-[0.7rem] font-semibold truncate max-w-full">
+                          {run.meeting ? run.meeting.title : state}
+                        </span>
                       </button>
-                    </td>
+                    </div>
                   );
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
+
 
       {selected ? (
         <div className="space-y-3 rounded-lg border border-gray-200 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold text-gray-900">{whenLabel(selected)}</p>
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${TONE[selected.status]}`}>
-              {t(LEGEND.find((l) => l.status === selected.status)!.key)}
+            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${RUN_TONE[selected.state]}`}>
+              {t(RUN_LABEL[selected.state])}
             </span>
           </div>
 
@@ -468,14 +544,46 @@ export default function WeekAvailabilityGrid({
           {selected.meeting ? null : selectedIsPast ? (
             <p className="text-xs text-gray-500">{t('avail.past')}</p>
           ) : canAsk(selected) ? (
-            <button
-              type="button"
-              onClick={() => ask(selected)}
-              disabled={isPending}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-            >
-              {asking ? t('avail.asking') : t('avail.ask')}
-            </button>
+            <div className="space-y-2">
+              {/* A block is as long as the state lasts, which can be most of a
+                  day. The meeting is not, so the span is chosen here before
+                  anybody is asked to confirm it. */}
+              <div>
+                <p className="text-xs font-medium text-gray-700">{t('avail.askRange')}</p>
+                <p className="text-xs text-gray-500">{t('avail.askRangeHint')}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    [askStart, setAskStart, 'avail.editStart'],
+                    [askEnd, setAskEnd, 'avail.editEnd'],
+                  ] as const
+                ).map(([value, set, key]) => (
+                  <label key={key} className="text-xs text-gray-600">
+                    <span className="sr-only">{t(key)}</span>
+                    <select
+                      value={value}
+                      onChange={(e) => set(e.target.value)}
+                      className="px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
+                    >
+                      {HALF_HOURS.map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => ask(selected)}
+                  disabled={isPending}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {asking ? t('avail.asking') : t('avail.ask')}
+                </button>
+              </div>
+            </div>
           ) : (
             <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
           )}
