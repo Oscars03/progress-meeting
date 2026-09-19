@@ -8,6 +8,7 @@ import NewTaskButton from './new-task-button';
 import { getT } from '@/lib/ui/server-i18n';
 import { requireSession } from '@/lib/auth-guard';
 import { canAddOwnWork, canAssignWork } from '@/lib/task-rights';
+import { directsWork } from '@/lib/auth-guard';
 import { labMembers } from '@/lib/members';
 
 export default async function TasksPage() {
@@ -52,7 +53,7 @@ export default async function TasksPage() {
         users={members}
         currentUserId={actor.id}
         canAssign={canAssign}
-        canRemoveAny={actor.role === 'admin'}
+        canRemoveAny={directsWork(actor.role)}
         isLeadThisWeek={isLeadThisWeek}
       />
     </div>

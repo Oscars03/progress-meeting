@@ -20,11 +20,12 @@ export default function KanbanBoard({
   currentUserId?: string,
   canAssign?: boolean,
   /**
-   * Whether this caller may delete work that is not theirs -- admin only.
+   * Whether this caller may delete work that is not theirs.
    *
-   * Separate from canAssign, which an advisor has: they hand work out and
-   * edit it, and the button has to say the same thing the action does or it
-   * offers a delete that comes back refused.
+   * Kept apart from canAssign although the two currently agree: the button
+   * has to say exactly what the action does, or it offers a delete that comes
+   * back refused, and these are two different questions that have already
+   * been answered differently once.
    */
   canRemoveAny?: boolean,
   /** Whoever is running this week's meeting may clear the board for it. */
