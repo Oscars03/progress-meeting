@@ -21,6 +21,7 @@ vi.mock('../lib/db/sheet-repo', () => ({
 const { GET } = await import('../app/api/cron/route');
 
 const SECRET = 'a-secret-of-some-length';
+const READ_SECRET = 'a-read-only-key-of-len';
 
 function get(url: string, token?: string) {
   return GET(
@@ -32,6 +33,7 @@ function get(url: string, token?: string) {
 
 beforeEach(() => {
   process.env.CRON_SECRET = SECRET;
+  process.env.CRON_READ_SECRET = READ_SECRET;
 
   tables.feedback = [
     {
@@ -90,6 +92,51 @@ describe('the cron endpoint', () => {
 
   it('still reports the planned jobs as unbuilt', async () => {
     expect((await get('https://x/api/cron?action=backup', SECRET)).status).toBe(501);
+  });
+});
+
+/**
+ * The read-only key exists so that the value handed to a routine running
+ * outside the lab cannot grow teeth later. `CRON_SECRET` is matched before the
+ * action is read, so it opens every job on this endpoint and every job added
+ * to it afterwards; this key is pinned to a list of reads instead.
+ */
+describe('the read-only key', () => {
+  it('may fetch open feedback', async () => {
+    const res = await get('https://x/api/cron?action=open_feedback', READ_SECRET);
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).count).toBe(2);
+  });
+
+  it('may not reach a job that is merely unbuilt today', async () => {
+    // 403, not 501: the answer must not depend on whether `backup` exists yet,
+    // or the day it is built this key silently gains the power to run it.
+    expect((await get('https://x/api/cron?action=backup', READ_SECRET)).status).toBe(403);
+  });
+
+  it('may not reach an action nobody has written yet', async () => {
+    expect((await get('https://x/api/cron?action=whatever_comes_next', READ_SECRET)).status).toBe(
+      403
+    );
+    expect((await get('https://x/api/cron', READ_SECRET)).status).toBe(403);
+  });
+
+  it('is refused like any stranger when it is not configured', async () => {
+    delete process.env.CRON_READ_SECRET;
+    expect((await get('https://x/api/cron?action=open_feedback', READ_SECRET)).status).toBe(401);
+  });
+
+  it('does not weaken the full key', async () => {
+    expect((await get('https://x/api/cron?action=backup', SECRET)).status).toBe(501);
+    expect((await get('https://x/api/cron?action=open_feedback', SECRET)).status).toBe(200);
+  });
+
+  // A stranger must still learn nothing: no token at all is 401 whatever it
+  // asks for, never the 403 that would confirm the action is a real one.
+  it('does not turn a missing token into a hint', async () => {
+    expect((await get('https://x/api/cron?action=backup')).status).toBe(401);
+    expect((await get('https://x/api/cron?action=open_feedback')).status).toBe(401);
   });
 });
 
