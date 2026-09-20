@@ -145,6 +145,10 @@ npx vercel env add ชื่อตัวแปร production        # เพิ�
 `NEXTAUTH_SECRET` · `NEXTAUTH_URL` · `GOOGLE_CLIENT_ID` · `GOOGLE_CLIENT_SECRET` ·
 `ALLOWED_SIGNUP_DOMAINS` · `CRON_SECRET` · `LAB_DRIVE_EMAIL`
 
+ไม่บังคับ: `CRON_READ_SECRET` — กุญแจอ่านอย่างเดียวของ `/api/cron`
+ขอได้เฉพาะ `open_feedback` นอกนั้นคืน 403 ใช้กับ automation ที่รันนอกแล็บ
+แทนการยก `CRON_SECRET` ตัวเต็มให้ ต้องตั้งเป็นคนละค่ากับ `CRON_SECRET`
+
 ### ถ้าเปลี่ยนโดเมน
 
 3 อย่างนี้ลืมแล้วล็อกอินพัง และ**ต้องทำตามลำดับ**:
