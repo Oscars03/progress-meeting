@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { weekKey, weekStartDate, recentWeekKeys, weeksAgo } from '../lib/week';
+import { weekKey, weekStartDate, nextWeekKey, recentWeekKeys, weeksAgo } from '../lib/week';
 
 describe('weekKey', () => {
   it('numbers a plain mid-year week', () => {
@@ -49,6 +49,30 @@ describe('weekStartDate', () => {
     expect(weekStartDate('2026-38')).toBeNull();
     expect(weekStartDate('week 38')).toBeNull();
     expect(weekStartDate('')).toBeNull();
+  });
+});
+
+describe('nextWeekKey', () => {
+  it('moves to the following ISO week', () => {
+    expect(nextWeekKey('2026-W37')).toBe('2026-W38');
+  });
+
+  it('crosses a year boundary correctly', () => {
+    // The Monday before 2026-W01 starts is the last week of ISO year 2025.
+    const lastWeekOf2025 = weekKey(new Date(2025, 11, 22));
+    expect(nextWeekKey(lastWeekOf2025)).toBe('2026-W01');
+  });
+
+  it('agrees with stepping the underlying date by 7 days', () => {
+    for (const date of [new Date(2026, 0, 1), new Date(2026, 5, 30), new Date(2026, 11, 31)]) {
+      const stepped = new Date(date);
+      stepped.setDate(stepped.getDate() + 7);
+      expect(nextWeekKey(weekKey(date))).toBe(weekKey(stepped));
+    }
+  });
+
+  it('leaves a malformed key unchanged', () => {
+    expect(nextWeekKey('nonsense')).toBe('nonsense');
   });
 });
 

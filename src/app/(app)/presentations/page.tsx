@@ -1,26 +1,31 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
-import { weekKey } from '@/lib/week';
 import { effectiveTopicOrder, topicsForWeek, lastArrangedBy } from '@/lib/presentation-order';
 import OrderBoard from './order-board';
-import type { AuditRecord, TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
-import { actsAsWeekLead } from '@/lib/rotation';
+import type { AuditRecord, MeetingRecord, TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { activeWeekKey, actsAsWeekLead } from '@/lib/rotation';
+import { autoAssignWeekLead } from '../meetings/actions';
 import { can } from '@/lib/permissions';
 
 export default async function PresentationsPage(props: {
   searchParams: Promise<{ week?: string }>;
 }) {
   const { week } = await props.searchParams;
-  const [actor, users, allTopics, leads, t] = await Promise.all([
+  const [actor, users, meetings, allTopics, initialLeads, t] = await Promise.all([
     requireSession(),
     SheetRepo.find<UserRecord>('users'),
+    SheetRepo.find<MeetingRecord>('meetings'),
     SheetRepo.find<TopicRecord>('topics'),
     SheetRepo.find<WeekLeadRecord>('week_leads'),
     getT(),
   ]);
 
-  const activeWeek = /^\d{4}-W\d{2}$/.test(week ?? '') ? (week as string) : weekKey();
+  const rolledWeek = activeWeekKey(meetings);
+  const assignedAutomatically = await autoAssignWeekLead(rolledWeek);
+  const leads = assignedAutomatically ? await SheetRepo.find<WeekLeadRecord>('week_leads') : initialLeads;
+
+  const activeWeek = /^\d{4}-W\d{2}$/.test(week ?? '') ? (week as string) : rolledWeek;
   const { ordered, custom } = effectiveTopicOrder(topicsForWeek(allTopics, activeWeek));
   const nameOf = (id: string) => users.find((user) => user.id === id)?.name ?? t('common.deletedUser');
 

@@ -3,6 +3,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import {
+  activeWeekKey,
   leadForWeek,
   meetingsInWeek,
   nextMeeting,
@@ -12,7 +13,7 @@ import {
 import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
 import PendingUsers from './pending-users';
-import { weekKey } from '@/lib/week';
+import { autoAssignWeekLead } from '../meetings/actions';
 import { formatLabClock, formatLabTime, labDay } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
 import { brokenConnections } from '@/lib/google/tokens';
@@ -42,7 +43,7 @@ export default async function DashboardPage() {
     actor,
     users,
     meetings,
-    leads,
+    initialLeads,
     polls,
     slots,
     votes,
@@ -79,8 +80,11 @@ export default async function DashboardPage() {
   // says the same thing twice. What is left is what the card does not show.
   const restOfWeek = thisWeek.filter((meeting) => meeting.id !== upcoming?.id);
   // The duty belongs to the week itself, so it stands whether or not anything
-  // has been scheduled yet.
-  const thisWeekKey = weekKey();
+  // has been scheduled yet -- and once a full lab day has passed since that
+  // week's meeting ended, the board has already moved on to the next one.
+  const thisWeekKey = activeWeekKey(meetings);
+  const assignedAutomatically = await autoAssignWeekLead(thisWeekKey);
+  const leads = assignedAutomatically ? await SheetRepo.find<WeekLeadRecord>('week_leads') : initialLeads;
   const currentBreak = breakForWeek(termBreaks, thisWeekKey);
   const lead = currentBreak ? null : leadForWeek(leads, thisWeekKey);
   const confirmedHost = lead ? nameOf(lead.user_id) : '';

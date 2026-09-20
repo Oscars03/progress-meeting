@@ -11,12 +11,15 @@
  * required for one to exist.
  *
  * Nothing here reads the sheet. The turn is *suggested* from the weeks already
- * assigned, and only becomes real when someone confirms it, so a suggestion is
- * never mistaken for a decision.
+ * assigned, and only becomes real once it is confirmed -- by an admin, or by
+ * itself once the grace period past the previous meeting has passed -- so a
+ * suggestion is never mistaken for a decision. See `autoAssignWeekLead` in
+ * meetings/actions.ts for the confirming-by-itself half.
  */
 
 import type { MeetingRecord, UserRecord, WeekLeadRecord } from './db/schema';
-import { weekKey } from './week';
+import { weekKey, nextWeekKey } from './week';
+import { labDay } from './lab-time';
 
 /**
  * Roles that never take a turn: professors advise rather than report, `admin`
@@ -140,6 +143,37 @@ export function suggestNextHost(
   if (held === -1) return members[0];
 
   return members[(held + 1) % members.length];
+}
+
+/**
+ * The week whose duty and board should be showing right now.
+ *
+ * Ordinarily just the plain calendar week -- but a full lab day after a
+ * week's meeting ends, its business is done, and sitting on it until the
+ * next ISO week starts (which may be days away, since meetings are booked ad
+ * hoc rather than on a fixed weekday) makes the app look stale the moment
+ * everyone still cares about what's next. So this moves on a day early,
+ * anchored to the meeting that just finished rather than to the clock.
+ *
+ * Only ever moves forward from the calendar week, never behind it: a week
+ * with no meeting, or one still to come, is unaffected.
+ */
+export function activeWeekKey(meetings: MeetingRecord[], now: Date = new Date()): string {
+  const today = labDay(now);
+  let active = weekKey(now);
+
+  for (const meeting of meetings) {
+    if (isCancelled(meeting) || !meeting.start_at || !meeting.end_at) continue;
+
+    const ended = new Date(meeting.end_at);
+    // Still within the grace day, or not even over yet.
+    if (Number.isNaN(ended.getTime()) || labDay(ended) >= today) continue;
+
+    const rolled = nextWeekKey(weekKey(new Date(meeting.start_at)));
+    if (rolled > active) active = rolled;
+  }
+
+  return active;
 }
 
 /** Meetings in the ISO week containing `date`, earliest first, cancelled ones dropped. */

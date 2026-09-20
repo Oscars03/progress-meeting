@@ -5,7 +5,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import { actsAsWeekLead, rotationMembers } from '@/lib/rotation';
+import { actsAsWeekLead, rotationMembers, suggestNextHost } from '@/lib/rotation';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
 import { pushMeeting, removeMeetingEvent } from '@/lib/google/meeting-sync';
@@ -219,6 +219,34 @@ export async function setWeekLead(weekKey: string, userId: string): Promise<Acti
     revalidatePath('/meetings');
     revalidatePath('/dashboard');
   });
+}
+
+/**
+ * The rotation's own confirmation, once nobody else has settled the week.
+ *
+ * `setWeekLead` is a person choosing; this is the grace period past the
+ * meeting deciding by itself, so the pages that show the week no longer
+ * sit waiting on the admin's click. It never overrides an existing row --
+ * an admin's choice, or a previous call to this same function -- and it
+ * skips a term break exactly as `setWeekLead` does. Returns whether it
+ * actually wrote something, so a caller only re-reads `week_leads` when it
+ * has to.
+ */
+export async function autoAssignWeekLead(weekKey: string): Promise<boolean> {
+  if (!/^\d{4}-W\d{2}$/.test(weekKey)) return false;
+
+  const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
+  if (breakForWeek(breaks, weekKey)) return false;
+
+  const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+  if (leads.some((lead) => lead.week_key === weekKey)) return false;
+
+  const users = await SheetRepo.find<UserRecord>('users');
+  const next = suggestNextHost(users, leads);
+  if (!next) return false;
+
+  await SheetRepo.insert('week_leads', { week_key: weekKey, user_id: next.id });
+  return true;
 }
 
 /**
