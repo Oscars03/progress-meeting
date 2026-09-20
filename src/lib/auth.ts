@@ -7,10 +7,31 @@ import { allowedSignupDomains, normalizeEmail } from './signup-policy';
 import { storeRefreshToken } from './google/tokens';
 import { IDENTITY_SCOPES } from './google/scopes';
 import type { UserRecord } from './db/schema';
-import { PENDING_APPROVAL } from './auth-signals';
+import { PENDING_APPROVAL, TEMPORARY_ERROR } from './auth-signals';
+
+/**
+ * One retry for a read that failed because the Sheets API was busy.
+ *
+ * Everywhere else in the app a failed read shows an error and the person
+ * presses the button again. The Google path has no such button: the read
+ * happens inside the OAuth callback, so anything thrown there ends the whole
+ * sign-in and lands them back on the login form, and trying again means the
+ * entire round trip to Google and back. A 429 or a 5xx from Sheets -- which a
+ * cold instance draws often enough to notice -- is not worth that. Two
+ * attempts, then let the caller say what happened.
+ */
+async function withRetry<T>(op: () => Promise<T>): Promise<T> {
+  try {
+    return await op();
+  } catch (e) {
+    console.warn('Sheet read during sign-in failed; retrying once:', e);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    return await op();
+  }
+}
 
 async function findUserByEmail(email: string): Promise<UserRecord | null> {
-  const users = await SheetRepo.find<UserRecord>('users');
+  const users = await withRetry(() => SheetRepo.find<UserRecord>('users'));
   return users.find((u) => normalizeEmail(u.email) === email) ?? null;
 }
 
@@ -56,6 +77,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           // lib/google/scopes.ts. Asking here made a first sign-in several
           // consent screens for access the app did not need yet.
           scope: IDENTITY_SCOPES.join(' '),
+          // Always show the account chooser. Without it Google silently
+          // reuses whichever account the browser signed in with last, which
+          // on a shared or family iPad is not always the one the person
+          // meant -- and when the app turns that account away there is no
+          // way to pick another: pressing the button again re-sends the same
+          // one, and the sign-in appears to bounce off the login page for no
+          // reason. One extra tap buys a flow somebody can actually correct.
+          prompt: 'select_account',
         },
       },
     })
@@ -123,8 +152,13 @@ export const authOptions: NextAuthOptions = {
 
         return '/?pending=1';
       } catch (e) {
+        // Deliberately not `false`. NextAuth turns that into AccessDenied and
+        // renders its own bare page saying the person is not allowed in --
+        // which is the wrong thing to say about a spreadsheet that was busy,
+        // and leaves them nowhere to try again from. This code lands on the
+        // login form with a message that says to.
         console.error('Google sign-in error:', e);
-        return false;
+        return `/login?error=${TEMPORARY_ERROR}`;
       }
     },
 
@@ -146,6 +180,12 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/login',
+    // NextAuth shows only *some* failures on the sign-in page; the rest --
+    // AccessDenied, Configuration -- go to a built-in page of its own, in
+    // English, with none of this app's chrome and no way back. Pointing the
+    // error page at the login form as well means every failure arrives
+    // somewhere the person can read it and press the button again.
+    error: '/login',
   },
   session: {
     strategy: 'jwt',

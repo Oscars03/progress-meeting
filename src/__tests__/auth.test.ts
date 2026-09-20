@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { UserRecord } from '../lib/db/schema';
 import { hashPassword } from '../lib/password';
-import { PENDING_APPROVAL } from '../lib/auth-signals';
+import { PENDING_APPROVAL, TEMPORARY_ERROR } from '../lib/auth-signals';
 
 const findMock = vi.fn();
 vi.mock('../lib/db/sheet-repo', () => ({
@@ -136,5 +136,75 @@ describe('session configuration', () => {
     expect(authOptions.session?.maxAge).toBe(twoDays);
     expect(authOptions.session?.updateAge).toBe(oneDay);
     expect(authOptions.jwt?.maxAge).toBe(twoDays);
+  });
+});
+
+describe('google sign-in', () => {
+  type SignInFn = (params: {
+    user: { id?: string; name?: string | null; email?: string | null; role?: string };
+    account: { provider: string; scope?: string; refresh_token?: string } | null;
+  }) => Promise<boolean | string>;
+
+  const signInCallback = () => authOptions.callbacks!.signIn as unknown as SignInFn;
+
+  const googleSignIn = (email: string, name = 'Somebody') =>
+    signInCallback()({ user: { email, name }, account: { provider: 'google', scope: 'openid email profile' } });
+
+  it('lets an approved account in, carrying its id and role from the sheet', async () => {
+    findMock.mockResolvedValue([user({ id: 'u7', role: 'professor' })]);
+
+    const params = {
+      user: { email: 'admin@test.com', name: 'Admin' } as { email: string; name: string; id?: string; role?: string },
+      account: { provider: 'google', scope: 'openid email profile' },
+    };
+    expect(await signInCallback()(params)).toBe(true);
+    expect(params.user).toMatchObject({ id: 'u7', role: 'professor' });
+  });
+
+  it('sends an account still waiting for approval to the waiting screen', async () => {
+    findMock.mockResolvedValue([user({ active: false })]);
+    expect(await googleSignIn('admin@test.com')).toBe('/?pending=1');
+  });
+
+  // The sheet read is the one thing between choosing a Google account and being
+  // let in, and there is no button to press again from inside the OAuth
+  // callback -- a single hiccup used to cost the whole round trip to Google.
+  it('retries a sheet read that failed once, and signs the person in', async () => {
+    findMock
+      .mockImplementationOnce(() => Promise.reject(new Error('Quota exceeded')))
+      .mockResolvedValueOnce([user()]);
+
+    expect(await googleSignIn('admin@test.com')).toBe(true);
+    expect(findMock).toHaveBeenCalledTimes(2);
+  });
+
+  // `false` would be NextAuth's AccessDenied: a bare page of its own saying the
+  // person may not come in. About a spreadsheet that was busy that is both
+  // wrong and unactionable.
+  it('returns a retryable error, not a refusal, when the sheet keeps failing', async () => {
+    const busy = () => Promise.reject(new Error('Quota exceeded'));
+    findMock.mockImplementationOnce(busy).mockImplementationOnce(busy);
+
+    expect(await googleSignIn('admin@test.com')).toBe(`/login?error=${TEMPORARY_ERROR}`);
+    expect(findMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('turns away an address whose domain may not self-register', async () => {
+    findMock.mockResolvedValue([]);
+    expect(await googleSignIn('stranger@elsewhere.com')).toBe('/login?error=AccessDenied');
+  });
+
+  it('leaves a non-google provider alone', async () => {
+    expect(await signInCallback()({ user: { email: 'admin@test.com' }, account: { provider: 'credentials' } })).toBe(true);
+    expect(findMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('sign-in pages', () => {
+  // Without an error page of its own, AccessDenied and Configuration land on
+  // NextAuth's built-in page: English, unstyled, and no way back to the form.
+  it("shows every failure on this app's own login form", () => {
+    expect(authOptions.pages?.signIn).toBe('/login');
+    expect(authOptions.pages?.error).toBe('/login');
   });
 });
