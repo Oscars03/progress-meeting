@@ -16,12 +16,33 @@ const csp = [
   "connect-src 'self' https://sheets.googleapis.com https://oauth2.googleapis.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // accounts.google.com as well as 'self': WebKit and Chromium check
+  // form-action against the *redirect* a submission follows, not just its
+  // action. NextAuth's fallback sign-in page posts to /api/auth/signin/google,
+  // which answers with a redirect to Google -- and with 'self' alone the
+  // browser blocks it, silently, leaving the person back on the form.
+  "form-action 'self' https://accounts.google.com",
 ].join('; ');
 
 const nextConfig: NextConfig = {
   async headers() {
     return [
+      {
+        // The sign-in endpoints must never be served from a cache. Two of them
+        // hand out values the next request is checked against -- /api/auth/csrf
+        // a token that has to match a cookie, /api/auth/session the current
+        // one -- so a copy kept by Safari's heuristic caching, or by a CDN in
+        // front of this app, makes NextAuth reject a perfectly good sign-in and
+        // bounce the browser back to the login page with nothing said. That is
+        // the "press it two or three times and eventually it works" shape:
+        // every press has to wait for the stale copy to age out.
+        source: '/api/auth/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, max-age=0, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' },
+        ],
+      },
       {
         source: '/:path*',
         headers: [

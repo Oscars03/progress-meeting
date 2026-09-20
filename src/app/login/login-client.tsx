@@ -8,13 +8,35 @@ import { registerAction } from './actions';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey } from '@/lib/ui/i18n';
-import { isPendingApproval } from '@/lib/auth-signals';
+import { isPendingApproval, TEMPORARY_ERROR } from '@/lib/auth-signals';
 import PendingCard from './pending-card';
 
-/** NextAuth's ?error= codes, including the ones our signIn callback returns. */
+/**
+ * NextAuth's ?error= codes, including the ones our signIn callback returns.
+ *
+ * Anything not named here falls back to a bare "sign-in failed", which says
+ * nothing about whether to press the button again, use a password instead, or
+ * go and find an administrator. Every code that can actually land on this page
+ * is spelled out, because the one that brought somebody here is the only thing
+ * they have to go on.
+ */
 const SIGNIN_ERRORS: Record<string, TranslationKey> = {
   AccessDenied: 'login.accessDenied',
   AccountInactive: 'login.accountInactive',
+  // The app could not finish -- a spreadsheet read that failed, nothing about
+  // the person. Pressing the button again is genuinely the fix.
+  [TEMPORARY_ERROR]: 'login.googleRetry',
+  // The round trip to Google did not complete: the state cookie expired or was
+  // dropped on the way back, or Google answered too late. Also worth another
+  // press, and the commonest reason a sign-in silently returns to this form.
+  OAuthSignin: 'login.googleRetry',
+  OAuthCallback: 'login.googleRetry',
+  OAuthCreateAccount: 'login.googleRetry',
+  Callback: 'login.googleRetry',
+  // The address already has a password account. Another press cannot help.
+  OAuthAccountNotLinked: 'login.accountNotLinked',
+  Configuration: 'login.configError',
+  SessionRequired: 'login.sessionRequired',
 };
 
 function LoginForm({
@@ -39,9 +61,14 @@ function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(urlErrorKey ? t(urlErrorKey) : '');
+  // Shown under the message, small. Several different failures read as "try
+  // again", and without the code there is nothing to tell an administrator
+  // that distinguishes a busy spreadsheet from a broken configuration.
+  const [errorCode, setErrorCode] = useState(urlError ?? '');
   const [loading, setLoading] = useState(false);
-  // Google sends the browser away, so this never resets -- which is the point:
-  // the button stays spent while the redirect is on its way.
+  // Google sends the browser away, so normally this never resets: the button
+  // stays spent while the redirect is on its way. It is given back only when
+  // the redirect demonstrably did not happen -- see the handler below.
   const [googleLoading, setGoogleLoading] = useState(false);
   const busy = loading || googleLoading;
   const signupEnabled = signupDomains.length > 0;
@@ -59,12 +86,14 @@ function LoginForm({
   const switchMode = (next: 'login' | 'register') => {
     setMode(next);
     setError('');
+    setErrorCode('');
     setNotice('');
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setErrorCode('');
     setNotice('');
     setLoading(true);
 
@@ -94,6 +123,7 @@ function LoginForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setErrorCode('');
     setNotice('');
     setLoading(true);
 
@@ -128,6 +158,7 @@ function LoginForm({
             setPending(false);
             setMode('login');
             setError('');
+            setErrorCode('');
             setNotice('');
             // Drop ?pending=1 so a refresh does not put the card back.
             router.replace(pathname);
@@ -151,6 +182,11 @@ function LoginForm({
       {error && (
         <div className="p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
           {error}
+          {errorCode && (
+            <p className="mt-1 text-xs text-red-500 font-mono">
+              {t('login.errorCode', { code: errorCode })}
+            </p>
+          )}
         </div>
       )}
 
@@ -297,10 +333,30 @@ function LoginForm({
         <button
           type="button"
           disabled={busy}
-          onClick={() => {
+          onClick={async () => {
             setNotice('');
+            setError('');
+            setErrorCode('');
             setGoogleLoading(true);
-            signIn('google', { callbackUrl });
+
+            try {
+              // Hands the browser to Google and does not come back. It can
+              // still fail before that: next-auth reads /api/auth/providers
+              // and posts to /api/auth/signin/google first, and on a tablet
+              // on lab wifi either can simply not arrive.
+              await signIn('google', { callbackUrl });
+            } catch {
+              setError(t('login.googleRetry'));
+              setGoogleLoading(false);
+              return;
+            }
+
+            // The redirect is on its way and this timer dies with the page.
+            // If it does fire, there was no redirect -- so give the button
+            // back instead of leaving a spinner that only a reload clears,
+            // which is how one failed press becomes "I had to try it three
+            // times".
+            window.setTimeout(() => setGoogleLoading(false), 6000);
           }}
           className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >

@@ -18,3 +18,15 @@ export const PENDING_APPROVAL = 'PendingApproval';
 export function isPendingApproval(error: string | null | undefined): boolean {
   return Boolean(error && error.includes(PENDING_APPROVAL));
 }
+
+/**
+ * The sign-in callback returns this when the *app* could not finish -- a
+ * spreadsheet read that failed, and nothing to do with who is signing in.
+ *
+ * Deliberately not NextAuth's own `AccessDenied`, which the callback used to
+ * answer with: that says the person may not come in, which about a Sheets API
+ * that was busy for a second is both wrong and unactionable -- there is
+ * nothing for them to do about being refused. This code carries the one thing
+ * that is true and useful instead: press the button again.
+ */
+export const TEMPORARY_ERROR = 'TemporaryError';
