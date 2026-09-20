@@ -48,6 +48,8 @@ export const APP_VERSION = GENERATED_VERSION;
  * older entries scroll off and nobody will miss them.
  */
 const TH_BY_SUBJECT: Record<string, string> = {
+  'the cron endpoint can hand out the open feedback':
+    'ดึงรายการข้อเสนอแนะที่ยังไม่ปิดผ่าน /api/cron ได้ สำหรับให้ automation อ่านไปสรุป',
   'the sidebar says which version this is, and holds its footer':
     'แถบซ้ายบอกเวอร์ชันและมีรายการสิ่งที่เปลี่ยน ปุ่มล่างไม่หลุดจอบนหน้าจอเตี้ย',
   'an admin can grant one ability to one person':

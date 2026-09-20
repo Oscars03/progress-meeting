@@ -7,9 +7,27 @@
 
 import type { ChangeEntry } from './changelog';
 
-export const GENERATED_VERSION = '2026.09.19';
+export const GENERATED_VERSION = '2026.09.20';
 
 export const GENERATED_CHANGELOG: ChangeEntry[] = [
+  {
+    date: "2026-09-20",
+    kind: "new",
+    th: "เพิ่มกุญแจอ่านอย่างเดียวสำหรับ /api/cron ใช้กับ automation นอกแล็บได้อย่างปลอดภัย",
+    en: "a read-only key for the cron endpoint",
+  },
+  {
+    date: "2026-09-20",
+    kind: "fix",
+    th: "เข้าสู่ระบบด้วย Google ที่ล้มเหลวจะบอกสาเหตุ และไม่ล้มเพราะชีตติดขัดชั่วคราว",
+    en: "a Google sign-in that fails says why, and survives a busy sheet",
+  },
+  {
+    date: "2026-09-19",
+    kind: "new",
+    th: "the cron endpoint can hand out the open feedback",
+    en: "the cron endpoint can hand out the open feedback",
+  },
   {
     date: "2026-09-19",
     kind: "new",
