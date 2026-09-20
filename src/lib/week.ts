@@ -53,6 +53,16 @@ export function weekStartDate(key: string): string | null {
   return monday.toISOString().slice(0, 10);
 }
 
+/** The ISO week key immediately after the given one. */
+export function nextWeekKey(key: string): string {
+  const monday = weekStartDate(key);
+  if (!monday) return key;
+
+  const d = new Date(`${monday}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 7);
+  return weekKey(d);
+}
+
 /** `count` keys ending at the week containing `from`, newest first. */
 export function recentWeekKeys(count: number, from: Date = new Date()): string[] {
   const keys: string[] = [];

@@ -66,7 +66,7 @@ vi.mock('../lib/db/sheet-repo', () => ({
 const { createPollAction, closePollAction, confirmSlotAction, deletePollAction, voteAction } = await import(
   '../app/(app)/meetings/polls/actions'
 );
-const { createMeeting, deleteMeeting, rescheduleMeetingAction } = await import(
+const { createMeeting, deleteMeeting, rescheduleMeetingAction, autoAssignWeekLead } = await import(
   '../app/(app)/meetings/actions'
 );
 const { createTask, updateTaskStatus, updateTaskDetails, deleteTask } = await import('../app/(app)/tasks/actions');
@@ -512,6 +512,72 @@ describe('term breaks', () => {
     const result = await setWeekLead(WEEK, 'lead');
     expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
     expect(insert).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The grace period past a meeting confirming the week by itself, once nobody
+ * -- an admin, or an earlier call to this same function -- already has.
+ */
+describe('auto-assigning a week lead', () => {
+  beforeEach(() => {
+    tables['week_leads'] = [];
+    tables['users'] = [
+      { id: 'stu1', name: 'Stu1', role: 'student', active: true, rotation_order: 1, created_at: '2026-01-01', row_version: 1 },
+      { id: 'stu2', name: 'Stu2', role: 'student', active: true, rotation_order: 2, created_at: '2026-01-02', row_version: 1 },
+    ];
+  });
+
+  it("writes the rotation's own suggestion when nobody holds the week yet", async () => {
+    const wrote = await autoAssignWeekLead(WEEK);
+
+    expect(wrote).toBe(true);
+    expect(insert).toHaveBeenCalledWith('week_leads', { week_key: WEEK, user_id: 'stu1' });
+  });
+
+  it("never overwrites a week somebody -- admin or itself -- already settled", async () => {
+    tables['week_leads'] = [{ id: 'wl1', week_key: WEEK, user_id: 'stu2', row_version: 1 }];
+
+    const wrote = await autoAssignWeekLead(WEEK);
+
+    expect(wrote).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses a term break week, same as the admin confirm action', async () => {
+    // WEEK (2026-W40) runs 2026-09-28 to 2026-10-04, entirely inside the break.
+    tables['term_breaks'] = [
+      { id: 'tb1', name: 'Semester Break', start_date: '2026-09-28', end_date: '2026-10-04', row_version: 1 },
+    ];
+
+    const wrote = await autoAssignWeekLead(WEEK);
+
+    expect(wrote).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when nobody is in the rotation', async () => {
+    tables['users'] = [];
+
+    const wrote = await autoAssignWeekLead(WEEK);
+
+    expect(wrote).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed week key', async () => {
+    const wrote = await autoAssignWeekLead('not-a-week');
+
+    expect(wrote).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('runs with nobody signed in, since nothing here asks who the caller is', async () => {
+    getServerSessionMock.mockResolvedValue(null);
+
+    const wrote = await autoAssignWeekLead(WEEK);
+
+    expect(wrote).toBe(true);
   });
 });
 

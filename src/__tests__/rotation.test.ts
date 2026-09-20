@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  activeWeekKey,
   actsAsWeekLead,
   rotationMembers,
   suggestNextHost,
@@ -227,6 +228,51 @@ describe('meetingsInWeek', () => {
   it('drops cancelled meetings', () => {
     const meetings = [meeting('off', '2026-09-16T09:00:00.000Z', '', 'cancelled')];
     expect(meetingsInWeek(meetings, new Date('2026-09-15T00:00:00.000Z'))).toEqual([]);
+  });
+});
+
+describe('activeWeekKey', () => {
+  it('is the plain calendar week when there is no meeting', () => {
+    const now = new Date('2026-09-16T10:00:00.000Z'); // Wed, 17:00 in the lab, still 2026-W38
+    expect(activeWeekKey([], now)).toBe(weekKey(now));
+  });
+
+  it('does not roll over on the same lab day a meeting ends', () => {
+    const meetings = [meeting('wed', '2026-09-16T09:00:00.000Z')]; // ends 16:00 lab time
+    const sameLabDay = new Date('2026-09-16T10:00:00.000Z'); // 17:00 lab time, still the 16th
+    expect(activeWeekKey(meetings, sameLabDay)).toBe('2026-W38');
+  });
+
+  it('rolls onto the next week the lab day after the meeting ends', () => {
+    const meetings = [meeting('wed', '2026-09-16T09:00:00.000Z')]; // 2026-W38
+    const nextLabDay = new Date('2026-09-17T02:00:00.000Z'); // 09:00 lab time on the 17th
+    expect(activeWeekKey(meetings, nextLabDay)).toBe('2026-W39');
+  });
+
+  it('ignores a meeting that has not happened yet', () => {
+    const meetings = [meeting('future', '2026-09-23T09:00:00.000Z')]; // next week, still ahead
+    const now = new Date('2026-09-16T10:00:00.000Z');
+    expect(activeWeekKey(meetings, now)).toBe('2026-W38');
+  });
+
+  it('ignores a cancelled meeting even once its grace day has passed', () => {
+    const meetings = [meeting('off', '2026-09-16T09:00:00.000Z', '', 'cancelled')];
+    const nextLabDay = new Date('2026-09-17T02:00:00.000Z');
+    expect(activeWeekKey(meetings, nextLabDay)).toBe('2026-W38');
+  });
+
+  it('never falls behind the calendar week, however old a graced meeting is', () => {
+    const meetings = [meeting('old', '2026-01-05T09:00:00.000Z')]; // long-past week
+    const now = new Date('2026-09-16T10:00:00.000Z');
+    expect(activeWeekKey(meetings, now)).toBe(weekKey(now));
+  });
+
+  it('is unaffected by the order meetings are read in', () => {
+    const recent = meeting('wed', '2026-09-16T09:00:00.000Z');
+    const old = meeting('old', '2026-01-05T09:00:00.000Z');
+    const nextLabDay = new Date('2026-09-17T02:00:00.000Z');
+    expect(activeWeekKey([old, recent], nextLabDay)).toBe('2026-W39');
+    expect(activeWeekKey([recent, old], nextLabDay)).toBe('2026-W39');
   });
 });
 
