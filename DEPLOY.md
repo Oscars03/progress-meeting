@@ -153,17 +153,30 @@ master หลัง merge จึงไม่มีติ๊กถูก **ไม
 
 ### `npx vercel --prod` ตอบ `Not authorized`
 
-ไม่ได้แปลว่ายังไม่ได้ล็อกอิน `.vercel/` อยู่ใน `.gitignore` — เป็นของแต่ละเครื่อง
-ไม่ได้มากับ clone ถ้า `.vercel/project.json` ชี้ไปโปรเจกต์หรือ team ที่บัญชีที่
-ล็อกอินอยู่เข้าไม่ถึง จะได้ `Not authorized` ทั้งที่ `whoami` ยังตอบชื่อได้ปกติ
+ไม่ได้แปลว่ายังไม่ได้ล็อกอิน — `whoami` ยังตอบชื่อได้ปกติตอนที่ deploy พัง
+สั่ง link ใหม่แล้วลองอีกครั้ง:
 
 ```bash
-npx vercel whoami                      # ล็อกอินเป็นใคร
-npx vercel project ls                  # เห็น irish-progress ไหม
 npx vercel link --yes --project irish-progress --scope irishlab101-7231s-projects
+npx vercel --prod --yes
 ```
 
-ค่าที่ถูกคือโปรเจกต์ `irish-progress` team `irishlab101-7231s-projects` ตามหัวไฟล์นี้
+`.vercel/` อยู่ใน `.gitignore` เป็นของแต่ละเครื่อง ไม่ได้มากับ clone จึงหลุดจาก
+ของจริงได้เงียบ ๆ การ link ใหม่ทั้งเขียน `.vercel/project.json` ให้ถูกและดึง
+`VERCEL_OIDC_TOKEN` ใหม่ลง `.env.local` — ครั้งที่เจอจริง ไฟล์เก่าค้าง
+`projectName` ไว้เป็นชื่อเดิมของโปรเจกต์ (`progress-meeting`) ส่วน `projectId`
+กับ `orgId` ถูกอยู่แล้ว **ยังไม่ทราบว่าสองอย่างนี้อย่างไหนคือสาเหตุ** — link ใหม่
+แก้ทั้งคู่พร้อมกัน
+
+> **`orgId` ขึ้นต้นด้วย `team_` เป็นเรื่องปกติ**
+> `team_3eK4b0XShm65GNE3pPZfHnjO` **คือ** `irishlab101-7231s-projects` ซึ่งเป็น
+> scope ส่วนตัวแบบ hobby — บัญชี hobby ก็ได้ id ขึ้นต้น `team_` เหมือนกัน
+> อย่าอ่านว่าเป็นทีมอื่นแล้วไล่แก้ผิดทาง
+
+> **`vercel whoami` พังไม่ได้แปลว่า token เสีย**
+> token ที่ผูกกับโปรเจกต์เดียว (`vcp_…`) ไม่มีตัวตนผู้ใช้ `whoami`, `ls`,
+> `env ls` จะตอบ `404 User not found` ทั้งที่ `vercel --prod` ใช้ได้ปกติ
+> ใช้แบบนี้เวลา deploy จากที่อื่นที่ไม่ใช่เครื่องตัวเอง
 
 ### Environment variables
 
