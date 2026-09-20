@@ -77,15 +77,24 @@ gh pr merge <เลข PR> --rebase --delete-branch
 rebase ทำให้ commit ได้ SHA ใหม่ `git branch -d` จึงบอกว่ากิ่งยัง unmerged —
 ยืนยันด้วย `git diff --quiet master <กิ่ง>` ก่อนลบด้วย `-D`
 
-### 6. Deploy
+### 6. รีเฟรช changelog — **เป็น PR อีกใบ ไม่ใช่ commit ลง master**
 
 ```bash
 git checkout master
 git pull --ff-only
+git checkout -b chore/refresh-changelog
 npm run changelog        # อ่าน commit แล้วเขียน src/lib/changelog.generated.ts
-git commit -am "chore: refresh the changelog" || true
-npx vercel --prod --yes
+git commit -am "chore: refresh the changelog"
+git push -u origin chore/refresh-changelog
+gh pr create --title "chore: refresh the changelog" --body "..."
 ```
+
+แล้วรอ CI กับ merge ตามขั้น 4–5 เหมือนกิ่งอื่นทุกประการ ไฟล์ที่ generate ออกมา
+ก็เป็นการเปลี่ยนแปลงหนึ่ง กฎในขั้น 1 ไม่ได้ยกเว้นให้ — `df4e0a7` (PR #82) กับ
+`95266d7` (PR #86) เข้ามาทางนี้ทั้งคู่
+
+ใช้ `chore:` ตั้งใจ เพื่อไม่ให้ commit นี้กลายเป็นอีกบรรทัดในลิสต์ที่ตัวเองกำลัง
+generate
 
 `npm run changelog` สร้างรายการ "มีอะไรใหม่" ในแถบซ้ายจาก commit บน HEAD
 เก็บเฉพาะ `feat:` กับ `fix:` และต้อง commit ไฟล์ที่ได้ไปด้วย เพราะ Vercel
@@ -101,9 +110,27 @@ Changelog-TH: กดบล็อกสีเขียวแล้วเลือ
 `TH_BY_SUBJECT` ใน `src/lib/changelog.ts` สำหรับ commit ที่ทำไปแล้ว)
 `npm run changelog -- --check` บอกว่าไฟล์ตรงกับประวัติหรือยัง
 
+> **เขียน trailer ตั้งแต่ commit — แก้ตอน merge ไม่ได้**
+> `gh pr merge --rebase` เก็บ commit message เดิมทั้งดุ้น ไม่มีจังหวะให้แก้
+> (มีเฉพาะ `--squash`) commit ที่ push แล้วต้อง amend + force-push หรือไม่ก็
+> ปล่อยไปเติมใน `TH_BY_SUBJECT` ทีหลัง
+
+> **`changelog.test.ts` จะทำให้ PR นี้แดงถ้ามีบรรทัดไหนยังไม่มีไทย**
+> เทสต์บังคับว่าทุกบรรทัดที่ `recentChanges()` เอาขึ้นจอต้องมีไทย commit ที่
+> merge ไปแล้วโดยไม่มี trailer จึงมาโผล่ตรงนี้ เติมคำแปลใน `TH_BY_SUBJECT`
+> ใน PR เดียวกันนี้ (PR #86 แดงด้วยเหตุนี้ — `116bac8` ไม่มี trailer)
+
+### 7. Deploy
+
+```bash
+git checkout master
+git pull --ff-only
+npx vercel --prod --yes
+```
+
 ขึ้น `▲ Aliased https://irish-progress.vercel.app` คือสำเร็จ
 
-### 7. ตรวจหลัง deploy
+### 8. ตรวจหลัง deploy
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" https://irish-progress.vercel.app/login
@@ -123,6 +150,20 @@ CI รันบน `pull_request` (กับสั่งมือผ่าน `w
 master หลัง merge จึงไม่มีติ๊กถูก **ไม่ใช่รันพังหรือถูกข้าม** — รันของ PR คือตัวที่นับ
 
 ถ้าอยากเช็ค master เองจริง ๆ สั่งจากแท็บ Actions ได้
+
+### `npx vercel --prod` ตอบ `Not authorized`
+
+ไม่ได้แปลว่ายังไม่ได้ล็อกอิน `.vercel/` อยู่ใน `.gitignore` — เป็นของแต่ละเครื่อง
+ไม่ได้มากับ clone ถ้า `.vercel/project.json` ชี้ไปโปรเจกต์หรือ team ที่บัญชีที่
+ล็อกอินอยู่เข้าไม่ถึง จะได้ `Not authorized` ทั้งที่ `whoami` ยังตอบชื่อได้ปกติ
+
+```bash
+npx vercel whoami                      # ล็อกอินเป็นใคร
+npx vercel project ls                  # เห็น irish-progress ไหม
+npx vercel link --yes --project irish-progress --scope irishlab101-7231s-projects
+```
+
+ค่าที่ถูกคือโปรเจกต์ `irish-progress` team `irishlab101-7231s-projects` ตามหัวไฟล์นี้
 
 ### Environment variables
 
@@ -207,12 +248,20 @@ git revert <sha>
 
 ```bash
 git checkout -b my-change
-# ...แก้โค้ด...
+# ...แก้โค้ด... เขียน Changelog-TH: ต่อท้าย commit message ตั้งแต่ตอนนี้
 npm run lint && npm test && npm run build && npx tsc --noEmit
 git push -u origin my-change
 gh pr create --title "..." --body "..."
 gh pr checks <n>                                # รอครบ 5 ขั้น แล้วอ่านให้ครบ
 gh pr merge <n> --rebase --delete-branch
-git checkout master && git pull --ff-only
+
+git checkout master && git pull --ff-only       # changelog เป็น PR อีกใบ
+git checkout -b chore/refresh-changelog
+npm run changelog && git commit -am "chore: refresh the changelog"
+git push -u origin chore/refresh-changelog
+gh pr create --title "chore: refresh the changelog" --body "..."
+gh pr checks <n> && gh pr merge <n> --rebase --delete-branch
+
+git checkout master && git pull --ff-only       # แล้วค่อย deploy
 npx vercel --prod --yes
 ```
