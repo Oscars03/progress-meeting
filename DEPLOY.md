@@ -18,14 +18,24 @@ git pull --ff-only
 git checkout -b ชื่อ-กิ่ง
 ```
 
-**อย่า push เข้า `master` ตรง ๆ** — เป็นนิสัยเดิมของโปรเจกต์นี้และเลิกไปแล้ว
-โดยตั้งใจ ตอนนี้ยังไม่มีอะไรบังคับ กฎนี้จึงแข็งแรงเท่าคนที่กด merge เท่านั้น
+**push เข้า `master` ตรง ๆ ไม่ได้แล้ว** — ตั้งแต่ 20 ก.ย. 2026 GitHub บังคับให้เอง
+ด้วย ruleset ชื่อ `master: PR + green CI` (`enforcement: active`, bypass list ว่าง
+จึงไม่มีใครข้ามได้ รวมถึงเจ้าของ repo):
 
-> **เคยเขียนไว้ว่า GitHub บังคับไม่ได้เพราะ repo เป็น private บนบัญชีฟรี — ไม่จริง**
-> `gh repo view` ตอบ `visibility: PUBLIC` และ branch protection กับ ruleset
-> ใช้ได้ฟรีบน repo สาธารณะ ตรวจเมื่อ 20 ก.ย. 2026 แล้วยังไม่มีทั้ง ruleset และ
-> protection บน `master` ประโยคข้างบนจึงยังจริงในทางปฏิบัติ — แต่เป็นเพราะยัง
-> ไม่ได้ตั้ง ไม่ใช่เพราะตั้งไม่ได้ ถ้าตั้งเมื่อไหร่ให้มาแก้ตรงนี้ด้วย
+| กฎ | ผล |
+|---|---|
+| `pull_request` | ทุกอย่างเข้า master ต้องผ่าน PR — approvals = 0 เพราะ GitHub ไม่ให้ approve PR ตัวเอง ตั้งเป็น 1 แล้วจะ merge ไม่ได้เลย |
+| `required_status_checks` | ต้องผ่าน `lint · types · tests · build` ก่อน |
+| `non_fast_forward` | force push ไม่ได้ |
+| `deletion` | ลบ master ไม่ได้ |
+
+ก่อนหน้านี้เอกสารตรงนี้เขียนว่า GitHub บังคับไม่ได้เพราะ repo เป็น private บน
+บัญชีฟรี — ไม่จริงทั้งสองท่อน repo เป็น public มาตลอด และ ruleset ใช้ได้ฟรีบน
+repo สาธารณะ ที่บังคับไม่ได้จริง ๆ คือ "ยังไม่มีใครตั้ง"
+
+> **ถ้าช่อง status check ใน UI หา `lint · types · tests · build` ไม่เจอ**
+> เพราะ CI รันเฉพาะ `pull_request` จึงไม่เคยมีประวัติรันบน master ให้ค้นหา
+> สั่ง `gh workflow run ci.yml --ref master` หนึ่งครั้งแล้วค่อยกลับมาเลือก
 
 ### 2. รันเช็คในเครื่องก่อนเปิด PR
 
