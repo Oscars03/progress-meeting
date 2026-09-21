@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { APP_VERSION, recentChanges } from '@/lib/changelog';
+import { APP_VERSION, changesByDay } from '@/lib/changelog';
 import { usePrefs } from '@/lib/ui/prefs';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
@@ -354,25 +354,40 @@ export default function AppNav({ userName }: { userName: string }) {
               </button>
             </div>
 
-            <ul className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
-              {recentChanges().map((entry, index) => (
-                <li key={`${entry.date}-${index}`} className="flex items-start gap-2.5">
-                  <span
-                    className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-medium ${
-                      entry.kind === 'new'
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {t(entry.kind === 'new' ? 'nav.changeNew' : 'nav.changeFix')}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-gray-800">{locale === 'en' ? entry.en : entry.th}</span>
-                    <span className="block text-xs text-gray-400 tabular-nums">{entry.date}</span>
-                  </span>
-                </li>
+            <div className="flex-1 space-y-2 overflow-y-auto p-4 text-sm">
+              {changesByDay().map((day, dayIndex) => (
+                <details
+                  key={day.date}
+                  open={dayIndex === 0}
+                  className="rounded-lg border border-gray-100"
+                >
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-gray-50">
+                    <span className="tabular-nums text-gray-700">{day.date}</span>
+                    <span className="text-xs text-gray-400">
+                      {t('nav.changeCount', { count: String(day.entries.length) })}
+                    </span>
+                  </summary>
+                  <ul className="space-y-3 px-3 pb-3 pt-1">
+                    {day.entries.map((entry, index) => (
+                      <li key={`${entry.date}-${index}`} className="flex items-start gap-2.5">
+                        <span
+                          className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-medium ${
+                            entry.kind === 'new'
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {t(entry.kind === 'new' ? 'nav.changeNew' : 'nav.changeFix')}
+                        </span>
+                        <span className="min-w-0 text-gray-800">
+                          {locale === 'en' ? entry.en : entry.th}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       )}
