@@ -23,6 +23,7 @@ export const common = defineMessages({
     'nav.whatsNewHint': 'สิ่งที่เปลี่ยนล่าสุดในระบบ',
     'nav.changeNew': 'ใหม่',
     'nav.changeFix': 'แก้',
+    'nav.changeCount': '{count} รายการ',
     'nav.collapse': 'ยุบแถบเมนู',
     'nav.expand': 'ขยายแถบเมนู',
 
@@ -240,6 +241,7 @@ export const common = defineMessages({
     'nav.whatsNewHint': 'The most recent changes',
     'nav.changeNew': 'New',
     'nav.changeFix': 'Fix',
+    'nav.changeCount': '{count} changes',
     'nav.collapse': 'Collapse sidebar',
     'nav.expand': 'Expand sidebar',
 

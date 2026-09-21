@@ -90,3 +90,37 @@ export const CHANGELOG: ChangeEntry[] = GENERATED_CHANGELOG.map((entry) => ({
 export function recentChanges(limit = 8): ChangeEntry[] {
   return CHANGELOG.slice(0, limit);
 }
+
+/** One release day, with everything that shipped on it. */
+export type ChangeDay = {
+  /** ISO date, shared by every entry in `entries`. */
+  date: string;
+  entries: ChangeEntry[];
+};
+
+/**
+ * The same list folded into the days it shipped on.
+ *
+ * A flat list of eight lines showed a week at best and hid the rest. Days are
+ * the unit people remember a release by ("the one from Friday"), and folding
+ * them lets the panel offer months of history without becoming a wall of text
+ * -- the sidebar opens the newest day and leaves the others shut.
+ *
+ * `CHANGELOG` is already newest-first and every entry carries a date, so a
+ * single pass keeps both the day order and the order within a day.
+ */
+export function changesByDay(dayLimit = 12): ChangeDay[] {
+  const days: ChangeDay[] = [];
+
+  for (const entry of CHANGELOG) {
+    const last = days[days.length - 1];
+    if (last?.date === entry.date) {
+      last.entries.push(entry);
+      continue;
+    }
+    if (days.length === dayLimit) break;
+    days.push({ date: entry.date, entries: [entry] });
+  }
+
+  return days;
+}
