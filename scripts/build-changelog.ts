@@ -127,6 +127,45 @@ ${lines}
 `;
 }
 
+/** How many entries the file on disk currently lists. -1 when there is no file. */
+function entriesOnDisk(): number {
+  try {
+    return (readFileSync(OUT, 'utf8').match(/^ {4}date: /gm) ?? []).length;
+  } catch {
+    return -1;
+  }
+}
+
+/**
+ * Refuse to shrink the list without being told to.
+ *
+ * `git log` reports what the checkout can see, and a shallow or partial clone
+ * sees less. That happened: a run in a cloud sandbox regenerated the file from
+ * a truncated history, dropped 33 entries, reported "Wrote 45 entries" with no
+ * hint anything was wrong, and `--check` agreed -- it compares against the same
+ * truncated history, so it confirms the damage rather than catching it.
+ *
+ * Entries only disappear when history is missing, because the generator reads
+ * `--first-parent` from HEAD and merged commits do not leave it. A drop is
+ * therefore a bad checkout until proven otherwise. `--allow-shrink` is the
+ * proof, for the rare time a history really was rewritten.
+ */
+function refuseToShrink(wanted: string): void {
+  const before = entriesOnDisk();
+  if (before < 0) return;
+
+  const after = (wanted.match(/^ {4}date: /gm) ?? []).length;
+  if (after >= before || process.argv.includes('--allow-shrink')) return;
+
+  console.error(
+    `Refusing to write: the file lists ${before} entries and this run found only ${after}.\n` +
+      'Entries do not vanish on their own -- this checkout is probably missing history.\n' +
+      'Check `git log --first-parent HEAD | wc -l` against a full clone.\n' +
+      'If the history really was rewritten, re-run with --allow-shrink.'
+  );
+  process.exit(1);
+}
+
 function main() {
   const wanted = render(parse(gitLog()));
 
@@ -146,6 +185,8 @@ function main() {
     console.log('Changelog is up to date.');
     return;
   }
+
+  refuseToShrink(wanted);
 
   writeFileSync(OUT, wanted, 'utf8');
   const count = (wanted.match(/date: /g) ?? []).length;
