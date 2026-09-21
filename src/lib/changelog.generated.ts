@@ -7,9 +7,21 @@
 
 import type { ChangeEntry } from './changelog';
 
-export const GENERATED_VERSION = '2026.09.20';
+export const GENERATED_VERSION = '2026.09.21';
 
 export const GENERATED_CHANGELOG: ChangeEntry[] = [
+  {
+    date: "2026-09-21",
+    kind: "new",
+    th: "the what's-new panel folds into the days things shipped",
+    en: "the what's-new panel folds into the days things shipped",
+  },
+  {
+    date: "2026-09-21",
+    kind: "fix",
+    th: "put back the 33 changelog entries a shallow clone dropped",
+    en: "put back the 33 changelog entries a shallow clone dropped",
+  },
   {
     date: "2026-09-20",
     kind: "new",
