@@ -48,6 +48,10 @@ export const APP_VERSION = GENERATED_VERSION;
  * older entries scroll off and nobody will miss them.
  */
 const TH_BY_SUBJECT: Record<string, string> = {
+  "the what's-new panel folds into the days things shipped":
+    'แถบ "มีอะไรใหม่" จัดกลุ่มตามวัน กดเปิดดูย้อนหลังได้ทีละวัน',
+  'put back the 33 changelog entries a shallow clone dropped':
+    'รายการ "มีอะไรใหม่" ที่หายไป 33 บรรทัดกลับมาครบแล้ว',
   'the cron endpoint can hand out the open feedback':
     'ดึงรายการข้อเสนอแนะที่ยังไม่ปิดผ่าน /api/cron ได้ สำหรับให้ automation อ่านไปสรุป',
   'the sidebar says which version this is, and holds its footer':
