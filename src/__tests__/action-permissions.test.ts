@@ -69,7 +69,10 @@ const { createPollAction, closePollAction, confirmSlotAction, deletePollAction, 
 const { createMeeting, deleteMeeting, rescheduleMeetingAction, autoAssignWeekLead } = await import(
   '../app/(app)/meetings/actions'
 );
-const { createTask, updateTaskStatus, updateTaskDetails, deleteTask } = await import('../app/(app)/tasks/actions');
+const { createTask, updateTaskStatus, updateTaskDetails, deleteTask, setTaskProgress, saveSubtasks } = await import(
+  '../app/(app)/tasks/actions'
+);
+const { saveRounds } = await import('../app/(app)/tasks/round-actions');
 const { saveWeeklyUpdateAction, deleteWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
 const { updateMyNameAction } = await import('../app/(app)/settings/actions');
 const { setTopicOrder, clearTopicOrder, addTopic, updateTopic, deleteTopic } = await import(
@@ -610,9 +613,32 @@ describe('task permissions', () => {
 
   it('allows professor to create a task', async () => {
     signedInAs('prof', 'professor');
-    const result = await createTask({ title: 'New Task' });
+    const result = await createTask({ title: 'New Task', assignee_ids: ['student1'] });
     expect(result.ok).toBe(true);
     expect(insert).toHaveBeenCalled();
+  });
+
+  // The tracker exists to say who is doing what; a row that says "nobody"
+  // is the one thing it cannot show usefully.
+  it('refuses work an advisor gives to nobody', async () => {
+    signedInAs('prof', 'professor');
+    const result = await createTask({ title: 'New Task' });
+    expect(result).toMatchObject({ ok: false, error: 'tasks.assigneeRequired' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses a due date before the start', async () => {
+    signedInAs('student1');
+    const result = await createTask({ title: 'New Task', start_date: '2026-10-10', due_date: '2026-10-01' });
+    expect(result).toMatchObject({ ok: false, error: 'tasks.dueBeforeStart' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses a round that does not exist', async () => {
+    signedInAs('student1');
+    tables['task_rounds'] = [{ id: 'r1', name: 'Round 1', due_date: '2026-10-31', row_version: 1 }];
+    const result = await createTask({ title: 'New Task', round_id: 'gone' });
+    expect(result).toMatchObject({ ok: false, error: 'tasks.roundMissing' });
   });
 
   // This used to be refused, which -- with no professor account in the lab --
@@ -713,6 +739,141 @@ describe('task permissions', () => {
     signedInAs('student1');
     const result = await updateTaskDetails('t1', { title: 'Updated' }, 1);
     expect(result.ok).toBe(false);
+  });
+
+  describe('work a student wrote down themselves', () => {
+    beforeEach(() => {
+      tables['tasks'] = [
+        { id: 'own', title: 'Mine', owner_id: 'student1', assignee_ids: ['student1'], status: 'not_started', row_version: 4 },
+      ];
+    });
+
+    it('can be corrected by the student who wrote it', async () => {
+      signedInAs('student1');
+      const result = await updateTaskDetails('own', { title: 'Renamed', due_date: '2026-11-30' }, 4);
+      expect(result.ok).toBe(true);
+      expect(update).toHaveBeenCalledWith(
+        'tasks',
+        'own',
+        expect.objectContaining({ title: 'Renamed', due_date: '2026-11-30' }),
+        4,
+        'student1'
+      );
+    });
+
+    // Correcting your own work is not handing it to somebody else.
+    it('cannot be handed to somebody else by that student', async () => {
+      signedInAs('student1');
+      const result = await updateTaskDetails('own', { assignee_ids: ['student2'] }, 4);
+      expect(result.ok).toBe(false);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('cannot be edited by another student', async () => {
+      signedInAs('student2');
+      const result = await updateTaskDetails('own', { title: 'Taken' }, 4);
+      expect(result.ok).toBe(false);
+      expect(update).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('progress and checklist on the tracker', () => {
+  beforeEach(() => {
+    tables['tasks'] = [
+      { id: 't1', title: 'Task 1', assignee_ids: ['student1'], status: 'in_progress', row_version: 2 },
+    ];
+  });
+
+  it('lets the person on the work move its progress, and finishes it at 100%', async () => {
+    signedInAs('student1');
+    const result = await setTaskProgress('t1', 100, 2);
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalledWith(
+      'tasks',
+      't1',
+      expect.objectContaining({ progress_pct: 100, status: 'done', progress_at: expect.any(String) }),
+      2,
+      'student1'
+    );
+  });
+
+  it('refuses progress from a student who is not on the work', async () => {
+    signedInAs('student2');
+    const result = await setTaskProgress('t1', 50, 2);
+    expect(result.ok).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('stores a cleaned checklist', async () => {
+    signedInAs('student1');
+    const result = await saveSubtasks(
+      't1',
+      [{ id: 'a', title: '  Collect data ', done: true }, { title: '   ' }, { title: 'Write it up' }],
+      2
+    );
+    expect(result.ok).toBe(true);
+    const fields = update.mock.calls[0][2] as { subtasks: { id: string; title: string; done: boolean }[] };
+    expect(fields.subtasks).toHaveLength(2);
+    expect(fields.subtasks[0]).toEqual({ id: 'a', title: 'Collect data', done: true });
+    expect(fields.subtasks[1]).toMatchObject({ title: 'Write it up', done: false });
+    expect(fields.subtasks[1].id).toBeTruthy();
+  });
+
+  it('refuses a checklist change from a student who is not on the work', async () => {
+    signedInAs('student2');
+    const result = await saveSubtasks('t1', [{ title: 'x' }], 2);
+    expect(result.ok).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe('submission rounds', () => {
+  beforeEach(() => {
+    tables['task_rounds'] = [{ id: 'r1', name: 'Round 1', due_date: '2026-10-31', row_version: 3 }];
+    tables['tasks'] = [
+      { id: 'same', title: 'On the round date', round_id: 'r1', due_date: '2026-10-31', row_version: 5 },
+      { id: 'own', title: 'Own date', round_id: 'r1', due_date: '2026-10-15', row_version: 6 },
+      { id: 'else', title: 'Elsewhere', round_id: '', due_date: '2026-10-31', row_version: 7 },
+    ];
+  });
+
+  it('are set by advisors, not students', async () => {
+    signedInAs('student1');
+    const result = await saveRounds({ rounds: [{ name: 'Mine', due_date: '' }], removed: [] });
+    expect(result.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('move the projects due on a round date when the date moves, and only those', async () => {
+    signedInAs('prof', 'professor');
+    const result = await saveRounds({
+      rounds: [{ id: 'r1', name: 'Round 1', due_date: '2026-11-30', rowVersion: 3 }],
+      removed: [],
+    });
+    expect(result).toMatchObject({ ok: true, moved: 1 });
+    expect(update).toHaveBeenCalledWith('task_rounds', 'r1', { name: 'Round 1', due_date: '2026-11-30' }, 3, 'prof');
+    expect(update).toHaveBeenCalledWith('tasks', 'same', { due_date: '2026-11-30' }, 5, 'prof');
+    expect(update).not.toHaveBeenCalledWith('tasks', 'own', expect.anything(), expect.anything(), expect.anything());
+    expect(update).not.toHaveBeenCalledWith('tasks', 'else', expect.anything(), expect.anything(), expect.anything());
+  });
+
+  // Nothing under a round is deleted with it: its work just leaves the round.
+  it('let their projects go when removed, rather than taking them along', async () => {
+    signedInAs('prof', 'professor');
+    const result = await saveRounds({ rounds: [], removed: [{ id: 'r1', rowVersion: 3 }] });
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('task_rounds', 'r1', 3, 'prof');
+    expect(remove).not.toHaveBeenCalledWith('tasks', expect.anything(), expect.anything(), expect.anything());
+    expect(update).toHaveBeenCalledWith('tasks', 'same', { round_id: '' }, 5, 'prof');
+    expect(update).toHaveBeenCalledWith('tasks', 'own', { round_id: '' }, 6, 'prof');
+  });
+
+  it('refuses a round without a name', async () => {
+    signedInAs('prof', 'professor');
+    const result = await saveRounds({ rounds: [{ name: '  ', due_date: '' }], removed: [] });
+    expect(result).toMatchObject({ ok: false, error: 'tasks.roundNameRequired' });
+    expect(insert).not.toHaveBeenCalled();
   });
 });
 
