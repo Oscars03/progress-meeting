@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { recentWeekKeys, weekKey, weeksAgo, weekStartDate } from '@/lib/week';
 import type { TaskRecord, TaskUpdateRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { canRecordProgress } from '@/lib/task-rights';
@@ -18,7 +18,7 @@ function assigneeIds(task: TaskRecord): string[] {
 }
 
 export default async function WeeklyPage() {
-  const actor = await requireSession();
+  const actor = await requirePageSession();
   const thisWeek = weekKey();
 
   const [tasks, updates, users, leads, t] = await Promise.all([

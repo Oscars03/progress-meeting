@@ -1,8 +1,8 @@
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 
 export default async function ReportPage() {
-  const [actor, t] = await Promise.all([requireSession(), getT()]);
+  const [actor, t] = await Promise.all([requirePageSession(), getT()]);
   const isAdmin = actor.role === 'admin';
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${process.env.SPREADSHEET_ID}/edit`;
 

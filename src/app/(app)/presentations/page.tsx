@@ -1,5 +1,5 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
+import { requirePageSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { effectiveTopicOrder, topicsForWeek, lastArrangedBy } from '@/lib/presentation-order';
 import OrderBoard from './order-board';
@@ -13,7 +13,7 @@ export default async function PresentationsPage(props: {
 }) {
   const { week } = await props.searchParams;
   const [actor, users, meetings, allTopics, initialLeads, t] = await Promise.all([
-    requireSession(),
+    requirePageSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
     SheetRepo.find<TopicRecord>('topics'),

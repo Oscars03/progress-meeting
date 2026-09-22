@@ -6,7 +6,7 @@ import CalendarCard from './calendar-card';
 import DriveCard from './drive-card';
 import RolePreview from './role-preview';
 import { driveStatus, type DriveStatus } from '@/lib/google/drive';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import UserManager, { type SafeUser } from './user-manager';
 import PermissionTable from './permission-table';
@@ -19,7 +19,7 @@ import { labMembers } from '@/lib/members';
 import type { TermBreakRecord } from '@/lib/db/schema';
 
 export default async function SettingsPage() {
-  const actor = await requireSession();
+  const actor = await requirePageSession();
   const isAdmin = actor.role === 'admin';
 
   let users: SafeUser[] = [];

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import BackLink from '@/lib/ui/back-link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { weeksRunBy } from '@/lib/rotation';
 import type {
@@ -15,7 +15,7 @@ import { weekAvailabilityAction } from '../../calendar-actions';
 
 export default async function PollsPage() {
   const [actor, t] = await Promise.all([
-    requireSession(),
+    requirePageSession(),
     getT(),
   ]);
 

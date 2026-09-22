@@ -7,7 +7,7 @@ import NewMeetingButton from './new-meeting-button';
 import ConnectGoogleButton from './connect-google-button';
 
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { labMembers } from '@/lib/members';
 import { myEvents, busyTimes, type GoogleEvent } from '@/lib/google/calendar';
 import type { PersonalEventRecord, UserRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
@@ -18,7 +18,7 @@ export type MappedMeeting = MeetingRecord & { owner_name?: string };
 export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string };
 
 export default async function MeetingsPage() {
-  const actor = await requireSession();
+  const actor = await requirePageSession();
   const [meetings, t, storedToken, allPersonalEvents, users, termBreaks, weekLeads] = await Promise.all([
     SheetRepo.find<MeetingRecord>('meetings'), 
     getT(),
