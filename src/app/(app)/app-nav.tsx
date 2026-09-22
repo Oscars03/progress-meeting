@@ -8,6 +8,7 @@ import { APP_VERSION, changesByDay } from '@/lib/changelog';
 import { usePrefs } from '@/lib/ui/prefs';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
+import { settingsMenuOpen, type MenuToggle } from '@/lib/ui/settings-menu';
 
 type IconName = 'dashboard' | 'tasks' | 'meetings' | 'presentations' | 'report' | 'feedback' | 'settings';
 
@@ -120,11 +121,10 @@ function splitName(name: string): [string, string | null] {
 export default function AppNav({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
   const { t, locale, sidebar, setSidebar } = usePrefs();
   const pathname = usePathname();
-  // Open while you are inside Settings, closed elsewhere -- until you press
-  // the arrow, after which your choice stands.
-  const onSettings = pathname === '/settings' || pathname.startsWith('/settings/');
-  const [settingsToggled, setSettingsToggled] = useState<boolean | null>(null);
-  const settingsOpen = settingsToggled ?? onSettings;
+  // Open on every Settings page, closed elsewhere; the arrow overrides that
+  // for the page it is pressed on -- see lib/ui/settings-menu.ts.
+  const [settingsToggle, setSettingsToggle] = useState<MenuToggle>(null);
+  const settingsOpen = settingsMenuOpen(pathname, settingsToggle);
   const settingsPages = SETTINGS_PAGES.filter((page) => isAdmin || !page.adminOnly);
   const collapsed = sidebar === 'collapsed';
   const toggleLabel = collapsed ? t('nav.expand') : t('nav.collapse');
@@ -276,39 +276,52 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
         <div className="flex min-h-0 flex-1 flex-col gap-1 mt-2 overflow-y-auto">
           {LINKS.map(({ href, key, icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
-            const link = (
-              <Link
-                key={href}
-                href={href}
-                title={t(key)}
-                aria-current={active && href !== '/settings' ? 'page' : undefined}
-                onClick={closeMobileMenu}
-                className={`flex flex-1 items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md font-medium transition ${
-                  active ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <NavIcon name={icon} />
-                {/* sr-only rather than hidden, so the link keeps its name when collapsed. */}
-                <span className="whitespace-nowrap md:collapsed:sr-only">{t(key)}</span>
-              </Link>
-            );
-            if (href !== '/settings') return link;
+            const tone = active ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100';
 
-            // Settings: the link, an arrow that opens its pages, and the pages
-            // indented under it. Collapsed to icons there is no room for them,
+            if (href !== '/settings') {
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  title={t(key)}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={closeMobileMenu}
+                  className={`flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md font-medium transition ${tone}`}
+                >
+                  <NavIcon name={icon} />
+                  {/* sr-only rather than hidden, so the link keeps its name when collapsed. */}
+                  <span className="whitespace-nowrap md:collapsed:sr-only">{t(key)}</span>
+                </Link>
+              );
+            }
+
+            // Settings: one row -- the link and, inside the same highlight, an
+            // arrow for its pages -- with the pages indented under it. Pressing
+            // the link always opens them. Collapsed to icons there is no room,
             // so the icon just goes to Settings' first page.
             return (
               <div key={href} className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-1">
-                  {link}
+                <div className={`flex items-center rounded-md transition ${tone}`}>
+                  <Link
+                    href={href}
+                    title={t(key)}
+                    onClick={() => {
+                      setSettingsToggle(null);
+                      closeMobileMenu();
+                    }}
+                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 font-medium"
+                  >
+                    <NavIcon name={icon} />
+                    <span className="whitespace-nowrap md:collapsed:sr-only">{t(key)}</span>
+                  </Link>
                   <button
                     type="button"
-                    onClick={() => setSettingsToggled(!settingsOpen)}
+                    onClick={() => setSettingsToggle({ path: pathname, open: !settingsOpen })}
                     aria-expanded={settingsOpen}
                     aria-controls="settings-pages"
                     aria-label={t('nav.settings.toggle')}
                     title={t('nav.settings.toggle')}
-                    className="md:collapsed:hidden h-9 w-8 shrink-0 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 transition"
+                    className="md:collapsed:hidden mr-1 h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-md opacity-70 hover:opacity-100 transition"
                   >
                     <Icon d="M6 9l6 6 6-6" className={`h-4 w-4 transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
                   </button>
