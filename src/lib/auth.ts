@@ -77,14 +77,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           // lib/google/scopes.ts. Asking here made a first sign-in several
           // consent screens for access the app did not need yet.
           scope: IDENTITY_SCOPES.join(' '),
-          // Always show the account chooser. Without it Google silently
-          // reuses whichever account the browser signed in with last, which
-          // on a shared or family iPad is not always the one the person
-          // meant -- and when the app turns that account away there is no
-          // way to pick another: pressing the button again re-sends the same
-          // one, and the sign-in appears to bounce off the login page for no
-          // reason. One extra tap buys a flow somebody can actually correct.
-          prompt: 'select_account',
         },
       },
     })

@@ -344,7 +344,19 @@ function LoginForm({
               // still fail before that: next-auth reads /api/auth/providers
               // and posts to /api/auth/signin/google first, and on a tablet
               // on lab wifi either can simply not arrive.
-              await signIn('google', { callbackUrl });
+              //
+              // The account chooser only after a Google sign-in was turned
+              // away. Normally Google goes straight through with the account
+              // the browser already has, which is the one-tap sign-in people
+              // expect. But when that account was the wrong one, pressing the
+              // button again would re-send it, and the sign-in would bounce
+              // off this page with no way to pick another -- so a return here
+              // with an error or a pending account asks which account to use.
+              await signIn(
+                'google',
+                { callbackUrl },
+                urlError || pending ? { prompt: 'select_account' } : undefined
+              );
             } catch {
               setError(t('login.googleRetry'));
               setGoogleLoading(false);
