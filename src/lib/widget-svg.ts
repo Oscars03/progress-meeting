@@ -11,13 +11,37 @@ import type { Tile, TileTone } from './widget-tiles';
  * Flexbox does not exist here, so everything is placed by hand on a fixed
  * canvas and long text is cut to a length that fits.
  */
-export type WidgetSize = 'wide' | 'square';
+export type WidgetSize = 'wide' | 'mid' | 'square';
 export type WidgetTheme = 'light' | 'dark';
 
+/**
+ * - wide: a 4×2 widget, about 2:1.
+ * - mid: a 3×2 AnyWidget. Sized to AnyWidget's set-up frame, which the
+ *   owner's phone drew at about 1.57:1 -- a true 3:2 is taller than that and
+ *   lost the bottom of the lower tiles; 2:1 left a dark band under them.
+ *   1000×630 sits just inside it.
+ * - square: a 4×4 widget.
+ */
 const CANVAS: Record<WidgetSize, { width: number; height: number }> = {
   wide: { width: 1000, height: 470 },
+  mid: { width: 1000, height: 630 },
   square: { width: 1000, height: 1000 },
 };
+
+/** The size a request asked for; anything unknown is the wide default. */
+export function readWidgetSize(value: string | null): WidgetSize {
+  return value === 'square' || value === 'mid' ? value : 'wide';
+}
+
+/**
+ * Where things sit inside a tile on the two short sizes. Offsets from the
+ * tile's top edge: taller tiles get bigger type and more room, rather than the
+ * wide layout with a gap under it.
+ */
+const SHORT_LAYOUT = {
+  wide: { top: 26, iconR: 21, labelSize: 26, labelDy: 9, valueGap: 70, valueSize: 58, captionGap: 42, captionSize: 25 },
+  mid: { top: 40, iconR: 24, labelSize: 29, labelDy: 10, valueGap: 84, valueSize: 72, captionGap: 48, captionSize: 28 },
+} as const;
 
 type Palette = { bg: string; text: string; sub: string; track: string; tile: Record<TileTone, { fill: string; accent: string }> };
 
@@ -144,34 +168,38 @@ function tileSvg(tile: Tile, x: number, y: number, w: number, h: number, size: W
   const tone = p.tile[tile.tone];
   const pad = 26;
   const big = size === 'square';
-  const valueSize = big ? 92 : 58;
-  const iconR = big ? 26 : 21;
+  const short = SHORT_LAYOUT[size === 'mid' ? 'mid' : 'wide'];
+  const valueSize = big ? 92 : short.valueSize;
+  const iconR = big ? 26 : short.iconR;
+  const captionSize = big ? 32 : short.captionSize;
   const perChar = (fontSize: number) => Math.floor((w - pad * 2) / (fontSize * 0.56));
 
   let out = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="30" fill="${tone.fill}"/>`;
 
   // Icon disc and label.
   const cx = x + pad + iconR;
-  const cy = y + pad + iconR;
+  const cy = y + (big ? pad : short.top) + iconR;
   const scale = (iconR * 1.2) / 24;
   out += `<circle cx="${cx}" cy="${cy}" r="${iconR}" fill="${tone.accent}"/>`;
   out += `<g transform="translate(${cx - 12 * scale} ${cy - 12 * scale}) scale(${scale})" fill="none" stroke="${p.bg}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${ICONS[tile.key]}</g>`;
-  out += text(cx + iconR + 14, cy + (big ? 11 : 9), big ? 32 : 26, p.sub, tile.label, { weight: 600 });
+  out += text(cx + iconR + 14, cy + (big ? 11 : short.labelDy), big ? 32 : short.labelSize, p.sub, tile.label, { weight: 600 });
 
   // The value, big, and the one line under it.
-  const valueY = cy + iconR + (big ? 110 : 70);
+  const valueY = cy + iconR + (big ? 110 : short.valueGap);
   out += text(x + pad, valueY, valueSize, tile.quiet ? p.sub : tone.accent, tile.value, { weight: 600 });
-  out += text(x + pad, valueY + (big ? 58 : 42), big ? 32 : 25, p.text, clip(tile.caption, perChar(big ? 32 : 25)));
+  out += text(x + pad, valueY + (big ? 58 : short.captionGap), captionSize, p.text, clip(tile.caption, perChar(captionSize)));
 
-  // Presenters as dots, tasks as a bar -- right of the value on the wide
-  // image, under the caption on the square one.
+  // Presenters as dots, tasks as a bar -- right of the value on the short
+  // images, raised with the value's size; under the caption on the square one.
   if (tile.key === 'present') {
     out += big
       ? dots(tile, x + w - pad - 3, valueY + 100, p, tone.accent)
-      : dots(tile, x + w - pad - 3, valueY - 20, p, tone.accent);
+      : dots(tile, x + w - pad - 3, valueY - Math.round(valueSize * 0.35), p, tone.accent);
   }
   if (tile.key === 'tasks') {
-    out += big ? bar(tile, x + pad, valueY + 88, w - pad * 2, p, uid) : bar(tile, x + w * 0.46, valueY - 26, w * 0.54 - pad, p, uid);
+    out += big
+      ? bar(tile, x + pad, valueY + 88, w - pad * 2, p, uid)
+      : bar(tile, x + w * 0.46, valueY - Math.round(valueSize * 0.45), w * 0.54 - pad, p, uid);
   }
 
   if (big) {

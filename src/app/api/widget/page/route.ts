@@ -1,6 +1,6 @@
 import { loadWidgetSummary } from '@/lib/widget-request';
 import { buildTiles } from '@/lib/widget-tiles';
-import { renderWidgetSvg, widgetBackground, type WidgetSize, type WidgetTheme } from '@/lib/widget-svg';
+import { readWidgetSize, renderWidgetSvg, widgetBackground, type WidgetSize, type WidgetTheme } from '@/lib/widget-svg';
 import { svgToPng } from '@/lib/widget-png';
 
 /**
@@ -18,7 +18,7 @@ import { svgToPng } from '@/lib/widget-png';
  * that they come back as a page -- the widget is the only place anybody will
  * read them, and a JSON error draws as a line of code.
  *
- *   ?size=wide|square    (default wide)
+ *   ?size=wide|mid|square  (default wide; mid is the 3×2 AnyWidget size)
  *   ?theme=light|dark    (default light)
  */
 const HEADERS = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' };
@@ -37,7 +37,7 @@ function page(body: string, background: string, status = 200): Response {
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
-  const size: WidgetSize = params.get('size') === 'square' ? 'square' : 'wide';
+  const size: WidgetSize = readWidgetSize(params.get('size'));
   const theme: WidgetTheme = params.get('theme') === 'dark' ? 'dark' : 'light';
   const background = widgetBackground(theme);
 

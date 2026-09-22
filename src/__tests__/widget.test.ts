@@ -29,7 +29,7 @@ const { GET } = await import('../app/api/widget/route');
 const { GET: GET_IMAGE } = await import('../app/api/widget/image/route');
 const { GET: GET_PAGE } = await import('../app/api/widget/page/route');
 const { buildTiles } = await import('../lib/widget-tiles');
-const { renderWidgetSvg, splitSaraAm, clip, widgetBackground } = await import('../lib/widget-svg');
+const { renderWidgetSvg, splitSaraAm, clip, widgetBackground, readWidgetSize } = await import('../lib/widget-svg');
 const { woffToSfnt, svgToPng } = await import('../lib/widget-png');
 
 // Tuesday 22 Sep 2026, 12:00 in the lab (UTC+7).
@@ -448,6 +448,22 @@ describe('GET /api/widget/page', () => {
   }, 20_000);
 
   // The widget is the only place this is read, so the refusal is words.
+  // The owner's AnyWidget frame was about 1.57:1; 2:1 left a dark band in it.
+  it('draws the 3×2 size just inside AnyWidget’s frame', async () => {
+    const res = await GET_IMAGE(new Request(`https://x.test/api/widget/image?key=${encodeURIComponent(KEY)}&size=mid`));
+    const bytes = Buffer.from(await res.arrayBuffer());
+    const [width, height] = [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
+    expect([width, height]).toEqual([1000, 630]);
+    expect(width / height).toBeGreaterThan(1.57);
+  }, 20_000);
+
+  it('reads an unknown size as the wide default', () => {
+    expect(readWidgetSize('mid')).toBe('mid');
+    expect(readWidgetSize('square')).toBe('square');
+    expect(readWidgetSize('huge')).toBe('wide');
+    expect(readWidgetSize(null)).toBe('wide');
+  });
+
   it('says a refused key is dead, as a page, with the refusal’s status', async () => {
     const res = await GET_PAGE(new Request('https://x.test/api/widget/page?key=pmw_nope'));
     expect(res.status).toBe(401);

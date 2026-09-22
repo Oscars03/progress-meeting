@@ -1,6 +1,6 @@
 import { loadWidgetSummary } from '@/lib/widget-request';
 import { buildTiles } from '@/lib/widget-tiles';
-import { renderWidgetSvg, type WidgetSize, type WidgetTheme } from '@/lib/widget-svg';
+import { readWidgetSize, renderWidgetSvg, type WidgetSize, type WidgetTheme } from '@/lib/widget-svg';
 import { svgToPng } from '@/lib/widget-png';
 
 /**
@@ -8,7 +8,7 @@ import { svgToPng } from '@/lib/widget-png';
  * whose bitmap is this URL. Same key, same refusals, same summary as
  * /api/widget -- only drawn.
  *
- *   ?size=wide|square    (default wide, 2:1 -- a 4×2 widget)
+ *   ?size=wide|mid|square  (default wide, 2:1 -- a 4×2 widget; see widget-svg)
  *   ?theme=light|dark    (default light)
  */
 export async function GET(request: Request) {
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   if ('response' in result) return result.response;
 
   const params = new URL(request.url).searchParams;
-  const size: WidgetSize = params.get('size') === 'square' ? 'square' : 'wide';
+  const size: WidgetSize = readWidgetSize(params.get('size'));
   const theme: WidgetTheme = params.get('theme') === 'dark' ? 'dark' : 'light';
 
   try {
