@@ -12,7 +12,21 @@ import { PhoneArt, type StepArt } from './widget-illustrations';
 type Status = { createdAt: string; lastUsedAt: string } | null;
 type Os = 'ios' | 'android';
 
-const IOS_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; action?: 'store' | 'script' | 'key' }[] = [
+type StepAction = 'store' | 'script' | 'key' | 'image' | 'dashboard' | 'flowFormula';
+
+type Step = {
+  art: StepArt;
+  title: TranslationKey;
+  body: TranslationKey;
+  action?: StepAction;
+  /** Starts a new group of steps under this heading; numbering carries on. */
+  section?: TranslationKey;
+};
+
+/** Stamps the refresh global with the moment of the tap -- different every time. */
+const FLOW_FORMULA = '$df(Hmmss)$';
+
+const IOS_STEPS: Step[] = [
   { art: 'ios-store', title: 'widget.ios.1.title', body: 'widget.ios.1.body', action: 'store' },
   { art: 'ios-new-script', title: 'widget.ios.2.title', body: 'widget.ios.2.body', action: 'script' },
   { art: 'ios-paste', title: 'widget.ios.3.title', body: 'widget.ios.3.body' },
@@ -21,8 +35,8 @@ const IOS_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; ac
   { art: 'ios-edit-widget', title: 'widget.ios.6.title', body: 'widget.ios.6.body', action: 'key' },
 ];
 
-const ANDROID_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; action?: 'store' | 'image' }[] = [
-  { art: 'android-store', title: 'widget.android.1.title', body: 'widget.android.1.body', action: 'store' },
+const ANDROID_STEPS: Step[] = [
+  { art: 'android-store', title: 'widget.android.1.title', body: 'widget.android.1.body', action: 'store', section: 'widget.android.section.image' },
   { art: 'android-home-menu', title: 'widget.android.2.title', body: 'widget.android.2.body' },
   { art: 'android-picker', title: 'widget.android.3.title', body: 'widget.android.3.body' },
   { art: 'android-explore', title: 'widget.android.4.title', body: 'widget.android.4.body' },
@@ -33,6 +47,14 @@ const ANDROID_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey
   { art: 'kwgt-bitmap', title: 'widget.android.8.title', body: 'widget.android.8.body' },
   { art: 'kwgt-formula', title: 'widget.android.9.title', body: 'widget.android.9.body', action: 'image' },
   { art: 'kwgt-width', title: 'widget.android.10.title', body: 'widget.android.10.body' },
+  // 11-14: a tap opens the web app and, through a Flow, stamps the global the
+  // image link carries -- so the link changes and KWGT fetches it afresh.
+  // Confirmed on the owner's phone: the site opened and a new image request
+  // reached the server on each tap.
+  { art: 'kwgt-touch-link', title: 'widget.android.11.title', body: 'widget.android.11.body', action: 'dashboard', section: 'widget.android.section.touch' },
+  { art: 'kwgt-add-global', title: 'widget.android.12.title', body: 'widget.android.12.body' },
+  { art: 'kwgt-flow', title: 'widget.android.13.title', body: 'widget.android.13.body', action: 'flowFormula' },
+  { art: 'kwgt-touch-flow', title: 'widget.android.14.title', body: 'widget.android.14.body' },
 ];
 
 /**
@@ -122,7 +144,24 @@ export default function WidgetCard({
 
   const needKey = <p className="text-xs text-amber-800">{t('widget.needNewKey')}</p>;
 
-  const stepAction = (action: 'store' | 'script' | 'key' | 'image' | undefined): ReactNode => {
+  const stepAction = (action: StepAction | undefined): ReactNode => {
+    if (action === 'dashboard') {
+      const dashboard = `${appUrl.replace(/\/+$/, '')}/dashboard`;
+      return (
+        <div className="flex gap-2 items-center">
+          <code className="flex-1 min-w-0 break-all text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900">{dashboard}</code>
+          {copyButton('dashboard', dashboard)}
+        </div>
+      );
+    }
+    if (action === 'flowFormula') {
+      return (
+        <div className="flex gap-2 items-center">
+          <code className="flex-1 min-w-0 break-all text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900">{FLOW_FORMULA}</code>
+          {copyButton('flow', FLOW_FORMULA)}
+        </div>
+      );
+    }
     if (action === 'store') {
       // Opened from a phone, these land in the store app itself.
       const store =
@@ -166,6 +205,12 @@ export default function WidgetCard({
   };
 
   const steps = os === 'ios' ? IOS_STEPS : ANDROID_STEPS;
+  // Consecutive steps under the heading of the first that has one.
+  const groups: { heading?: TranslationKey; start: number; steps: Step[] }[] = [];
+  steps.forEach((step, index) => {
+    if (step.section || groups.length === 0) groups.push({ heading: step.section, start: index, steps: [] });
+    groups[groups.length - 1].steps.push(step);
+  });
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-5">
@@ -261,23 +306,28 @@ export default function WidgetCard({
         ))}
       </div>
 
-      <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {steps.map((step, index) => (
-          <li key={step.art} className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
-            <PhoneArt art={step.art} os={os} />
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-gray-900">
-                <span className="inline-flex items-center justify-center w-6 h-6 mr-2 rounded-full bg-blue-100 text-blue-700 text-xs">
-                  {index + 1}
-                </span>
-                {t(step.title)}
-              </p>
-              <p className="text-sm text-gray-600">{t(step.body)}</p>
-            </div>
-            {stepAction(step.action)}
-          </li>
-        ))}
-      </ol>
+      {groups.map((group) => (
+        <section key={group.start} className="space-y-3">
+          {group.heading && <h4 className="text-base font-semibold text-gray-800">{t(group.heading)}</h4>}
+          <ol start={group.start + 1} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {group.steps.map((step, i) => (
+              <li key={step.art} className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+                <PhoneArt art={step.art} os={os} />
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-gray-900">
+                    <span className="inline-flex items-center justify-center w-6 h-6 mr-2 rounded-full bg-blue-100 text-blue-700 text-xs">
+                      {group.start + i + 1}
+                    </span>
+                    {t(step.title)}
+                  </p>
+                  <p className="text-sm text-gray-600">{t(step.body)}</p>
+                </div>
+                {stepAction(step.action)}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
 
       {os === 'android' && (
         <>

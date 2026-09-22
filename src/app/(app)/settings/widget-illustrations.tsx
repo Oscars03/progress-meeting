@@ -32,7 +32,11 @@ export type StepArt =
   | 'kwgt-items'
   | 'kwgt-bitmap'
   | 'kwgt-formula'
-  | 'kwgt-width';
+  | 'kwgt-width'
+  | 'kwgt-touch-link'
+  | 'kwgt-add-global'
+  | 'kwgt-flow'
+  | 'kwgt-touch-flow';
 
 /**
  * Where to press: a ring around it, hollow so the thing being pressed stays
@@ -359,7 +363,78 @@ function Screen({ art }: { art: StepArt }) {
           <KwgtTabs names={['BITMAP', 'POSITION', 'TOUCH']} />
           <KwgtRows bitmap="https://…/api/widget/…" width="360" />
           <Tap x={89.5} y={183} r={5} n={1} />
-          <Tap x={91} y={26.5} r={7} n={2} />
+          <Tap x={88.5} y={26.5} r={7} n={2} />
+        </>
+      );
+    // 11-14, from the owner's screenshots of the TOUCH tab, the Add Global
+    // dialog and the Flow editor. The Trigger Flow chooser itself was not
+    // photographed, so step 14 shows its result -- the second TOUCH row.
+    case 'kwgt-touch-link':
+      return (
+        <>
+          <KwgtBody topIcons={['menu', null, null, null, 'save', 'history', 'plus']} rail="Image" preview={<MiniWidget x={23} y={62} w={74} />} />
+          <KwgtTabs names={['BITMAP', 'POSITION', 'TOUCH']} active={2} />
+          <TouchRow y={150} action="Open Link" />
+          <Tap x={102.8} y={26.5} r={7} n={1} />
+          <TapBox x={37} y={150} w={32} h={6} n={2} />
+        </>
+      );
+    case 'kwgt-add-global':
+      return (
+        <>
+          <KwgtBody topIcons={['menu', null, null, null, 'save', 'history', 'plus']} rail="Root" preview={<MiniWidget x={23} y={62} w={74} />} />
+          <KwgtTabs names={['LAYER', 'GLOBALS', 'FLOWS']} active={1} />
+          <rect x={9} y={12} width={102} height={196} fill="#000000" fillOpacity={0.45} />
+          <rect x={16} y={72} width={88} height={66} rx={2} fill="#424242" />
+          <Label x={22} y={84} fill={K.text} size={7} weight={600}>Add Global</Label>
+          <Label x={22} y={97} fill={K.sub} size={4.6}>Title</Label>
+          <Label x={40} y={97} fill={K.text} size={5}>refresh</Label>
+          <rect x={39} y={99} width={58} height={0.6} fill={K.text} />
+          <Label x={22} y={110} fill={K.sub} size={4.6}>Type</Label>
+          <Label x={40} y={110} fill={K.text} size={5}>Text</Label>
+          <path d="M92 107.5l2.5 2.5 2.5-2.5z" fill={K.text} />
+          <Label x={22} y={122} fill={K.sub} size={4.6}>Desc</Label>
+          <rect x={39} y={124} width={58} height={0.6} fill={K.sub} />
+          <Label x={74} y={134} fill={K.blue} size={4.8} anchor="middle">CANCEL</Label>
+          <Label x={94} y={134} fill={K.blue} size={4.8} anchor="middle">OK</Label>
+          <TapBox x={39} y={105} w={60} h={7} n={1} />
+          <Tap x={94} y={132.5} r={6} n={2} />
+        </>
+      );
+    case 'kwgt-flow':
+      return (
+        <>
+          <rect x={9} y={12} width={102} height={196} fill={F.bg} />
+          <path d="M20 30h-5M17 27.5l-2.5 2.5 2.5 2.5" fill="none" stroke={F.text} strokeWidth={0.9} strokeLinecap="round" />
+          <Label x={27} y={32} fill={F.text} size={7} weight={600}>Flow</Label>
+          <path d="M98 30l2 2.2 4-4.4" fill="none" stroke={F.sub} strokeWidth={1} strokeLinecap="round" />
+          <rect x={13} y={40} width={94} height={11} rx={2} fill="none" stroke="#3f4450" strokeWidth={0.7} />
+          <Label x={17} y={47.5} fill={F.text} size={4.8}>Flow000</Label>
+          <Label x={13} y={60} fill={F.sub} size={4.2}>Triggers</Label>
+          <FlowCard y={63} icon="☝" title="Manual" />
+          <Label x={13} y={86} fill={F.sub} size={4.2}>Actions</Label>
+          <Label x={104} y={86} fill={F.blue} size={4.2} anchor="end">Test flow ▷</Label>
+          <FlowCard y={89} icon="{ }" title="Formula" detail="Formula: $df(Hmmss)$" />
+          <Label x={60} y={112} fill={F.sub} size={4} anchor="middle">↓</Label>
+          <FlowCard y={114} icon="◍" title="Set Global Var" detail="Global: refresh · As text" />
+          <Label x={60} y={137} fill={F.sub} size={4} anchor="middle">↓</Label>
+          <rect x={13} y={139} width={94} height={12} rx={3} fill={F.card} />
+          <Label x={20} y={147} fill={F.blue} size={5}>+  Add action</Label>
+          <Order n={1} x={13} y={63} />
+          <Order n={2} x={13} y={89} />
+          <Order n={3} x={13} y={114} />
+          <Tap x={101} y={30} r={6.5} n={4} />
+        </>
+      );
+    case 'kwgt-touch-flow':
+      return (
+        <>
+          <KwgtBody topIcons={['menu', null, null, null, 'save', 'history', 'plus']} rail="Image" preview={<MiniWidget x={23} y={62} w={74} />} />
+          <KwgtTabs names={['BITMAP', 'POSITION', 'TOUCH']} active={2} />
+          <TouchRow y={150} action="Open Link" />
+          <TouchRow y={160} action="Trigger Flow" />
+          <TapBox x={37} y={160} w={34} h={6} n={1} />
+          <Tap x={74.2} y={26.5} r={7} n={2} />
         </>
       );
   }
@@ -439,18 +514,44 @@ function KwgtBody({ topIcons, rail, preview }: { topIcons: (KwgtIconKind | null)
   );
 }
 
-/** The tab row under the preview; the first is the open one. */
-function KwgtTabs({ names }: { names: string[] }) {
+/** The tab row under the preview, with the open one underlined. */
+function KwgtTabs({ names, active = 0 }: { names: string[]; active?: number }) {
+  // Placed by the length of the names before it, so a long one ("BACKGROUND")
+  // does not run into the next.
+  const xs = names.map((_, i) => 13 + names.slice(0, i).reduce((sum, before) => sum + before.length * 2.9 + 5, 0));
   return (
     <>
-      {names.map((name, i) => {
-        // Placed by the length of the names before it, so a long one
-        // ("BACKGROUND") does not run into the next.
-        const x = 13 + names.slice(0, i).reduce((sum, before) => sum + before.length * 2.9 + 5, 0);
-        return <Label key={name} x={x} y={144} fill={i === 0 ? K.text : K.sub} size={4.2}>{name}</Label>;
-      })}
-      <rect x={11} y={146} width={names[0].length * 2.9 + 4} height={0.8} fill={K.blue} />
+      {names.map((name, i) => (
+        <Label key={name} x={xs[i]} y={144} fill={i === active ? K.text : K.sub} size={4.2}>{name}</Label>
+      ))}
+      <rect x={xs[active] - 2} y={146} width={names[active].length * 2.9 + 4} height={0.8} fill={K.blue} />
     </>
+  );
+}
+
+/** One row of the TOUCH tab: "Single" and the action it runs. */
+function TouchRow({ y, action }: { y: number; action: string }) {
+  return (
+    <g>
+      <rect x={13} y={y} width={4} height={6} rx={2} fill={K.text} />
+      <Label x={20} y={y + 4.8} fill={K.text} size={4.6}>Single</Label>
+      <Label x={38} y={y + 4.8} fill={K.text} size={4.6}>{action}</Label>
+      <rect x={101} y={y} width={6} height={6} fill="none" stroke={K.text} strokeWidth={0.6} />
+    </g>
+  );
+}
+
+/** KWGT's Flow editor, which has its own darker, bluer look. */
+const F = { bg: '#181a20', card: '#2a2e37', text: '#e5e7eb', sub: '#9ca3af', blue: '#60a5fa' };
+
+function FlowCard({ y, icon, title, detail }: { y: number; icon: string; title: string; detail?: string }) {
+  return (
+    <g>
+      <rect x={13} y={y} width={94} height={detail ? 17 : 12} rx={3} fill={F.card} />
+      <Label x={20} y={y + (detail ? 8 : 8)} fill={F.text} size={4.6} anchor="middle">{icon}</Label>
+      <Label x={27} y={y + 7.5} fill={F.text} size={5}>{title}</Label>
+      {detail && <Label x={27} y={y + 13.5} fill={F.sub} size={4}>{detail}</Label>}
+    </g>
   );
 }
 

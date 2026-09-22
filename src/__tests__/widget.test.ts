@@ -252,6 +252,26 @@ describe('buildTiles', () => {
   });
 });
 
+describe('kwgtImageUrl', () => {
+  it('carries the encoded key and both parts KWGT changes to refetch: the hour and the tap', async () => {
+    const { kwgtImageUrl } = await import('../lib/widget-scripts');
+    const url = kwgtImageUrl('https://app.test/', 'pmw_a+b/c', 'square', 'dark');
+    expect(url.startsWith('https://app.test/api/widget/image?key=pmw_a%2Bb%2Fc&size=square&theme=dark')).toBe(true);
+    expect(url).toContain('&t=$df(yyMMddHH)$');
+    expect(url.endsWith('&r=$gv(refresh)$')).toBe(true);
+  });
+
+  it('is still answered by the image route with the KWGT parts left unevaluated', async () => {
+    const { kwgtImageUrl } = await import('../lib/widget-scripts');
+    const KEY = generateWidgetKey();
+    Object.assign(tables, fixtures());
+    tables.widget_keys = [base('w-me', { user_id: 'u-me', key_hash: hashWidgetKey(KEY), last_used_at: '' })];
+    const res = await GET_IMAGE(new Request(kwgtImageUrl('https://x.test', KEY, 'wide', 'light')));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+  }, 20_000);
+});
+
 describe('widget drawing', () => {
   it('splits sara am into its parts, ring ahead of any tone mark', () => {
     expect(splitSaraAm('น\u0E33')).toBe('น\u0E4Dา');
