@@ -28,6 +28,7 @@ const { buildWidgetSummary } = await import('../lib/widget-summary');
 const { GET } = await import('../app/api/widget/route');
 const { GET: GET_IMAGE } = await import('../app/api/widget/image/route');
 const { GET: GET_PAGE } = await import('../app/api/widget/page/route');
+const { isBrowser } = await import('../lib/widget-request');
 const { buildTiles } = await import('../lib/widget-tiles');
 const { renderWidgetSvg, splitSaraAm, clip, widgetBackground, readWidgetSize } = await import('../lib/widget-svg');
 const { woffToSfnt, svgToPng } = await import('../lib/widget-png');
@@ -444,7 +445,7 @@ describe('GET /api/widget/page', () => {
     expect(html).toContain('<meta name="viewport" content="width=device-width,initial-scale=1">');
     expect(html).toContain('margin:0');
     expect(html).toContain(`background:${widgetBackground('dark')}`);
-    expect(html).toMatch(/<body><img alt="" src="data:image\/png;base64,[A-Za-z0-9+/=]+"><\/body>/);
+    expect(html).toMatch(/<body><a href="\/dashboard"><img alt="" src="data:image\/png;base64,[A-Za-z0-9+/=]+"><\/a><\/body>/);
   }, 20_000);
 
   // The widget is the only place this is read, so the refusal is words.
@@ -456,6 +457,34 @@ describe('GET /api/widget/page', () => {
     expect([width, height]).toEqual([1000, 630]);
     expect(width / height).toBeGreaterThan(1.57);
   }, 20_000);
+
+  // A tap on the widget opens the same address in the browser; that should
+  // land in the app, while the WebView drawing the widget still gets the tiles.
+  const CHROME = 'Mozilla/5.0 (Linux; Android 14; V2250) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36';
+  const WEBVIEW = 'Mozilla/5.0 (Linux; Android 14; V2250; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.0.0 Mobile Safari/537.36';
+
+  it('sends a browser on to the dashboard', async () => {
+    const res = await GET_PAGE(
+      new Request(`https://x.test/api/widget/page?key=${encodeURIComponent(KEY)}`, { headers: { 'user-agent': CHROME } })
+    );
+    expect(res.status).toBe(303);
+    expect(res.headers.get('location')).toBe('https://x.test/dashboard');
+  });
+
+  it('draws the picture for the WebView the widget app uses, as a link to the dashboard', async () => {
+    const res = await GET_PAGE(
+      new Request(`https://x.test/api/widget/page?key=${encodeURIComponent(KEY)}`, { headers: { 'user-agent': WEBVIEW } })
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/<a href="\/dashboard"><img alt="" src="data:image\/png;base64,/);
+  }, 20_000);
+
+  it('treats a caller that is no browser as the widget', () => {
+    expect(isBrowser(null)).toBe(false);
+    expect(isBrowser('okhttp/4.12.0')).toBe(false);
+    expect(isBrowser(WEBVIEW)).toBe(false);
+    expect(isBrowser(CHROME)).toBe(true);
+  });
 
   it('reads an unknown size as the wide default', () => {
     expect(readWidgetSize('mid')).toBe('mid');

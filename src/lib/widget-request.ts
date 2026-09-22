@@ -22,6 +22,21 @@ import { labDay } from './lab-time';
  */
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
+/**
+ * Whether this is somebody's browser rather than an app drawing a widget.
+ *
+ * A tap on the AnyWidget widget opens its address in the phone's browser,
+ * which then showed the picture again instead of the app. AnyWidget draws the
+ * page in an Android WebView, whose user agent carries "; wv)"; Chrome and the
+ * other browsers do not. Anything without a browser's user agent at all is
+ * treated as the widget, so an unexpected caller still gets the picture
+ * rather than a sign-in page drawn into the widget.
+ */
+export function isBrowser(userAgent: string | null): boolean {
+  if (!userAgent || !userAgent.startsWith('Mozilla/')) return false;
+  return !/; wv\)/.test(userAgent);
+}
+
 function unauthorized() {
   return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: NO_STORE });
 }
