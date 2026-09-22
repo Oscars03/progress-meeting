@@ -178,12 +178,19 @@ export function scriptableScript(appUrl: string): string {
  * The Android widget: one KWGT Image item showing /api/widget/image.
  *
  * KWGT fetches a bare URL, so the key rides in the query string -- see
- * widgetKeyFrom. `t=$df(yyMMddHH)$` is evaluated by KWGT itself and changes the
- * address once an hour; KWGT keeps a downloaded image until its address
- * changes, so without it the picture would never refresh.
+ * widgetKeyFrom. KWGT keeps a downloaded image until its address changes, so
+ * two parts of the address are there only to change it, and KWGT evaluates
+ * both itself:
+ *
+ * - `t=$df(yyMMddHH)$` changes once an hour -- the automatic refresh.
+ * - `r=$gv(refresh)$` changes on a tap, once the widget has the `refresh`
+ *   global and the Flow that stamps it (Settings, Android steps 11-14).
+ *   Without them it is empty and harmless.
+ *
+ * The server ignores both.
  */
 export function kwgtImageUrl(appUrl: string, key: string, size: 'wide' | 'square', theme: 'light' | 'dark'): string {
-  return `${appUrl.replace(/\/+$/, '')}/api/widget/image?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}&t=$df(yyMMddHH)$`;
+  return `${appUrl.replace(/\/+$/, '')}/api/widget/image?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}&t=$df(yyMMddHH)$&r=$gv(refresh)$`;
 }
 
 /** Text formulas, one per section -- the plain alternative to the image. */
