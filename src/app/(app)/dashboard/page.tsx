@@ -385,7 +385,7 @@ export default async function DashboardPage() {
               <h3 className="font-semibold text-purple-700">{t('pending.title')}</h3>
               <p className="text-sm text-gray-600">{t('pending.hint')}</p>
             </div>
-            <Link href="/settings" className="text-sm text-blue-600 hover:underline">
+            <Link href="/settings/users" className="text-sm text-blue-600 hover:underline">
               {t('pending.manage')}
             </Link>
           </div>

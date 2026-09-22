@@ -60,7 +60,7 @@ export async function createPersonalEventAction(data: {
     };
 
     await SheetRepo.insert('personal_events', doc);
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     revalidatePath('/meetings');
     revalidatePath('/meetings/polls');
   });
@@ -106,7 +106,7 @@ export async function updatePersonalEventAction(
       actor.id
     );
 
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     revalidatePath('/meetings');
     revalidatePath('/meetings/polls');
   });
@@ -128,7 +128,7 @@ export async function deletePersonalEventAction(id: string, rowVersion: number):
     }
 
     await SheetRepo.delete('personal_events', id, rowVersion);
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     revalidatePath('/meetings');
     revalidatePath('/meetings/polls');
   });

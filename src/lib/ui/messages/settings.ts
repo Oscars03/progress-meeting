@@ -26,6 +26,7 @@ export const settings = {
     'settings.error.saveFailed': 'ไม่สามารถบันทึกข้อมูลได้',
     'settings.error.deleteFailed': 'ไม่สามารถลบข้อมูลได้',
 
+    'settings.previewHidesAdmin': 'ตอนนี้กำลังดูในมุมมองของสิทธิ์อื่น เครื่องมือของผู้ดูแลระบบจึงถูกซ่อน — กลับเป็นผู้ดูแลระบบได้ที่หน้า',
     'widget.title': 'วิดเจ็ตบนมือถือ',
     'widget.hint': 'ดูประชุมครั้งถัดไป ลำดับนำเสนอ งานค้าง และโพลที่รอคุณตอบ ได้จากหน้าจอโทรศัพท์โดยไม่ต้องเปิดแอป',
     'widget.none': 'ยังไม่ได้สร้างคีย์วิดเจ็ต',
@@ -129,6 +130,7 @@ export const settings = {
     'settings.error.saveFailed': 'Failed to save',
     'settings.error.deleteFailed': 'Failed to delete',
 
+    'settings.previewHidesAdmin': "You're viewing the app as another role, so admin tools are hidden. Switch back to admin on",
     'widget.title': 'Phone widget',
     'widget.hint': "See the next meeting, the presentation order, your open tasks and polls waiting on you from your phone's home screen, without opening the app.",
     'widget.none': 'No widget key yet',

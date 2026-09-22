@@ -25,6 +25,19 @@ const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
   { href: '/settings', key: 'nav.settings', icon: 'settings' },
 ];
 
+/**
+ * Settings is five pages, listed under it in the menu. Lab and Users are the
+ * admin's; everybody else sees three. Shown to a *real* admin even while they
+ * preview another role, because Users holds the control that ends a preview.
+ */
+const SETTINGS_PAGES: { href: string; key: TranslationKey; adminOnly: boolean }[] = [
+  { href: '/settings/account', key: 'nav.settings.account', adminOnly: false },
+  { href: '/settings/widget', key: 'nav.settings.widget', adminOnly: false },
+  { href: '/settings/lab', key: 'nav.settings.lab', adminOnly: true },
+  { href: '/settings/users', key: 'nav.settings.users', adminOnly: true },
+  { href: '/settings/system', key: 'nav.settings.system', adminOnly: false },
+];
+
 function Icon({
   d,
   children,
@@ -104,9 +117,15 @@ function splitName(name: string): [string, string | null] {
  * `collapsed:` variant (globals.css) reads it. It only applies from `md` up --
  * on a phone the nav is a full-width bar and has nothing to collapse into.
  */
-export default function AppNav({ userName }: { userName: string }) {
+export default function AppNav({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
   const { t, locale, sidebar, setSidebar } = usePrefs();
   const pathname = usePathname();
+  // Open while you are inside Settings, closed elsewhere -- until you press
+  // the arrow, after which your choice stands.
+  const onSettings = pathname === '/settings' || pathname.startsWith('/settings/');
+  const [settingsToggled, setSettingsToggled] = useState<boolean | null>(null);
+  const settingsOpen = settingsToggled ?? onSettings;
+  const settingsPages = SETTINGS_PAGES.filter((page) => isAdmin || !page.adminOnly);
   const collapsed = sidebar === 'collapsed';
   const toggleLabel = collapsed ? t('nav.expand') : t('nav.collapse');
   const [nameLine1, nameLine2] = splitName(t('app.name'));
@@ -257,14 +276,14 @@ export default function AppNav({ userName }: { userName: string }) {
         <div className="flex min-h-0 flex-1 flex-col gap-1 mt-2 overflow-y-auto">
           {LINKS.map(({ href, key, icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
-            return (
+            const link = (
               <Link
                 key={href}
                 href={href}
                 title={t(key)}
-                aria-current={active ? 'page' : undefined}
+                aria-current={active && href !== '/settings' ? 'page' : undefined}
                 onClick={closeMobileMenu}
-                className={`flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md font-medium transition ${
+                className={`flex flex-1 items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md font-medium transition ${
                   active ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -272,6 +291,49 @@ export default function AppNav({ userName }: { userName: string }) {
                 {/* sr-only rather than hidden, so the link keeps its name when collapsed. */}
                 <span className="whitespace-nowrap md:collapsed:sr-only">{t(key)}</span>
               </Link>
+            );
+            if (href !== '/settings') return link;
+
+            // Settings: the link, an arrow that opens its pages, and the pages
+            // indented under it. Collapsed to icons there is no room for them,
+            // so the icon just goes to Settings' first page.
+            return (
+              <div key={href} className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1">
+                  {link}
+                  <button
+                    type="button"
+                    onClick={() => setSettingsToggled(!settingsOpen)}
+                    aria-expanded={settingsOpen}
+                    aria-controls="settings-pages"
+                    aria-label={t('nav.settings.toggle')}
+                    title={t('nav.settings.toggle')}
+                    className="md:collapsed:hidden h-9 w-8 shrink-0 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 transition"
+                  >
+                    <Icon d="M6 9l6 6 6-6" className={`h-4 w-4 transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+                {settingsOpen && (
+                  <div id="settings-pages" className="md:collapsed:hidden ml-5 pl-3 border-l border-gray-200 flex flex-col gap-0.5">
+                    {settingsPages.map((page) => {
+                      const here = pathname === page.href || pathname.startsWith(page.href + '/');
+                      return (
+                        <Link
+                          key={page.href}
+                          href={page.href}
+                          aria-current={here ? 'page' : undefined}
+                          onClick={closeMobileMenu}
+                          className={`px-3 py-1.5 rounded-md text-sm transition ${
+                            here ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {t(page.key)}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

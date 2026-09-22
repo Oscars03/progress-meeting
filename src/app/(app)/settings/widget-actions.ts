@@ -40,7 +40,7 @@ export async function createWidgetKeyAction(): Promise<ActionResult<{ key: strin
       actor.id,
     );
 
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     return { key };
   });
 }
@@ -50,6 +50,6 @@ export async function revokeWidgetKeyAction(): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireSession();
     await deleteMyKeys(actor.id);
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
   });
 }
