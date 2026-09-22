@@ -1,4 +1,4 @@
-import { loadWidgetSummary } from '@/lib/widget-request';
+import { isBrowser, loadWidgetSummary } from '@/lib/widget-request';
 import { buildTiles } from '@/lib/widget-tiles';
 import { readWidgetSize, renderWidgetSvg, widgetBackground, type WidgetSize, type WidgetTheme } from '@/lib/widget-svg';
 import { svgToPng } from '@/lib/widget-png';
@@ -29,13 +29,22 @@ function page(body: string, background: string, status = 200): Response {
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>IRiSH Progress Meeting</title>' +
     `<style>html,body{margin:0;padding:0;background:${background}}` +
-    'img{display:block;width:100%;height:auto}' +
+    'a,img{display:block}img{width:100%;height:auto}' +
     'p{margin:0;padding:24px;font:600 20px/1.6 system-ui,"Noto Sans Thai",sans-serif;color:#b91c1c}</style>' +
     `</head><body>${body}</body></html>`;
   return new Response(html, { status, headers: HEADERS });
 }
 
 export async function GET(request: Request) {
+  // A tap on the widget opens this address in the browser: send that to the
+  // app. Only the WebView drawing the widget gets the picture.
+  if (isBrowser(request.headers.get('user-agent'))) {
+    return new Response(null, {
+      status: 303,
+      headers: { Location: new URL('/dashboard', request.url).toString(), 'Cache-Control': 'no-store' },
+    });
+  }
+
   const params = new URL(request.url).searchParams;
   const size: WidgetSize = readWidgetSize(params.get('size'));
   const theme: WidgetTheme = params.get('theme') === 'dark' ? 'dark' : 'light';
@@ -54,7 +63,8 @@ export async function GET(request: Request) {
   try {
     const png = await svgToPng(renderWidgetSvg(buildTiles(result.summary), { size, theme }));
     const src = `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
-    return page(`<img alt="" src="${src}">`, background);
+    // A link as well, for a tap that opens inside a WebView after all.
+    return page(`<a href="/dashboard"><img alt="" src="${src}"></a>`, background);
   } catch (error) {
     console.error('widget page failed', error);
     return page('<p>ยังวาดวิดเจ็ตไม่ได้ — ลองกดรีเฟรชอีกครั้ง</p>', background, 503);
