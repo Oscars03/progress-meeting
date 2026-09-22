@@ -1,5 +1,5 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import type { AttachmentRecord, FeedbackRecord, UserRecord } from '@/lib/db/schema';
 import FeedbackForm from './feedback-form';
@@ -14,7 +14,7 @@ import FeedbackList, { type FeedbackRow } from './feedback-list';
  * moderating.
  */
 export default async function FeedbackPage() {
-  const [actor, t] = await Promise.all([requireSession(), getT()]);
+  const [actor, t] = await Promise.all([requirePageSession(), getT()]);
   const isAdmin = actor.role === 'admin';
 
   const [all, users, attachments] = await Promise.all([

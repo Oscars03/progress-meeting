@@ -6,13 +6,13 @@ import { weekKey } from '@/lib/week';
 import KanbanBoard from './kanban';
 import NewTaskButton from './new-task-button';
 import { getT } from '@/lib/ui/server-i18n';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { canAddOwnWork, canAssignWork } from '@/lib/task-rights';
 import { canRemoveAnyWork } from '@/lib/task-rights';
 import { labMembers } from '@/lib/members';
 
 export default async function TasksPage() {
-  const actor = await requireSession();
+  const actor = await requirePageSession();
   const [tasks, users, leads, t] = await Promise.all([
     SheetRepo.find<TaskRecord>('tasks'),
     SheetRepo.find<UserRecord>('users'),

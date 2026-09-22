@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { authOptions } from './auth';
 import { UserError } from './user-error';
 import { ROLE_PREVIEW_COOKIE, effectiveRole, previewsLead } from './role-preview';
@@ -134,6 +135,31 @@ export async function requireSession(): Promise<SessionUser> {
     previewing: role !== realRole || previewingLead,
     previewingLead,
   };
+}
+
+/**
+ * requireSession for a page: somebody who is not signed in is sent to the
+ * login form instead of being thrown at.
+ *
+ * Next renders a layout and its page at the same time, so the (app) layout's
+ * own redirect does not stop the page from running. A page that threw here
+ * got the visitor to /login all the same -- but only after Next had logged the
+ * throw as an error, on every signed-out visit: an old bookmark, a shared
+ * link, a session past its two days. `redirect` throws too, but a kind Next
+ * expects and does not log.
+ *
+ * Actions and route handlers keep requireSession: for them "not signed in" is
+ * an answer to return (`{ ok: false }`, a 401), not somewhere to go.
+ */
+export async function requirePageSession(): Promise<SessionUser> {
+  try {
+    return await requireSession();
+  } catch (error) {
+    if (error instanceof AuthorizationError && error.key === 'error.signInRequired') {
+      redirect('/login');
+    }
+    throw error;
+  }
 }
 
 /**

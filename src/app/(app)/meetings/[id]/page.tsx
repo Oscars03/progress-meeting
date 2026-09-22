@@ -2,7 +2,7 @@ import Link from 'next/link';
 import BackLink from '@/lib/ui/back-link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import type {
   ActionItemRecord,
   MeetingRecord,
@@ -24,7 +24,7 @@ import { formatLabTime } from '@/lib/lab-time';
 
 export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]'>) {
   const { id } = await props.params;
-  const [actor, t, locale] = await Promise.all([requireSession(), getT(), getLocale()]);
+  const [actor, t, locale] = await Promise.all([requirePageSession(), getT(), getLocale()]);
 
   const meetings = await SheetRepo.find<MeetingRecord>('meetings');
   // A miss may just be a cached list from before another instance inserted the

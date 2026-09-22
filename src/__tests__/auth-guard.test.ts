@@ -12,8 +12,16 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
+// Next's redirect throws to stop rendering; a recognisable stand-in lets a
+// test tell "redirected" apart from "threw something else".
+const redirectMock = vi.fn((to: string) => {
+  throw new Error(`REDIRECT ${to}`);
+});
+vi.mock('next/navigation', () => ({ redirect: (to: string) => redirectMock(to) }));
+
 const {
   requireSession,
+  requirePageSession,
   requireRole,
   requireRealAdmin,
   canAssignRole,
@@ -23,12 +31,39 @@ const {
 
 beforeEach(() => {
   getServerSessionMock.mockReset();
+  redirectMock.mockClear();
   cookieValue = undefined;
 });
 
 function session(role: string, id = 'u1') {
   return { user: { id, name: 'X', email: 'x@test.com', role } };
 }
+
+describe('requirePageSession', () => {
+  it('sends an anonymous visitor to the login form instead of throwing an AuthorizationError', async () => {
+    getServerSessionMock.mockResolvedValue(null);
+    await expect(requirePageSession()).rejects.toThrow('REDIRECT /login');
+    expect(redirectMock).toHaveBeenCalledWith('/login');
+  });
+
+  it('sends a session with no user id to the login form too', async () => {
+    getServerSessionMock.mockResolvedValue({ user: { role: 'admin' } });
+    await expect(requirePageSession()).rejects.toThrow('REDIRECT /login');
+  });
+
+  it('returns the same user requireSession would', async () => {
+    getServerSessionMock.mockResolvedValue(session('professor', 'u7'));
+    const user = await requirePageSession();
+    expect(user).toMatchObject({ id: 'u7', role: 'professor', realRole: 'professor' });
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it('lets any other failure through rather than hiding it behind a redirect', async () => {
+    getServerSessionMock.mockRejectedValue(new Error('session store down'));
+    await expect(requirePageSession()).rejects.toThrow('session store down');
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
 
 describe('requireSession', () => {
   it('rejects an anonymous caller', async () => {

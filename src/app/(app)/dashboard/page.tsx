@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import {
   activeWeekKey,
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
     t,
     locale,
   ] = await Promise.all([
-    requireSession(),
+    requirePageSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
     SheetRepo.find<WeekLeadRecord>('week_leads'),

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import BackLink from '@/lib/ui/back-link';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireSession } from '@/lib/auth-guard';
+import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { tallySlot, rankSlots, bestSlot, type Choice } from '@/lib/poll-tally';
 import { actsAsWeekLead } from '@/lib/rotation';
@@ -19,7 +19,7 @@ import { labMembers, memberIds, pollVoters } from '@/lib/members';
 
 export default async function PollDetailPage(props: PageProps<'/meetings/polls/[id]'>) {
   const { id } = await props.params;
-  const [actor, t] = await Promise.all([requireSession(), getT()]);
+  const [actor, t] = await Promise.all([requirePageSession(), getT()]);
 
   const [polls, slots, votes, users, leads] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
