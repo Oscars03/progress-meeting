@@ -7,9 +7,15 @@
 
 import type { ChangeEntry } from './changelog';
 
-export const GENERATED_VERSION = '2026.09.21';
+export const GENERATED_VERSION = '2026.09.22';
 
 export const GENERATED_CHANGELOG: ChangeEntry[] = [
+  {
+    date: "2026-09-22",
+    kind: "fix",
+    th: "เข้าสู่ระบบด้วย Google จากลิงก์เก่าได้แล้ว ระบบพาไปที่อยู่หลักให้เอง",
+    en: "Google sign-in works again from the old address",
+  },
   {
     date: "2026-09-21",
     kind: "new",
