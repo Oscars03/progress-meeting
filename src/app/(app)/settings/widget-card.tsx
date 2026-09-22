@@ -3,7 +3,7 @@
 import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createWidgetKeyAction, revokeWidgetKeyAction } from './widget-actions';
-import { kwgtFormulas, kwgtImageUrl, plainImageUrl } from '@/lib/widget-scripts';
+import { kwgtFormulas, kwgtImageUrl, pageUrl } from '@/lib/widget-scripts';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import Spinner from '@/lib/ui/spinner';
@@ -14,11 +14,11 @@ type Os = 'ios' | 'android';
 
 type StepAction =
   | 'storeScriptable'
-  | 'storeWiw'
+  | 'storeAw'
   | 'storeKwgt'
   | 'script'
   | 'key'
-  | 'imagePlain'
+  | 'page'
   | 'imageKwgt'
   | 'dashboard'
   | 'flowFormula';
@@ -38,7 +38,7 @@ const FLOW_FORMULA = '$df(Hmmss)$';
 
 const STORES = {
   storeScriptable: { href: 'https://apps.apple.com/app/scriptable/id1405459188', label: 'widget.openAppStore' },
-  storeWiw: { href: 'https://play.google.com/store/apps/details?id=com.ibuffed.webimagewidget', label: 'widget.openWiw' },
+  storeAw: { href: 'https://play.google.com/store/apps/details?id=com.webwidget.app', label: 'widget.openAw' },
   storeKwgt: { href: 'https://play.google.com/store/apps/details?id=org.kustom.widget', label: 'widget.openPlayStore' },
 } satisfies Record<string, { href: string; label: TranslationKey }>;
 
@@ -54,24 +54,28 @@ const IOS_STEPS: Step[] = [
 /**
  * Android offers two ways, each numbered from 1:
  *
- * - Web Image Widget, first: install, place, paste the link. It refreshes the
- *   picture every 15 minutes and on a double tap by itself. Chosen by the
- *   owner as the default for being three steps against KWGT's fourteen.
- * - KWGT, for a tap that opens the web app, or a phone where Web Image Widget
- *   stops updating (reported in its reviews; it was last updated Dec 2023).
- *   Seven steps, refresh included: each merges screens drawn from the
- *   owner's screenshots, two pictures where a step crosses two screens.
+ * - AnyWidget, first: install, place a 3×2, paste the link, confirm the
+ *   frame. Free, refreshes itself every 30 minutes, and has a refresh button
+ *   on the widget. It replaced Web Image Widget, which the Play Store will no
+ *   longer install on current phones ("available only for your other
+ *   devices" on the owner's). Its screens are drawn from the owner's
+ *   screenshots, and its link is a page rather than the PNG -- see
+ *   api/widget/page.
+ * - KWGT, for a tap that opens the web app. Seven steps, refresh included:
+ *   each merges screens drawn from the owner's screenshots, two pictures
+ *   where a step crosses two screens.
  */
 const ANDROID_STEPS: Step[] = [
   {
-    art: 'wiw-store',
-    title: 'widget.wiw.1.title',
-    body: 'widget.wiw.1.body',
-    action: 'storeWiw',
+    art: ['aw-store', 'aw-paywall'],
+    title: 'widget.aw.1.title',
+    body: 'widget.aw.1.body',
+    action: 'storeAw',
     section: { title: 'widget.android.section.simple', hint: 'widget.android.section.simpleHint' },
   },
-  { art: ['android-home-menu', 'wiw-picker'], title: 'widget.wiw.2.title', body: 'widget.wiw.2.body' },
-  { art: 'wiw-home', title: 'widget.wiw.3.title', body: 'widget.wiw.3.body', action: 'imagePlain' },
+  { art: ['android-home-menu', 'aw-picker'], title: 'widget.aw.2.title', body: 'widget.aw.2.body' },
+  { art: 'aw-url', title: 'widget.aw.3.title', body: 'widget.aw.3.body', action: 'page' },
+  { art: ['aw-fill', 'aw-frame'], title: 'widget.aw.4.title', body: 'widget.aw.4.body' },
 
   {
     art: 'android-store',
@@ -193,7 +197,7 @@ export default function WidgetCard({
         </div>
       );
     }
-    if (action === 'storeScriptable' || action === 'storeWiw' || action === 'storeKwgt') {
+    if (action === 'storeScriptable' || action === 'storeAw' || action === 'storeKwgt') {
       // Opened from a phone, these land in the store app itself.
       const store = STORES[action];
       return (
@@ -209,9 +213,9 @@ export default function WidgetCard({
     }
     if (action === 'script') return copyButton('script', script, t('widget.copyScript'), true);
     if (action === 'key') return newKey ? copyButton('key-step', newKey, t('widget.copyKey'), true) : needKey;
-    if (action === 'imagePlain' || action === 'imageKwgt') {
+    if (action === 'page' || action === 'imageKwgt') {
       if (!newKey) return needKey;
-      const url = action === 'imageKwgt' ? kwgtImageUrl(appUrl, newKey, size, theme) : plainImageUrl(appUrl, newKey, size, theme);
+      const url = action === 'imageKwgt' ? kwgtImageUrl(appUrl, newKey, size, theme) : pageUrl(appUrl, newKey, size, theme);
       return (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2 text-xs">
@@ -225,7 +229,7 @@ export default function WidgetCard({
             </select>
           </div>
           <code className="block break-all text-[11px] bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900">{url}</code>
-          {copyButton(action, url, t('widget.copyLink'), true)}
+          {copyButton(action, url, action === 'page' ? t('widget.copyPageLink') : t('widget.copyLink'), true)}
         </div>
       );
     }

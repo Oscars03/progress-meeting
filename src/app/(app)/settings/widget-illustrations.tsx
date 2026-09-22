@@ -24,9 +24,12 @@ export type StepArt =
   | 'ios-gallery'
   | 'ios-edit-widget'
   | 'android-store'
-  | 'wiw-store'
-  | 'wiw-picker'
-  | 'wiw-home'
+  | 'aw-store'
+  | 'aw-paywall'
+  | 'aw-picker'
+  | 'aw-url'
+  | 'aw-fill'
+  | 'aw-frame'
   | 'android-home-menu'
   | 'android-picker'
   | 'android-explore'
@@ -109,22 +112,51 @@ function MiniWidget({ x, y, w }: { x: number; y: number; w: number }) {
   );
 }
 
+/** AnyWidget's own dark purple, taken from the owner's screenshots. */
+const AW = {
+  bg: '#1b1230',
+  card: '#241a3a',
+  edge: '#4c3a73',
+  lilac: '#c4a5e8',
+  purple: '#8b3fd9',
+  text: '#f5f3ff',
+  dim: '#a78bca',
+};
+
+function AwGround() {
+  return <rect x={9} y={12} width={102} height={196} fill={AW.bg} />;
+}
+
+/** The three dots across the top of AnyWidget's set-up; the third is Premium. */
+function AwStepper({ at }: { at: 1 | 2 }) {
+  return (
+    <g>
+      <line x1={24} x2={96} y1={44} y2={44} stroke={AW.edge} strokeWidth={1} />
+      <circle cx={20} cy={44} r={4.5} fill={AW.lilac} />
+      <circle cx={60} cy={44} r={4.5} fill={at === 2 ? AW.lilac : AW.card} stroke={AW.edge} strokeWidth={0.8} />
+      <circle cx={100} cy={44} r={4.5} fill={AW.card} stroke={AW.edge} strokeWidth={0.8} />
+      <Label x={20} y={46} fill={AW.bg} size={5} weight={700} anchor="middle">{at === 2 ? '✓' : '1'}</Label>
+      <Label x={60} y={46} fill={at === 2 ? AW.bg : AW.text} size={5} weight={700} anchor="middle">2</Label>
+    </g>
+  );
+}
+
 function Screen({ art }: { art: StepArt }) {
   switch (art) {
     case 'ios-store':
     case 'android-store':
-    case 'wiw-store': {
+    case 'aw-store': {
       const ios = art === 'ios-store';
       const app = ios
         ? { icon: 'S', color: '#111827', name: 'Scriptable', size: 7.5 }
-        : art === 'wiw-store'
-          ? { icon: 'W', color: '#0d9488', name: 'Web Image Widget', size: 6 }
+        : art === 'aw-store'
+          ? { icon: 'AW', color: '#6d28d9', name: 'AnyWidget', size: 7.5 }
           : { icon: 'K', color: '#7c3aed', name: 'KWGT', size: 7.5 };
       return (
         <>
           <Bar x={20} y={26} w={40} h={5} fill={INK} />
           <rect x={20} y={44} width={30} height={30} rx={7} fill={app.color} />
-          <Label x={35} y={63} fill="#ffffff" size={12} weight={600} anchor="middle">{app.icon}</Label>
+          <Label x={35} y={63} fill="#ffffff" size={app.icon.length > 1 ? 10 : 12} weight={600} anchor="middle">{app.icon}</Label>
           <Label x={54} y={55} size={app.size}>{app.name}</Label>
           <Bar x={56} y={60} w={34} h={3} />
           <rect x={56} y={66} width={34} height={12} rx={6} fill={ios ? BLUE : GREEN} />
@@ -178,9 +210,10 @@ function Screen({ art }: { art: StepArt }) {
       );
     case 'ios-gallery':
     case 'android-picker':
-    case 'wiw-picker': {
+    case 'aw-picker': {
       const ios = art === 'ios-gallery';
-      const name = ios ? 'Scriptable' : art === 'wiw-picker' ? 'Web Image Widget' : 'KWGT  4×2';
+      const aw = art === 'aw-picker';
+      const name = ios ? 'Scriptable' : aw ? 'AnyWidget  3×2' : 'KWGT  4×2';
       return (
         <>
           <rect x={9} y={52} width={102} height={156} rx={12} fill="#ffffff" />
@@ -191,9 +224,13 @@ function Screen({ art }: { art: StepArt }) {
             <circle cx={60} cy={126} r={2} fill={LINE} />
             <circle cx={66} cy={126} r={2} fill={LINE} />
           </g>
-          <rect x={26} y={140} width={68} height={16} rx={8} fill={ios ? BLUE : GREEN} />
-          <Label x={60} y={150.5} fill="#ffffff" size={6.5} anchor="middle">{ios ? '+ เพิ่มวิดเจ็ต' : 'ลากไปวาง'}</Label>
-          <TapBox x={26} y={140} w={68} h={16} hold={!ios} />
+          {/* AnyWidget's picker has its own light-blue Add button; the others
+              are dragged into place. */}
+          <rect x={26} y={140} width={68} height={16} rx={8} fill={ios ? BLUE : aw ? '#93c5fd' : GREEN} />
+          <Label x={60} y={150.5} fill={aw ? '#0c4a6e' : '#ffffff'} size={6.5} anchor="middle">
+            {ios ? '+ เพิ่มวิดเจ็ต' : aw ? 'Add' : 'ลากไปวาง'}
+          </Label>
+          <TapBox x={26} y={140} w={68} h={16} hold={!ios && !aw} />
         </>
       );
     }
@@ -214,19 +251,110 @@ function Screen({ art }: { art: StepArt }) {
           <TapBox x={20} y={136} w={80} h={12} />
         </>
       );
-    case 'wiw-home':
-      // The widget in place on the home screen. Web Image Widget refreshes
-      // it every 15 minutes and on a double tap -- its store listing's own
-      // words. Its set-up screen is not drawn until it has been seen.
+    case 'aw-paywall':
+      // AnyWidget's offer page, from the owner's screenshot. The trial turns
+      // into a monthly charge after a week; the way past it is the small
+      // line under the big button, and that line is what is marked.
       return (
         <>
-          <MiniWidget x={16} y={34} w={88} />
-          {Array.from({ length: 8 }, (_, i) => (
-            <rect key={i} x={20 + (i % 4) * 22} y={96 + Math.floor(i / 4) * 26} width={15} height={15} rx={8} fill={['#fca5a5', '#93c5fd', '#86efac', '#fcd34d'][i % 4]} />
+          <AwGround />
+          <circle cx={60} cy={44} r={11} fill={AW.purple} />
+          <rect x={55} y={40} width={10} height={7} rx={1.5} fill={AW.text} />
+          <Label x={60} y={70} fill={AW.text} size={7.5} weight={700} anchor="middle">Try Premium</Label>
+          <Label x={60} y={81} fill={AW.dim} size={5.5} anchor="middle">THB 70.00/month</Label>
+          <rect x={16} y={89} width={88} height={40} rx={6} fill="none" stroke={AW.edge} strokeWidth={0.8} />
+          {[97, 106, 115, 124].map((y) => (
+            <g key={y}>
+              <circle cx={24} cy={y - 1} r={2.5} fill={AW.lilac} />
+              <Bar x={30} y={y - 2.5} w={y % 2 ? 58 : 46} h={3} fill={AW.edge} />
+            </g>
           ))}
-          <Tap x={60} y={55} r={9} />
-          <Tap x={60} y={55} r={14} />
-          <Label x={60} y={160} size={6.5} anchor="middle">แตะ 2 ครั้ง = รีเฟรช</Label>
+          <rect x={16} y={166} width={88} height={14} rx={7} fill={AW.purple} />
+          <Label x={60} y={175} fill={AW.text} size={6} weight={600} anchor="middle">Start free trial</Label>
+          <Label x={60} y={194} fill={AW.text} size={5.5} anchor="middle">Not now — add a widget</Label>
+          <TapBox x={24} y={189} w={72} h={7} />
+        </>
+      );
+    case 'aw-url':
+      // AnyWidget's first set-up page, from the owner's screenshot: the URL
+      // field, the refresh choices (15 min is Premium), a preview, Next.
+      return (
+        <>
+          <AwGround />
+          <Label x={16} y={33} fill={AW.text} size={8} weight={700}>New widget</Label>
+          <AwStepper at={1} />
+          <rect x={16} y={55} width={88} height={14} rx={5} fill={AW.card} stroke={AW.lilac} strokeWidth={0.8} />
+          <Label x={20} y={64} fill={AW.text} size={5}>https://…/api/widget/page?key=…</Label>
+          <Label x={16} y={82} fill={AW.text} size={6} weight={600}>Refresh</Label>
+          {[
+            { x: 16, w: 26, label: '15 min', on: false, locked: true },
+            { x: 45, w: 26, label: '30 min', on: true, locked: false },
+            { x: 74, w: 20, label: '1 hr', on: false, locked: false },
+          ].map((chip) => (
+            <g key={chip.label}>
+              <rect x={chip.x} y={87} width={chip.w} height={11} rx={5.5} fill={chip.on ? AW.lilac : AW.card} stroke={AW.edge} strokeWidth={0.6} />
+              <Label x={chip.x + chip.w / 2} y={94.5} fill={chip.on ? AW.bg : chip.locked ? AW.dim : AW.text} size={5} weight={chip.on ? 700 : 500} anchor="middle">
+                {chip.label}
+              </Label>
+            </g>
+          ))}
+          <rect x={16} y={108} width={88} height={52} rx={7} fill={AW.card} stroke={AW.edge} strokeWidth={0.6} />
+          <MiniWidget x={22} y={114} w={76} />
+          <rect x={16} y={176} width={38} height={14} rx={7} fill="none" stroke={AW.edge} strokeWidth={0.8} />
+          <Label x={35} y={185} fill={AW.dim} size={6} anchor="middle">Cancel</Label>
+          <rect x={60} y={176} width={44} height={14} rx={7} fill={AW.purple} />
+          <Label x={82} y={185} fill={AW.text} size={6} weight={600} anchor="middle">Next →</Label>
+          <TapBox x={16} y={55} w={88} h={14} n={1} />
+          <TapBox x={60} y={176} w={44} h={14} n={2} />
+        </>
+      );
+    case 'aw-fill':
+      // Step two of AnyWidget's set-up: Fit keeps the whole picture in view.
+      return (
+        <>
+          <AwGround />
+          <Label x={16} y={33} fill={AW.text} size={8} weight={700}>New widget</Label>
+          <AwStepper at={2} />
+          <Label x={16} y={62} fill={AW.text} size={6.5} weight={600}>Fill mode</Label>
+          <rect x={16} y={68} width={42} height={42} rx={6} fill={AW.card} stroke={AW.edge} strokeWidth={0.6} />
+          <rect x={20} y={72} width={34} height={22} rx={3} fill={AW.purple} />
+          <Label x={37} y={104} fill={AW.text} size={6} anchor="middle">Cover</Label>
+          <rect x={62} y={68} width={42} height={42} rx={6} fill={AW.card} stroke={AW.lilac} strokeWidth={1.2} />
+          <rect x={66} y={72} width={34} height={22} rx={3} fill={AW.edge} />
+          <rect x={69} y={75} width={28} height={16} rx={2} fill={AW.purple} />
+          <Label x={83} y={104} fill={AW.text} size={6} weight={700} anchor="middle">Fit</Label>
+          <Label x={16} y={128} fill={AW.text} size={6}>Desktop Mode</Label>
+          <rect x={86} y={122} width={18} height={9} rx={4.5} fill="#3f3f46" />
+          <circle cx={91} cy={126.5} r={3} fill={AW.dim} />
+          <Label x={16} y={146} fill={AW.text} size={6}>Frame adjust</Label>
+          <Label x={104} y={146} fill={AW.text} size={6} anchor="end">1.00x</Label>
+          <Bar x={16} y={151} w={88} h={5} fill={AW.edge} />
+          <rect x={16} y={176} width={38} height={14} rx={7} fill="none" stroke={AW.edge} strokeWidth={0.8} />
+          <Label x={35} y={185} fill={AW.dim} size={6} anchor="middle">Back</Label>
+          <rect x={60} y={176} width={44} height={14} rx={7} fill={AW.purple} />
+          <Label x={82} y={185} fill={AW.text} size={6} weight={600} anchor="middle">Continue</Label>
+          <Tap x={83} y={83} r={9} n={1} />
+          <TapBox x={60} y={176} w={44} h={14} n={2} />
+        </>
+      );
+    case 'aw-frame':
+      // The frame step. The page link puts the picture at the very top of
+      // the page, on its own colour, so the frame already holds the tiles:
+      // nothing to pinch or scroll, just Confirm.
+      return (
+        <>
+          <rect x={9} y={12} width={102} height={196} fill="#0d0d0d" />
+          <rect x={9} y={22} width={102} height={118} fill="#ffffff" />
+          <MiniWidget x={11} y={26} w={98} />
+          <rect x={9} y={90} width={102} height={50} fill="#000000" fillOpacity={0.35} />
+          <rect x={10} y={23} width={100} height={66} rx={6} fill="none" stroke={AW.lilac} strokeWidth={1.8} />
+          <rect x={14} y={146} width={60} height={9} rx={4.5} fill="none" stroke={AW.edge} strokeWidth={0.8} />
+          <Label x={44} y={152} fill={AW.text} size={4.5} anchor="middle">Pinch and scroll to frame</Label>
+          <rect x={14} y={160} width={92} height={16} rx={5} fill={AW.card} stroke={AW.edge} strokeWidth={0.6} />
+          <Label x={20} y={170.5} fill={AW.text} size={5.5} weight={600}>Frame 1.00x</Label>
+          <rect x={14} y={182} width={92} height={15} rx={7.5} fill={AW.purple} />
+          <Label x={60} y={192} fill={AW.text} size={6.5} weight={600} anchor="middle">✓ Confirm</Label>
+          <TapBox x={14} y={182} w={92} h={15} />
         </>
       );
     case 'android-home-menu':

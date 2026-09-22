@@ -194,12 +194,12 @@ export function kwgtImageUrl(appUrl: string, key: string, size: 'wide' | 'square
 }
 
 /**
- * The same picture for an app that just fetches an address -- Web Image
- * Widget on Android, which refreshes it every 15 minutes and on a double tap
- * by itself, so the address needs none of KWGT's changing parts.
+ * The same picture as a page, for AnyWidget on Android, which makes a widget
+ * out of a web page and refreshes it by itself -- so the address needs none
+ * of KWGT's changing parts. See api/widget/page for why a page and not the PNG.
  */
-export function plainImageUrl(appUrl: string, key: string, size: 'wide' | 'square', theme: 'light' | 'dark'): string {
-  return `${appUrl.replace(/\/+$/, '')}/api/widget/image?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}`;
+export function pageUrl(appUrl: string, key: string, size: 'wide' | 'square', theme: 'light' | 'dark'): string {
+  return `${appUrl.replace(/\/+$/, '')}/api/widget/page?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}`;
 }
 
 /** Text formulas, one per section -- the plain alternative to the image. */

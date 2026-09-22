@@ -183,6 +183,11 @@ function tileSvg(tile: Tile, x: number, y: number, w: number, h: number, size: W
   return out;
 }
 
+/** The picture's own background, for a page that has to sit flush around it. */
+export function widgetBackground(theme: WidgetTheme): string {
+  return PALETTE[theme].bg;
+}
+
 export function renderWidgetSvg(
   tiles: Tile[],
   options: { size?: WidgetSize; theme?: WidgetTheme; fontFamily?: string } = {},
