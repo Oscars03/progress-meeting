@@ -7,10 +7,11 @@ import {
   leadForWeek,
   meetingsInWeek,
   nextMeeting,
+  planWeekLeads,
   weeksRunBy,
 } from '../lib/rotation';
 import { weekKey } from '../lib/week';
-import type { MeetingRecord, UserRecord, WeekLeadRecord } from '../lib/db/schema';
+import type { MeetingRecord, TermBreakRecord, UserRecord, WeekLeadRecord } from '../lib/db/schema';
 
 function user(
   id: string,
@@ -290,5 +291,63 @@ describe('nextMeeting', () => {
   it('returns null when everything is in the past', () => {
     const meetings = [meeting('past', '2026-09-01T09:00:00.000Z')];
     expect(nextMeeting(meetings, new Date('2026-09-14T00:00:00.000Z'))).toBeNull();
+  });
+});
+
+describe('planWeekLeads', () => {
+  const people = [
+    user('a', 'student', '2026-01-01', true, 1),
+    user('b', 'student', '2026-01-02', true, 2),
+    user('c', 'student', '2026-01-03', true, 3),
+    user('prof', 'professor', '2026-01-01'),
+  ];
+  const held = (week_key: string, user_id: string) =>
+    ({ id: week_key, week_key, user_id } as WeekLeadRecord);
+  const brk = (start_date: string, end_date: string) =>
+    ({ id: 'x', name: 'ปิดเทอม', start_date, end_date } as TermBreakRecord);
+
+  it('carries the arranged order forward from the latest confirmed week', () => {
+    const plan = planWeekLeads(people, [held('2026-W38', 'a')], [], '2026-W38', 5);
+    expect(plan.map((w) => w.user_id)).toEqual(['a', 'b', 'c', 'a', 'b']);
+    expect(plan.map((w) => w.confirmed)).toEqual([true, false, false, false, false]);
+    expect(plan[0].monday).toBe('2026-09-14');
+  });
+
+  it('skips a break week without using up a turn', () => {
+    // 2026-W40 is 28 Sep - 4 Oct.
+    const plan = planWeekLeads(
+      people,
+      [held('2026-W38', 'a')],
+      [brk('2026-09-28', '2026-10-04')],
+      '2026-W39',
+      3
+    );
+    expect(plan.map((w) => [w.week_key, w.user_id, w.break_name])).toEqual([
+      ['2026-W39', 'b', null],
+      ['2026-W40', null, 'ปิดเทอม'],
+      ['2026-W41', 'c', null],
+    ]);
+  });
+
+  it('counts the weeks between the last lead and the start', () => {
+    const plan = planWeekLeads(people, [held('2026-W38', 'a')], [], '2026-W41', 1);
+    // W39 b, W40 c, W41 a
+    expect(plan[0].user_id).toBe('a');
+  });
+
+  it('leaves a passed-over week empty instead of inventing a lead for it', () => {
+    const plan = planWeekLeads(
+      people,
+      [held('2026-W36', 'a'), held('2026-W38', 'b')],
+      [],
+      '2026-W37',
+      3
+    );
+    expect(plan.map((w) => w.user_id)).toEqual([null, 'b', 'c']);
+  });
+
+  it('starts at the top of the order when nobody has held a week', () => {
+    const plan = planWeekLeads(people, [], [], '2026-W38', 2);
+    expect(plan.map((w) => w.user_id)).toEqual(['a', 'b']);
   });
 });

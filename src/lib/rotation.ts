@@ -17,9 +17,10 @@
  * meetings/actions.ts for the confirming-by-itself half.
  */
 
-import type { MeetingRecord, UserRecord, WeekLeadRecord } from './db/schema';
-import { weekKey, nextWeekKey } from './week';
+import type { MeetingRecord, TermBreakRecord, UserRecord, WeekLeadRecord } from './db/schema';
+import { weekKey, nextWeekKey, weekStartDate } from './week';
 import { labDay } from './lab-time';
+import { breakForWeek } from './term-breaks';
 
 /**
  * Roles that never take a turn: professors advise rather than report, `admin`
@@ -143,6 +144,95 @@ export function suggestNextHost(
   if (held === -1) return members[0];
 
   return members[(held + 1) % members.length];
+}
+
+/** One week of the rotation as the calendar shows it. */
+export type WeekLeadPlan = {
+  week_key: string;
+  /** The Monday that starts it, YYYY-MM-DD -- what the calendar matches on. */
+  monday: string;
+  /** Null for a break week, or a week before the rotation that nobody held. */
+  user_id: string | null;
+  name: string | null;
+  /** True when `week_leads` records it; false when it is where the order lands. */
+  confirmed: boolean;
+  /** The term break covering the week, when it is one. */
+  break_name: string | null;
+};
+
+/**
+ * Who holds each of `count` weeks from `fromKey` on: the confirmed lead where
+ * there is one, and after the last confirmed week, the arranged order carried
+ * forward one student per week.
+ *
+ * Walks exactly the way the weeks get confirmed -- `suggestNextHost` from the
+ * most recent lead, and `autoAssignWeekLead` passing over a break week -- so
+ * what the calendar says ahead of time is what happens when the week arrives.
+ * A break week holds nobody and uses up nobody's turn.
+ *
+ * A week at or before the last confirmed one that has no lead stays empty
+ * rather than being filled in: it was passed over, and guessing a name for it
+ * would claim a turn that was never taken.
+ */
+export function planWeekLeads(
+  users: UserRecord[],
+  leads: WeekLeadRecord[],
+  breaks: TermBreakRecord[],
+  fromKey: string,
+  count: number
+): WeekLeadPlan[] {
+  const names = new Map(users.map((u) => [u.id, u.name]));
+  const assigned = leads.filter((lead) => lead.user_id && lead.week_key);
+  const plan: WeekLeadPlan[] = [];
+
+  // Stepped forward from the latest confirmed week, as one more row each time.
+  const walked = [...assigned];
+  let latest = latestLead(assigned)?.week_key ?? '';
+
+  // Any confirmed weeks between the latest and `fromKey` are already in
+  // `walked`, so a start further ahead than them still counts from them.
+  let key = fromKey;
+  if (latest && latest < fromKey) {
+    for (let k = nextWeekKey(latest); k < fromKey; k = nextWeekKey(k)) {
+      if (breakForWeek(breaks, k)) continue;
+      const next = suggestNextHost(users, walked);
+      if (!next) break;
+      walked.push({ week_key: k, user_id: next.id } as WeekLeadRecord);
+      latest = k;
+    }
+  }
+
+  for (let i = 0; i < count; i++, key = nextWeekKey(key)) {
+    const monday = weekStartDate(key) ?? '';
+    const brk = breakForWeek(breaks, key);
+    const row: WeekLeadPlan = {
+      week_key: key,
+      monday,
+      user_id: null,
+      name: null,
+      confirmed: false,
+      break_name: brk?.name ?? null,
+    };
+
+    const held = leadForWeek(assigned, key);
+    if (held) {
+      row.user_id = held.user_id;
+      row.name = names.get(held.user_id) ?? null;
+      row.confirmed = true;
+    } else if (!brk && (!latest || key > latest)) {
+      const next = suggestNextHost(users, walked);
+      if (next) {
+        walked.push({ week_key: key, user_id: next.id } as WeekLeadRecord);
+        latest = key;
+        row.user_id = next.id;
+        row.name = next.name;
+      }
+    }
+
+    plan.push(row);
+  }
+
+  return plan;
 }
 
 /**
