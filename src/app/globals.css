@@ -694,7 +694,11 @@ body {
 :root[data-theme='dark'] .border-gray-200 { border-color: #323237 !important; }
 :root[data-theme='dark'] .border-gray-300 { border-color: #3f3f46 !important; }
 :root[data-theme='dark'] .ring-gray-300 { --tw-ring-color: #3f3f46 !important; }
-:root[data-theme='dark'] .divide-gray-100 > * + * { border-color: #2a2a2e !important; }
+/* Every child, not `* + *`: Tailwind v4 draws divide-y as a bottom border on
+   each child but the last, so the sibling selector (the v3 shape, top borders
+   from the second child on) missed the first row's line -- which stayed
+   near-white under the first user in Settings. */
+:root[data-theme='dark'] .divide-gray-100 > * { border-color: #2a2a2e !important; }
 :root[data-theme='dark'] .border-b,
 :root[data-theme='dark'] .border-t { border-color: #2a2a2e; }
 
@@ -734,6 +738,12 @@ body {
 :root[data-theme='dark'] .border-blue-200 { border-color: #1f3a5c !important; }
 :root[data-theme='dark'] .border-blue-300 { border-color: #2a4a75 !important; }
 :root[data-theme='dark'] .border-blue-400 { border-color: #3b64a0 !important; }
+/* Role colours in the user table (Settings): each role's rows carry a tint
+   and a stripe in its badge's colour -- purple admin, amber professor, blue
+   student. Blue and amber tints are above; these are the rest. */
+:root[data-theme='dark'] .bg-purple-50 { background-color: #1f1530 !important; }
+:root[data-theme='dark'] .border-purple-400 { border-color: #6d4a9e !important; }
+:root[data-theme='dark'] .border-amber-400 { border-color: #8a6420 !important; }
 :root[data-theme='dark'] .ring-blue-200 { --tw-ring-color: #2a4a75 !important; }
 
 /* Hover states that assumed a light ground */

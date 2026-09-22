@@ -7,6 +7,7 @@ import { ABILITIES, effectiveAbilities, roleDefault, type Ability } from '@/lib/
 import type { Role } from '@/lib/auth-guard';
 import { setUserPermissionsAction } from './actions';
 import type { SafeUser } from './user-manager';
+import { byRoleThenName } from '@/lib/role-display';
 
 type Grid = Record<string, Record<Ability, boolean>>;
 
@@ -44,7 +45,11 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
 
   // Admin accounts are not listed: they hold every ability by definition, and
   // an admin cannot edit their own row anyway.
-  const rows = useMemo(() => users.filter((u) => u.active && u.role !== 'admin'), [users]);
+  // In the same order as the user table: professors, then students.
+  const rows = useMemo(
+    () => users.filter((u) => u.active && u.role !== 'admin').sort(byRoleThenName),
+    [users],
+  );
 
   const [grid, setGrid] = useState<Grid>(() => buildGrid(rows));
   const [original, setOriginal] = useState<Grid>(() => buildGrid(rows));

@@ -75,7 +75,7 @@ export default async function WeeklyPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{t('weekly.title')}</h2>

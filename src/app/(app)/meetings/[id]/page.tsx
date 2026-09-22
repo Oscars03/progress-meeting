@@ -99,7 +99,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
     .join(' — ');
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <div className="space-y-1">
         <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">
           {t('polls.backToCalendar')}
