@@ -807,3 +807,11 @@ body {
   font-size: 0.6875rem;
   font-weight: 600;
 }
+
+/* The phone widget preview in Settings is a drawing with its own colours, so
+   it cannot follow the theme through the remapped utilities above. Both
+   versions are in the page; the theme shows one. */
+:root[data-theme='dark'] .widget-preview-light,
+:root:not([data-theme='dark']) .widget-preview-dark {
+  display: none;
+}
