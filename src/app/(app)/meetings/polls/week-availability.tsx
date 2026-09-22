@@ -680,7 +680,7 @@ export default function WeekAvailabilityGrid({
                   type="button"
                   onClick={() => ask(selected, chosen)}
                   disabled={isPending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  className="w-full sm:w-auto min-h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-base font-semibold shadow-sm transition disabled:opacity-50"
                 >
                   {asking ? t('avail.asking') : t('avail.ask')}
                 </button>
