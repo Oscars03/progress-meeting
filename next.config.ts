@@ -25,6 +25,18 @@ const csp = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  // The Android widget image reads these at runtime (lib/widget-png.ts), by a
+  // path the tracer cannot follow -- so they are named, or the deployed
+  // function would start without its renderer or its Thai font.
+  // Loaded from node_modules at run time rather than bundled: its glue code
+  // imports the .wasm as a module, which the bundler cannot compile.
+  serverExternalPackages: ['@resvg/resvg-wasm'],
+  outputFileTracingIncludes: {
+    '/api/widget/image': [
+      './node_modules/@resvg/resvg-wasm/index_bg.wasm',
+      './node_modules/@ibm/plex-sans-thai/fonts/complete/woff/IBMPlexSansThai-{Regular,SemiBold}.woff',
+    ],
+  },
   async headers() {
     return [
       {

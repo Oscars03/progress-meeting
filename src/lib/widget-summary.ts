@@ -35,6 +35,8 @@ export type WidgetSummary = {
     /** e.g. "13:30–15:00", empty without an end. */
     time: string;
     location: string;
+    /** Lab days from today: 0 today, 1 tomorrow. */
+    daysAway: number;
   } | null;
   presentations: {
     position: number;
@@ -50,6 +52,8 @@ export type WidgetSummary = {
     /** 'overdue' | 'soon' (within 7 days) | 'later' | 'none' (no due date) */
     due: 'overdue' | 'soon' | 'later' | 'none';
   }[];
+  /** Every open task of the reader's by due state -- `tasks` itself is capped. */
+  taskCounts: { total: number; overdue: number; soon: number; later: number; none: number };
   polls: {
     title: string;
     /** Slots in the poll this person has not answered yet. */
@@ -94,6 +98,11 @@ function addDays(day: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Whole days from one YYYY-MM-DD to another. */
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
 function dueState(dueDate: string, today: string): WidgetSummary['tasks'][number]['due'] {
   const day = dueDate.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return 'none';
@@ -110,6 +119,7 @@ export function buildWidgetSummary(
   const { users, meetings, topics, tasks, polls, slots, votes } = sources;
   const nameOf = (id: string) => users.find((user) => user.id === id)?.name ?? '';
 
+  const today = labDay(now);
   const upcoming = nextMeeting(meetings, now);
   const meeting = upcoming
     ? {
@@ -120,6 +130,7 @@ export function buildWidgetSummary(
           ? `${formatLabClock(upcoming.start_at, 'th')}–${formatLabClock(upcoming.end_at, 'th')}`
           : '',
         location: upcoming.location ?? '',
+        daysAway: daysBetween(today, labDay(new Date(upcoming.start_at))),
       }
     : null;
 
@@ -134,8 +145,7 @@ export function buildWidgetSummary(
   }));
   const mine = presentations.find((row) => row.isMe);
 
-  const today = labDay(now);
-  const myTasks = tasks
+  const allMyTasks = tasks
     .filter((task) => task.status !== 'done' && assigneesOf(task).includes(userId))
     .map((task) => ({ title: task.title, dueDate: task.due_date ?? '', due: dueState(task.due_date ?? '', today) }))
     // Dated first, soonest first; undated last, as on the dashboard.
@@ -144,8 +154,10 @@ export function buildWidgetSummary(
       const bDated = b.due !== 'none';
       if (aDated !== bDated) return aDated ? -1 : 1;
       return a.dueDate.localeCompare(b.dueDate);
-    })
-    .slice(0, MAX_TASKS);
+    });
+  const myTasks = allMyTasks.slice(0, MAX_TASKS);
+  const taskCounts = { total: allMyTasks.length, overdue: 0, soon: 0, later: 0, none: 0 };
+  for (const task of allMyTasks) taskCounts[task.due] += 1;
 
   // Only members are asked to answer polls -- the dashboard chases nobody else.
   const waiting = memberIds(users).has(userId)
@@ -160,6 +172,7 @@ export function buildWidgetSummary(
     presentations,
     myPosition: mine ? mine.position : null,
     tasks: myTasks,
+    taskCounts,
     polls: waiting,
     text: {
       meeting: meeting

@@ -26,6 +26,10 @@ const { generateWidgetKey, hashWidgetKey, widgetKeyMatches, widgetKeyFrom, WIDGE
 );
 const { buildWidgetSummary } = await import('../lib/widget-summary');
 const { GET } = await import('../app/api/widget/route');
+const { GET: GET_IMAGE } = await import('../app/api/widget/image/route');
+const { buildTiles } = await import('../lib/widget-tiles');
+const { renderWidgetSvg, splitSaraAm, clip } = await import('../lib/widget-svg');
+const { woffToSfnt, svgToPng } = await import('../lib/widget-png');
 
 // Tuesday 22 Sep 2026, 12:00 in the lab (UTC+7).
 const NOW = new Date('2026-09-22T05:00:00.000Z');
@@ -193,6 +197,100 @@ describe('buildWidgetSummary', () => {
     const json = JSON.stringify(buildWidgetSummary(sources(), 'u-me', NOW));
     expect(json).not.toMatch(/@lab\.test/);
   });
+
+  it('counts the days to the meeting in lab days, and every open task by urgency', () => {
+    const summary = buildWidgetSummary(sources(), 'u-me', NOW);
+    expect(summary.meeting?.daysAway).toBe(2);
+    expect(summary.taskCounts).toEqual({ total: 4, overdue: 1, soon: 1, later: 1, none: 1 });
+  });
+});
+
+describe('buildTiles', () => {
+  const summaryFor = (userId: string) => buildWidgetSummary(sources(), userId, NOW);
+
+  it('gives four tiles in a fixed order', () => {
+    expect(buildTiles(summaryFor('u-me')).map((tile) => tile.key)).toEqual(['meeting', 'present', 'tasks', 'polls']);
+  });
+
+  it('turns the meeting into a countdown', () => {
+    const [meeting] = buildTiles(summaryFor('u-me'));
+    expect(meeting).toMatchObject({ value: 'อีก 2 วัน', tone: 'blue', quiet: false });
+    expect(meeting.caption).toContain('13:30');
+
+    const at = (daysAway: number) => {
+      const summary = summaryFor('u-me');
+      summary.meeting = { ...summary.meeting!, daysAway };
+      return buildTiles(summary)[0].value;
+    };
+    expect(at(0)).toBe('วันนี้');
+    expect(at(1)).toBe('พรุ่งนี้');
+  });
+
+  it("shows the reader's place in the order, with a dot for everyone", () => {
+    const present = buildTiles(summaryFor('u-me'))[1];
+    expect(present).toMatchObject({ value: '2/2', caption: 'My result', tone: 'violet', dots: { count: 2, mine: 2 } });
+    expect(present.detail).toContain('2. Me (คุณ)');
+
+    const notPresenting = buildTiles(summaryFor('u-prof'))[1];
+    expect(notPresenting).toMatchObject({ value: '—', caption: '2 คนนำเสนอ', quiet: true, dots: { count: 2, mine: null } });
+  });
+
+  it('turns the task tile red only when something is overdue', () => {
+    const tasks = buildTiles(summaryFor('u-me'))[2];
+    expect(tasks).toMatchObject({ value: '4', caption: 'เลยกำหนด 1', tone: 'red', bar: { overdue: 1, soon: 1, later: 1, none: 1 } });
+
+    const src = sources();
+    src.tasks = src.tasks.filter((task) => task.id !== 'k-late');
+    expect(buildTiles(buildWidgetSummary(src, 'u-me', NOW))[2]).toMatchObject({ tone: 'amber', caption: 'ใกล้ถึงกำหนด 1' });
+  });
+
+  it('quiets every tile when there is nothing, without calling that good news', () => {
+    const empty = buildWidgetSummary({ users: sources().users, meetings: [], topics: [], tasks: [], polls: [], slots: [], votes: [] }, 'u-me', NOW);
+    const tiles = buildTiles(empty);
+    expect(tiles.every((tile) => tile.quiet && tile.tone === 'gray')).toBe(true);
+    expect(tiles.map((tile) => tile.caption)).toEqual(['ยังไม่มีนัด', 'ยังไม่มีหัวข้อ', 'ไม่มีงานค้าง', 'ไม่มีโพลรอ']);
+  });
+});
+
+describe('widget drawing', () => {
+  it('splits sara am into its parts, ring ahead of any tone mark', () => {
+    expect(splitSaraAm('น\u0E33')).toBe('น\u0E4Dา');
+    expect(splitSaraAm('น\u0E49\u0E33')).toBe('น\u0E4D\u0E49า');
+    expect(splitSaraAm('ท\u0E35\u0E48น\u0E35\u0E48')).toBe('ท\u0E35\u0E48น\u0E35\u0E48');
+  });
+
+  it('does not count Thai marks when cutting text to length', () => {
+    expect(clip('ที่นี่', 4)).toBe('ที่นี่');
+    expect(clip('abcdefgh', 4)).toBe('abcd…');
+  });
+
+  it('escapes text, so a title cannot inject markup into the picture', () => {
+    const summary = buildWidgetSummary(sources(), 'u-me', NOW);
+    summary.polls = [{ title: '<script>x</script> & "q"', remaining: 1 }];
+    const svg = renderWidgetSvg(buildTiles(summary));
+    expect(svg).not.toContain('<script>');
+    expect(svg).toContain('&lt;script&gt;');
+  });
+
+  it('draws the wide and square canvases at their sizes', () => {
+    const tiles = buildTiles(buildWidgetSummary(sources(), 'u-me', NOW));
+    expect(renderWidgetSvg(tiles, { size: 'wide' })).toContain('width="1000" height="470"');
+    expect(renderWidgetSvg(tiles, { size: 'square', theme: 'dark' })).toContain('width="1000" height="1000"');
+  });
+
+  it('unpacks the WOFF font into a font resvg can read', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const woff = await readFile('node_modules/@ibm/plex-sans-thai/fonts/complete/woff/IBMPlexSansThai-Regular.woff');
+    const sfnt = woffToSfnt(woff);
+    expect(sfnt.readUInt32BE(0)).toBe(woff.readUInt32BE(4));
+    expect(sfnt.readUInt16BE(4)).toBe(woff.readUInt16BE(12));
+    expect(() => woffToSfnt(Buffer.from('not a font'))).toThrow();
+  });
+
+  it('renders a PNG', async () => {
+    const png = await svgToPng(renderWidgetSvg(buildTiles(buildWidgetSummary(sources(), 'u-me', NOW))));
+    expect(Buffer.from(png.subarray(0, 8)).toString('hex')).toBe('89504e470d0a1a0a');
+  }, 20_000);
 });
 
 describe('GET /api/widget', () => {
@@ -262,4 +360,37 @@ describe('GET /api/widget', () => {
     updateMock.mockRejectedValue(new Error('version conflict'));
     expect((await get('https://x.test/api/widget', KEY)).status).toBe(200);
   });
+
+  it('carries the four tiles for the iPhone widget to draw', async () => {
+    const body = await (await get('https://x.test/api/widget', KEY)).json();
+    expect(body.tiles.map((tile: { key: string }) => tile.key)).toEqual(['meeting', 'present', 'tasks', 'polls']);
+  });
+});
+
+describe('GET /api/widget/image', () => {
+  const KEY = generateWidgetKey();
+
+  beforeEach(() => {
+    updateMock.mockReset();
+    updateMock.mockResolvedValue({});
+    Object.assign(tables, fixtures());
+    tables.widget_keys = [base('w-me', { user_id: 'u-me', key_hash: hashWidgetKey(KEY), last_used_at: '' })];
+  });
+
+  it('refuses a wrong key the same way the JSON endpoint does', async () => {
+    const res = await GET_IMAGE(new Request('https://x.test/api/widget/image?key=pmw_nope'));
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: 'unauthorized' });
+  });
+
+  it('answers the key in ?key= with an uncached PNG', async () => {
+    const res = await GET_IMAGE(new Request(`https://x.test/api/widget/image?key=${encodeURIComponent(KEY)}&size=square&theme=dark`));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const bytes = Buffer.from(await res.arrayBuffer());
+    expect(bytes.subarray(0, 4).toString('hex')).toBe('89504e47');
+    // PNG IHDR: width and height at bytes 16-23.
+    expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([1000, 1000]);
+  }, 20_000);
 });

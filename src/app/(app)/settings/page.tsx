@@ -19,6 +19,9 @@ import { labMembers } from '@/lib/members';
 import type { TermBreakRecord, WidgetKeyRecord } from '@/lib/db/schema';
 import WidgetCard from './widget-card';
 import { scriptableScript } from '@/lib/widget-scripts';
+import { renderWidgetSvg } from '@/lib/widget-svg';
+import { buildTiles } from '@/lib/widget-tiles';
+import { SAMPLE_SUMMARY } from '@/lib/widget-sample';
 
 export default async function SettingsPage() {
   const actor = await requirePageSession();
@@ -107,6 +110,12 @@ export default async function SettingsPage() {
         }
         appUrl={appUrl}
         script={scriptableScript(appUrl)}
+        // The same drawing the Android image is made from, in the page's own
+        // font -- the browser shapes Thai itself.
+        preview={{
+          light: renderWidgetSvg(buildTiles(SAMPLE_SUMMARY), { size: 'wide', theme: 'light', fontFamily: 'inherit' }),
+          dark: renderWidgetSvg(buildTiles(SAMPLE_SUMMARY), { size: 'wide', theme: 'dark', fontFamily: 'inherit' }),
+        }}
       />
 
       {/* On realRole, not isAdmin: previewing as a student makes isAdmin
