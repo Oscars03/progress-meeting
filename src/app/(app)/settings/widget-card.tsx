@@ -12,8 +12,8 @@ import { PhoneArt, type StepArt } from './widget-illustrations';
 type Status = { createdAt: string; lastUsedAt: string } | null;
 type Os = 'ios' | 'android';
 
-const IOS_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; action?: 'script' | 'key' }[] = [
-  { art: 'ios-store', title: 'widget.ios.1.title', body: 'widget.ios.1.body' },
+const IOS_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; action?: 'store' | 'script' | 'key' }[] = [
+  { art: 'ios-store', title: 'widget.ios.1.title', body: 'widget.ios.1.body', action: 'store' },
   { art: 'ios-new-script', title: 'widget.ios.2.title', body: 'widget.ios.2.body', action: 'script' },
   { art: 'ios-paste', title: 'widget.ios.3.title', body: 'widget.ios.3.body' },
   { art: 'ios-home-edit', title: 'widget.ios.4.title', body: 'widget.ios.4.body' },
@@ -21,8 +21,8 @@ const IOS_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; ac
   { art: 'ios-edit-widget', title: 'widget.ios.6.title', body: 'widget.ios.6.body', action: 'key' },
 ];
 
-const ANDROID_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; action?: 'image' }[] = [
-  { art: 'android-store', title: 'widget.android.1.title', body: 'widget.android.1.body' },
+const ANDROID_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey; action?: 'store' | 'image' }[] = [
+  { art: 'android-store', title: 'widget.android.1.title', body: 'widget.android.1.body', action: 'store' },
   { art: 'android-home-menu', title: 'widget.android.2.title', body: 'widget.android.2.body' },
   { art: 'android-picker', title: 'widget.android.3.title', body: 'widget.android.3.body' },
   { art: 'android-add-image', title: 'widget.android.4.title', body: 'widget.android.4.body' },
@@ -116,7 +116,24 @@ export default function WidgetCard({
 
   const needKey = <p className="text-xs text-amber-800">{t('widget.needNewKey')}</p>;
 
-  const stepAction = (action: 'script' | 'key' | 'image' | undefined): ReactNode => {
+  const stepAction = (action: 'store' | 'script' | 'key' | 'image' | undefined): ReactNode => {
+    if (action === 'store') {
+      // Opened from a phone, these land in the store app itself.
+      const store =
+        os === 'ios'
+          ? { href: 'https://apps.apple.com/app/scriptable/id1405459188', label: t('widget.openAppStore') }
+          : { href: 'https://play.google.com/store/apps/details?id=org.kustom.widget', label: t('widget.openPlayStore') };
+      return (
+        <a
+          href={store.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+        >
+          {store.label} ↗
+        </a>
+      );
+    }
     if (action === 'script') return copyButton('script', script, t('widget.copyScript'), true);
     if (action === 'key') return newKey ? copyButton('key-step', newKey, t('widget.copyKey'), true) : needKey;
     if (action === 'image') {
