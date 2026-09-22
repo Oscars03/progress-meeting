@@ -26,8 +26,13 @@ const ANDROID_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey
   { art: 'android-home-menu', title: 'widget.android.2.title', body: 'widget.android.2.body' },
   { art: 'android-picker', title: 'widget.android.3.title', body: 'widget.android.3.body' },
   { art: 'android-explore', title: 'widget.android.4.title', body: 'widget.android.4.body' },
-  { art: 'android-add-image', title: 'widget.android.5.title', body: 'widget.android.5.body' },
-  { art: 'android-bitmap', title: 'widget.android.6.title', body: 'widget.android.6.body', action: 'image' },
+  // 5-10 follow KWGT 3.82's own screens, from the owner's screenshots.
+  { art: 'kwgt-editor', title: 'widget.android.5.title', body: 'widget.android.5.body' },
+  { art: 'kwgt-add-menu', title: 'widget.android.6.title', body: 'widget.android.6.body' },
+  { art: 'kwgt-items', title: 'widget.android.7.title', body: 'widget.android.7.body' },
+  { art: 'kwgt-bitmap', title: 'widget.android.8.title', body: 'widget.android.8.body' },
+  { art: 'kwgt-formula', title: 'widget.android.9.title', body: 'widget.android.9.body', action: 'image' },
+  { art: 'kwgt-width', title: 'widget.android.10.title', body: 'widget.android.10.body' },
 ];
 
 /**

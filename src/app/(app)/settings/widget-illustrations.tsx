@@ -27,30 +27,46 @@ export type StepArt =
   | 'android-home-menu'
   | 'android-picker'
   | 'android-explore'
-  | 'android-add-image'
-  | 'android-bitmap';
+  | 'kwgt-editor'
+  | 'kwgt-add-menu'
+  | 'kwgt-items'
+  | 'kwgt-bitmap'
+  | 'kwgt-formula'
+  | 'kwgt-width';
 
 /**
  * Where to press: a ring around it, hollow so the thing being pressed stays
  * readable -- a filled dot covered exactly the label it pointed at.
  * `hold` adds a dashed outer ring for a long-press.
  */
-function Tap({ x, y, hold = false, r = 11 }: { x: number; y: number; hold?: boolean; r?: number }) {
+function Tap({ x, y, hold = false, r = 11, n }: { x: number; y: number; hold?: boolean; r?: number; n?: number }) {
   return (
     <g>
       {hold && <circle cx={x} cy={y} r={r + 5} fill="none" stroke={BLUE} strokeWidth={1.2} strokeDasharray="3 2" />}
       <circle cx={x} cy={y} r={r} fill={BLUE} fillOpacity={0.1} stroke={BLUE} strokeWidth={1.8} />
+      {n !== undefined && <Order n={n} x={x - r * 0.75} y={y + r * 0.75} />}
     </g>
   );
 }
 
 /** The same, for something wide -- a button or a field -- outlined rather than ringed. */
-function TapBox({ x, y, w, h, hold = false }: { x: number; y: number; w: number; h: number; hold?: boolean }) {
+function TapBox({ x, y, w, h, hold = false, n }: { x: number; y: number; w: number; h: number; hold?: boolean; n?: number }) {
   const m = 3;
   return (
     <g>
       {hold && <rect x={x - m - 4} y={y - m - 4} width={w + (m + 4) * 2} height={h + (m + 4) * 2} rx={(h + 14) / 2} fill="none" stroke={BLUE} strokeWidth={1.2} strokeDasharray="3 2" />}
       <rect x={x - m} y={y - m} width={w + m * 2} height={h + m * 2} rx={(h + m * 2) / 2} fill="none" stroke={BLUE} strokeWidth={1.8} />
+      {n !== undefined && <Order n={n} x={x - m} y={y - m} />}
+    </g>
+  );
+}
+
+/** Which press comes first, where a step has two. */
+function Order({ n, x, y }: { n: number; x: number; y: number }) {
+  return (
+    <g>
+      <circle cx={x} cy={y} r={4.2} fill={BLUE} stroke="#ffffff" strokeWidth={0.8} />
+      <text x={x} y={y + 2} fontSize={5.5} fontWeight={700} fill="#ffffff" textAnchor="middle">{n}</text>
     </g>
   );
 }
@@ -236,39 +252,254 @@ function Screen({ art }: { art: StepArt }) {
           <TapBox x={15} y={48} w={42} h={16} />
         </>
       );
-    case 'android-add-image':
+    // The KWGT editor, drawn from screenshots of KWGT 3.82 (free) taken on
+    // the owner's phone. The free version shows an advert along the bottom;
+    // it is drawn as a plain strip so nobody takes it for part of the steps.
+    case 'kwgt-editor':
+      // Nothing added yet, so the preview is an empty grey box.
       return (
         <>
-          <rect x={9} y={12} width={102} height={22} rx={0} fill="#7c3aed" />
-          <Label x={18} y={26} fill="#ffffff" size={7} weight={600}>KWGT</Label>
-          <Label x={98} y={27} fill="#ffffff" size={13} anchor="middle">+</Label>
-          <rect x={46} y={40} width={60} height={72} rx={6} fill="#ffffff" stroke={LINE} strokeWidth={0.6} />
-          {['Text', 'Image', 'Shape', 'Progress'].map((name, i) => (
-            <g key={name}>
-              {name === 'Image' && <rect x={48} y={42 + i * 17} width={56} height={15} rx={3} fill="#ede9fe" />}
-              <Label x={54} y={52 + i * 17} size={6.5} weight={name === 'Image' ? 600 : 400} fill={name === 'Image' ? '#7c3aed' : INK}>{name}</Label>
-            </g>
-          ))}
-          <Tap x={98} y={23} r={9} />
-          <TapBox x={48} y={59} w={56} h={15} />
+          <KwgtBody topIcons={['menu', null, null, null, 'save', 'history', 'plus']} rail="Root" preview={null} />
+          <KwgtTabs names={['ITEMS', 'BACKGROUND', 'LAYER']} />
+          <Label x={13} y={157} fill={K.sub} size={4.6}>This container is empty, you can add</Label>
+          <Label x={13} y={163} fill={K.sub} size={4.6}>a new object using the plus (+)</Label>
+          <Label x={13} y={169} fill={K.sub} size={4.6}>button on the top right.</Label>
+          <Tap x={103} y={26.5} r={7} />
         </>
       );
-    case 'android-bitmap':
+    case 'kwgt-add-menu': {
+      const cards: [string, string][] = [
+        ['Komponent', 'Text'],
+        ['Shape', 'Image'],
+        ['Icon', 'Progress'],
+        ['Morphing Text', 'Series'],
+        ['Overlap Group', 'Stack Group'],
+      ];
       return (
         <>
-          <rect x={9} y={12} width={102} height={22} rx={0} fill="#7c3aed" />
-          <Label x={18} y={26} fill="#ffffff" size={7} weight={600}>Image</Label>
-          <rect x={90} y={17} width={12} height={12} rx={2} fill="none" stroke="#ffffff" strokeWidth={1.2} />
-          <MiniWidget x={22} y={42} w={76} />
-          <Label x={18} y={96} size={6.5} fill="#64748b">Bitmap</Label>
-          <rect x={16} y={100} width={88} height={30} rx={4} fill="#fef3c7" stroke="#f59e0b" strokeWidth={0.8} />
-          <Label x={20} y={110} size={5.8} fill={INK}>https://…/api/widget/</Label>
-          <Label x={20} y={119} size={5.8} fill={INK}>image?key=pmw_…</Label>
-          <Label x={20} y={127} size={5.8} fill={INK}>&amp;t=$df(yyMMddHH)$</Label>
-          <Tap x={96} y={23} r={10} />
+          <rect x={9} y={12} width={102} height={196} fill={K.bg} />
+          <rect x={9} y={12} width={102} height={21} fill={K.bar} />
+          <KwgtIcon kind="menu" x={17} y={26.5} />
+          {cards.map((row, r) =>
+            row.map((name, c) => {
+              const x = 13 + c * 48;
+              const y = 38 + r * 29;
+              return (
+                <g key={name}>
+                  <rect x={x} y={y} width={46} height={25} fill={K.card} />
+                  <rect x={x + 3} y={y + 4} width={5} height={5} rx={1} fill={K.text} />
+                  <Label x={x + 10} y={y + 8.5} fill={K.text} size={name.length > 10 ? 5 : 6}>{name}</Label>
+                  <Bar x={x + 3} y={y + 13} w={38} h={2} fill={K.faint} />
+                  <Bar x={x + 3} y={y + 18} w={28} h={2} fill={K.faint} />
+                </g>
+              );
+            }),
+          )}
+          <KwgtAd />
+          <TapBox x={61} y={67} w={46} h={25} />
+        </>
+      );
+    }
+    case 'kwgt-items':
+      return (
+        <>
+          <KwgtBody topIcons={['menu', null, null, null, 'save', 'history', 'plus']} rail="Root" preview={<PictureIcon x={60} y={78} />} />
+          <KwgtTabs names={['ITEMS', 'BACKGROUND', 'LAYER']} />
+          <rect x={13} y={151} width={2} height={9} fill={K.faint} />
+          <rect x={19} y={152} width={7} height={7} rx={1} fill={K.text} />
+          <Label x={30} y={155} fill={K.text} size={5.5}>Image</Label>
+          <Label x={30} y={161} fill={K.sub} size={4.2}>Image 200x200</Label>
+          <rect x={101} y={152} width={6} height={6} fill="none" stroke={K.text} strokeWidth={0.8} />
+          <TapBox x={17} y={150} w={60} h={13} />
+        </>
+      );
+    case 'kwgt-bitmap':
+      return (
+        <>
+          <KwgtBody topIcons={['back', null, null, 'copy', 'lock', 'globe', 'calc']} rail="Image" preview={<PictureIcon x={60} y={78} selected />} />
+          <KwgtTabs names={['BITMAP', 'POSITION', 'TOUCH']} />
+          <KwgtRows bitmap="Pick Image" checked width="100" />
+          <TapBox x={101} y={150} w={6} h={6} n={1} />
+          <Tap x={103} y={26.5} r={7} n={2} />
+        </>
+      );
+    case 'kwgt-formula':
+      return (
+        <>
+          <rect x={9} y={12} width={102} height={196} fill={K.bg} />
+          <rect x={9} y={12} width={102} height={21} fill={K.bar} />
+          <KwgtIcon kind="menu" x={17} y={26.5} />
+          <KwgtIcon kind="gear" x={79} y={26.5} />
+          <KwgtIcon kind="star" x={91} y={26.5} />
+          <KwgtIcon kind="check" x={103} y={26.5} />
+          <Label x={13} y={42} fill={K.text} size={5} weight={600}>Text Preview</Label>
+          <rect x={13} y={45} width={94} height={9} fill={K.card} />
+          <Label x={13} y={63} fill={K.text} size={5} weight={600}>Formula Editor</Label>
+          <rect x={13} y={66} width={94} height={30} fill={K.card} />
+          <Label x={15} y={72} fill={K.sub} size={3.8}>You can use file:///localpath or http://url</Label>
+          <rect x={15} y={75} width={90} height={12} rx={1} fill="#fef3c7" />
+          <Label x={17} y={80} size={4.2} fill={INK}>https://…/api/widget/image?key=pmw_…</Label>
+          <Label x={17} y={85} size={4.2} fill={INK}>&amp;size=wide&amp;t=$df(yyMMddHH)$</Label>
+          <circle cx={37} cy={91.5} r={2} fill="none" stroke={K.sub} strokeWidth={0.7} />
+          <circle cx={60} cy={91.5} r={2} fill={K.sub} />
+          <circle cx={83} cy={91.5} r={2} fill="none" stroke={K.sub} strokeWidth={0.7} />
+          <Label x={13} y={105} fill={K.text} size={5} weight={600}>Examples</Label>
+          {[0, 1, 2, 3].map((r) =>
+            [0, 1].map((c) => <rect key={`${r}-${c}`} x={13 + c * 48} y={109 + r * 19} width={46} height={16} fill={K.card} />),
+          )}
+          <KwgtAd />
+          <TapBox x={15} y={75} w={90} h={12} n={1} />
+          <Tap x={103} y={26.5} r={7} n={2} />
+        </>
+      );
+    case 'kwgt-width':
+      return (
+        <>
+          <KwgtBody topIcons={['menu', null, null, null, null, 'save', 'history']} rail="Image" preview={<MiniWidget x={23} y={62} w={74} />} />
+          <KwgtTabs names={['BITMAP', 'POSITION', 'TOUCH']} />
+          <KwgtRows bitmap="https://…/api/widget/…" width="360" />
+          <Tap x={89.5} y={183} r={5} n={1} />
+          <Tap x={91} y={26.5} r={7} n={2} />
         </>
       );
   }
+}
+
+/** KWGT's own dark palette, taken from the screenshots. */
+const K = { bg: '#333333', bar: '#454545', rail: '#2b2b2b', card: '#4a4a4a', preview: '#454545', text: '#e5e7eb', sub: '#a3a3a3', faint: '#6b6b6b', blue: '#60a5fa' };
+
+type KwgtIconKind = 'menu' | 'save' | 'history' | 'plus' | 'back' | 'copy' | 'lock' | 'globe' | 'calc' | 'gear' | 'star' | 'check';
+
+/** The top-bar icons, simplified to a few strokes each. */
+function KwgtIcon({ kind, x, y }: { kind: KwgtIconKind; x: number; y: number }) {
+  const s = { fill: 'none', stroke: K.text, strokeWidth: 0.9, strokeLinecap: 'round' as const };
+  switch (kind) {
+    case 'menu':
+      return <path d={`M${x - 3.5} ${y - 2.5}h7M${x - 3.5} ${y}h7M${x - 3.5} ${y + 2.5}h7`} {...s} />;
+    case 'save':
+      return <g><rect x={x - 3} y={y - 3} width={6} height={6} rx={0.8} fill={K.text} /><circle cx={x} cy={y + 0.8} r={1.1} fill={K.bar} /></g>;
+    case 'history':
+      return <path d={`M${x - 2.8} ${y}a2.8 2.8 0 1 0 0.8 -2M${x} ${y - 1.4}v1.6l1 0.8`} {...s} />;
+    case 'plus':
+      return <path d={`M${x - 3.5} ${y}h7M${x} ${y - 3.5}v7`} {...s} strokeWidth={1.1} />;
+    case 'back':
+      return <path d={`M${x + 3.5} ${y}h-7M${x - 1} ${y - 3}l-2.5 3 2.5 3`} {...s} />;
+    case 'copy':
+      return <g {...s}><rect x={x - 2.5} y={y - 1.5} width={5} height={5} /><path d={`M${x - 1.5} ${y - 3.5}h4v4`} /></g>;
+    case 'lock':
+      return <g><rect x={x - 2.5} y={y - 0.5} width={5} height={4} rx={0.6} fill={K.text} /><path d={`M${x - 1.5} ${y - 0.5}v-1.3a1.5 1.5 0 0 1 3 0v1.3`} {...s} /></g>;
+    case 'globe':
+      return <g {...s}><circle cx={x} cy={y} r={3} /><ellipse cx={x} cy={y} rx={1.3} ry={3} /></g>;
+    case 'calc':
+      return (
+        <g>
+          <rect x={x - 2.5} y={y - 3.5} width={5} height={7} rx={0.6} fill="none" stroke={K.text} strokeWidth={0.8} />
+          <rect x={x - 1.6} y={y - 2.7} width={3.2} height={1.4} fill={K.text} />
+          {[0, 1, 2].map((r) => [0, 1].map((c) => <circle key={`${r}${c}`} cx={x - 0.9 + c * 1.8} cy={y + 0.2 + r * 1.2} r={0.4} fill={K.text} />))}
+        </g>
+      );
+    case 'gear':
+      return <g><circle cx={x} cy={y} r={2.8} fill="none" stroke={K.text} strokeWidth={1.4} strokeDasharray="1.2 0.8" /><circle cx={x} cy={y} r={1} fill={K.text} /></g>;
+    case 'star':
+      return <path d={`M${x} ${y - 3.2}l0.95 2.1 2.3 0.2-1.75 1.5 0.55 2.25L${x} ${y + 1.6}l-2.05 1.25 0.55-2.25-1.75-1.5 2.3-0.2z`} fill={K.text} />;
+    case 'check':
+      return <path d={`M${x - 3} ${y}l2 2.2 4-4.4`} {...s} strokeWidth={1.1} />;
+  }
+}
+
+/** A picture placeholder, as KWGT draws an Image with no bitmap yet. */
+function PictureIcon({ x, y, selected = false }: { x: number; y: number; selected?: boolean }) {
+  return (
+    <g>
+      {selected && <rect x={x - 7.5} y={y - 7.5} width={15} height={15} fill="none" stroke={K.blue} strokeWidth={0.8} />}
+      <rect x={x - 6} y={y - 6} width={12} height={12} rx={2} fill="#d4d4d4" stroke="#111111" strokeWidth={0.8} />
+      <path d={`M${x - 4} ${y + 3}l2.5-3 1.5 1.5 2-2.5 2 4z`} fill="#333333" />
+    </g>
+  );
+}
+
+/** Editor chrome: top bar, the item rail on the left, tools on the right, the preview between. */
+function KwgtBody({ topIcons, rail, preview }: { topIcons: (KwgtIconKind | null)[]; rail: string; preview: ReactNode }) {
+  return (
+    <>
+      <rect x={9} y={12} width={102} height={196} fill={K.bg} />
+      <rect x={9} y={12} width={102} height={21} fill={K.bar} />
+      {topIcons.map((kind, i) => (kind ? <KwgtIcon key={i} kind={kind} x={17 + i * 14.3} y={26.5} /> : null))}
+      <rect x={9} y={33} width={10} height={104} fill={K.rail} />
+      <rect x={11} y={36} width={6} height={4} rx={0.6} fill={K.text} />
+      <text x={14} y={44} fontSize={4.6} fill={K.text} transform={`rotate(90 14 44)`}>{rail}</text>
+      <rect x={101} y={33} width={10} height={104} fill={K.rail} />
+      {[38, 46, 54, 62, 70].map((y) => (
+        <rect key={y} x={103.5} y={y} width={5} height={5} rx={0.6} fill="none" stroke={K.text} strokeWidth={0.6} />
+      ))}
+      <rect x={21} y={55} width={78} height={46} fill={K.preview} />
+      {preview}
+      <KwgtAd />
+    </>
+  );
+}
+
+/** The tab row under the preview; the first is the open one. */
+function KwgtTabs({ names }: { names: string[] }) {
+  return (
+    <>
+      {names.map((name, i) => {
+        // Placed by the length of the names before it, so a long one
+        // ("BACKGROUND") does not run into the next.
+        const x = 13 + names.slice(0, i).reduce((sum, before) => sum + before.length * 2.9 + 5, 0);
+        return <Label key={name} x={x} y={144} fill={i === 0 ? K.text : K.sub} size={4.2}>{name}</Label>;
+      })}
+      <rect x={11} y={146} width={names[0].length * 2.9 + 4} height={0.8} fill={K.blue} />
+    </>
+  );
+}
+
+/** The Image item's BITMAP tab: Bitmap, Mode, Sizing, Width. */
+function KwgtRows({ bitmap, checked = false, width }: { bitmap: string; checked?: boolean; width: string }) {
+  const rows: [string, string][] = [
+    ['Bitmap', bitmap],
+    ['Mode', 'Bitmap'],
+    ['Sizing', 'Fit width'],
+  ];
+  return (
+    <>
+      {rows.map(([name, value], i) => {
+        const y = 150 + i * 10;
+        return (
+          <g key={name}>
+            <Label x={13} y={y + 4.5} fill={K.text} size={4.6}>{name}</Label>
+            <Label x={33} y={y + 4.5} fill={K.text} size={4.6}>{value}</Label>
+            {i === 0 && checked ? (
+              <g>
+                <rect x={101} y={y} width={6} height={6} fill="#3b82f6" />
+                <path d={`M${102.4} ${y + 3}l1.2 1.3 2.2-2.6`} fill="none" stroke="#ffffff" strokeWidth={0.8} />
+              </g>
+            ) : (
+              <rect x={101} y={y} width={6} height={6} fill="none" stroke={K.text} strokeWidth={0.6} />
+            )}
+          </g>
+        );
+      })}
+      <Label x={13} y={184.5} fill={K.text} size={4.6}>Width</Label>
+      {/* ⏪ − value + ⏩, drawn: the arrow characters come out as emoji. */}
+      <path d="M38 180.5l-2.5 2.5 2.5 2.5zM35.5 180.5l-2.5 2.5 2.5 2.5z" fill={K.text} />
+      <path d="M42 183h3" stroke={K.text} strokeWidth={0.8} />
+      <Label x={48} y={184.5} fill={K.text} size={4.6}>{width}</Label>
+      <path d="M79 183h3.4M80.7 181.3v3.4" stroke={K.text} strokeWidth={0.8} />
+      <path d="M87 180.5l2.5 2.5-2.5 2.5zM89.5 180.5l2.5 2.5-2.5 2.5z" fill={K.text} />
+      <rect x={101} y={180} width={6} height={6} fill="none" stroke={K.text} strokeWidth={0.6} />
+    </>
+  );
+}
+
+/** The free version's advert strip along the bottom. */
+function KwgtAd() {
+  return (
+    <>
+      <rect x={9} y={189} width={102} height={19} fill="#1f1f1f" />
+      <Label x={60} y={200.5} fill="#6b6b6b" size={4.5} anchor="middle">โฆษณา (KWGT ฟรี)</Label>
+    </>
+  );
 }
 
 export function PhoneArt({ art, os }: { art: StepArt; os: 'ios' | 'android' }) {
