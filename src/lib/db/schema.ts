@@ -27,6 +27,7 @@ export const SCHEMAS = {
   week_leads: [...COMMON_COLUMNS, 'week_key', 'user_id'],
   term_breaks: [...COMMON_COLUMNS, 'name', 'start_date', 'end_date'],
   feedback: [...COMMON_COLUMNS, 'body', 'category', 'status'],
+  widget_keys: [...COMMON_COLUMNS, 'user_id', 'key_hash', 'last_used_at'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -285,6 +286,21 @@ export type FeedbackRecord = BaseRecord & {
   category: string;
   /** 'open' while it still wants an answer, 'done' once it has had one. */
   status: string;
+};
+
+/**
+ * The key a person's phone widget uses to read their summary from
+ * /api/widget. At most one per person: making a new one replaces the old.
+ *
+ * Only the SHA-256 of the key is stored. The key itself is shown once, when it
+ * is made, and cannot be read back -- a copy of the sheet is not a copy of
+ * anybody's widget access.
+ */
+export type WidgetKeyRecord = BaseRecord & {
+  user_id: string;
+  key_hash: string;
+  /** Lab-day granularity (YYYY-MM-DD): updated at most once a day, see api/widget. */
+  last_used_at: string;
 };
 
 /**
