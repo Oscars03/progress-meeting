@@ -193,6 +193,15 @@ export function kwgtImageUrl(appUrl: string, key: string, size: 'wide' | 'square
   return `${appUrl.replace(/\/+$/, '')}/api/widget/image?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}&t=$df(yyMMddHH)$&r=$gv(refresh)$`;
 }
 
+/**
+ * The same picture for an app that just fetches an address -- Web Image
+ * Widget on Android, which refreshes it every 15 minutes and on a double tap
+ * by itself, so the address needs none of KWGT's changing parts.
+ */
+export function plainImageUrl(appUrl: string, key: string, size: 'wide' | 'square', theme: 'light' | 'dark'): string {
+  return `${appUrl.replace(/\/+$/, '')}/api/widget/image?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}`;
+}
+
 /** Text formulas, one per section -- the plain alternative to the image. */
 export function kwgtFormulas(appUrl: string, key: string): { label: string; formula: string }[] {
   const url = `${appUrl.replace(/\/+$/, '')}/api/widget?key=${encodeURIComponent(key)}`;

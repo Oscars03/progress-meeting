@@ -24,16 +24,17 @@ export type StepArt =
   | 'ios-gallery'
   | 'ios-edit-widget'
   | 'android-store'
+  | 'wiw-store'
+  | 'wiw-picker'
+  | 'wiw-home'
   | 'android-home-menu'
   | 'android-picker'
   | 'android-explore'
   | 'kwgt-editor'
   | 'kwgt-add-menu'
-  | 'kwgt-items'
   | 'kwgt-bitmap'
   | 'kwgt-formula'
   | 'kwgt-width'
-  | 'kwgt-touch-link'
   | 'kwgt-add-global'
   | 'kwgt-flow'
   | 'kwgt-touch-flow';
@@ -111,14 +112,20 @@ function MiniWidget({ x, y, w }: { x: number; y: number; w: number }) {
 function Screen({ art }: { art: StepArt }) {
   switch (art) {
     case 'ios-store':
-    case 'android-store': {
+    case 'android-store':
+    case 'wiw-store': {
       const ios = art === 'ios-store';
+      const app = ios
+        ? { icon: 'S', color: '#111827', name: 'Scriptable', size: 7.5 }
+        : art === 'wiw-store'
+          ? { icon: 'W', color: '#0d9488', name: 'Web Image Widget', size: 6 }
+          : { icon: 'K', color: '#7c3aed', name: 'KWGT', size: 7.5 };
       return (
         <>
           <Bar x={20} y={26} w={40} h={5} fill={INK} />
-          <rect x={20} y={44} width={30} height={30} rx={7} fill={ios ? '#111827' : '#7c3aed'} />
-          <Label x={35} y={63} fill="#ffffff" size={12} weight={600} anchor="middle">{ios ? 'S' : 'K'}</Label>
-          <Label x={56} y={55} size={7.5}>{ios ? 'Scriptable' : 'KWGT'}</Label>
+          <rect x={20} y={44} width={30} height={30} rx={7} fill={app.color} />
+          <Label x={35} y={63} fill="#ffffff" size={12} weight={600} anchor="middle">{app.icon}</Label>
+          <Label x={54} y={55} size={app.size}>{app.name}</Label>
           <Bar x={56} y={60} w={34} h={3} />
           <rect x={56} y={66} width={34} height={12} rx={6} fill={ios ? BLUE : GREEN} />
           <Label x={73} y={74.5} fill="#ffffff" size={6.5} anchor="middle">{ios ? 'รับ' : 'ติดตั้ง'}</Label>
@@ -170,12 +177,14 @@ function Screen({ art }: { art: StepArt }) {
         </>
       );
     case 'ios-gallery':
-    case 'android-picker': {
+    case 'android-picker':
+    case 'wiw-picker': {
       const ios = art === 'ios-gallery';
+      const name = ios ? 'Scriptable' : art === 'wiw-picker' ? 'Web Image Widget' : 'KWGT  4×2';
       return (
         <>
           <rect x={9} y={52} width={102} height={156} rx={12} fill="#ffffff" />
-          <Label x={60} y={68} size={7.5} weight={600} anchor="middle">{ios ? 'Scriptable' : 'KWGT  4×2'}</Label>
+          <Label x={60} y={68} size={7.5} weight={600} anchor="middle">{name}</Label>
           <MiniWidget x={22} y={80} w={76} />
           <g>
             <circle cx={54} cy={126} r={2} fill={INK} />
@@ -203,6 +212,21 @@ function Screen({ art }: { art: StepArt }) {
           <rect x={20} y={136} width={80} height={12} rx={3} fill="#fef3c7" stroke="#f59e0b" strokeWidth={0.8} />
           <Label x={24} y={144.5} size={6.5} fill={INK}>pmw_••••••••</Label>
           <TapBox x={20} y={136} w={80} h={12} />
+        </>
+      );
+    case 'wiw-home':
+      // The widget in place on the home screen. Web Image Widget refreshes
+      // it every 15 minutes and on a double tap -- its store listing's own
+      // words. Its set-up screen is not drawn until it has been seen.
+      return (
+        <>
+          <MiniWidget x={16} y={34} w={88} />
+          {Array.from({ length: 8 }, (_, i) => (
+            <rect key={i} x={20 + (i % 4) * 22} y={96 + Math.floor(i / 4) * 26} width={15} height={15} rx={8} fill={['#fca5a5', '#93c5fd', '#86efac', '#fcd34d'][i % 4]} />
+          ))}
+          <Tap x={60} y={55} r={9} />
+          <Tap x={60} y={55} r={14} />
+          <Label x={60} y={160} size={6.5} anchor="middle">แตะ 2 ครั้ง = รีเฟรช</Label>
         </>
       );
     case 'android-home-menu':
@@ -304,19 +328,6 @@ function Screen({ art }: { art: StepArt }) {
         </>
       );
     }
-    case 'kwgt-items':
-      return (
-        <>
-          <KwgtBody topIcons={['menu', null, null, null, 'save', 'history', 'plus']} rail="Root" preview={<PictureIcon x={60} y={78} />} />
-          <KwgtTabs names={['ITEMS', 'BACKGROUND', 'LAYER']} />
-          <rect x={13} y={151} width={2} height={9} fill={K.faint} />
-          <rect x={19} y={152} width={7} height={7} rx={1} fill={K.text} />
-          <Label x={30} y={155} fill={K.text} size={5.5}>Image</Label>
-          <Label x={30} y={161} fill={K.sub} size={4.2}>Image 200x200</Label>
-          <rect x={101} y={152} width={6} height={6} fill="none" stroke={K.text} strokeWidth={0.8} />
-          <TapBox x={17} y={150} w={60} h={13} />
-        </>
-      );
     case 'kwgt-bitmap':
       return (
         <>
@@ -361,24 +372,15 @@ function Screen({ art }: { art: StepArt }) {
         <>
           <KwgtBody topIcons={['menu', null, null, null, null, 'save', 'history']} rail="Image" preview={<MiniWidget x={23} y={62} w={74} />} />
           <KwgtTabs names={['BITMAP', 'POSITION', 'TOUCH']} />
-          <KwgtRows bitmap="https://…/api/widget/…" width="360" />
+          {/* Fit height, Height 304: how the owner made it fill, from their screenshot. */}
+          <KwgtRows bitmap="https://…/api/widget/…" width="304" fit="height" />
           <Tap x={89.5} y={183} r={5} n={1} />
           <Tap x={88.5} y={26.5} r={7} n={2} />
         </>
       );
-    // 11-14, from the owner's screenshots of the TOUCH tab, the Add Global
-    // dialog and the Flow editor. The Trigger Flow chooser itself was not
-    // photographed, so step 14 shows its result -- the second TOUCH row.
-    case 'kwgt-touch-link':
-      return (
-        <>
-          <KwgtBody topIcons={['menu', null, null, null, 'save', 'history', 'plus']} rail="Image" preview={<MiniWidget x={23} y={62} w={74} />} />
-          <KwgtTabs names={['BITMAP', 'POSITION', 'TOUCH']} active={2} />
-          <TouchRow y={150} action="Open Link" />
-          <Tap x={102.8} y={26.5} r={7} n={1} />
-          <TapBox x={37} y={150} w={32} h={6} n={2} />
-        </>
-      );
+    // KWGT steps 6-7, from the owner's screenshots of the TOUCH tab, the Add
+    // Global dialog and the Flow editor. The Trigger Flow chooser itself was
+    // not photographed, so step 7 shows its result -- both TOUCH rows.
     case 'kwgt-add-global':
       return (
         <>
@@ -556,11 +558,11 @@ function FlowCard({ y, icon, title, detail }: { y: number; icon: string; title: 
 }
 
 /** The Image item's BITMAP tab: Bitmap, Mode, Sizing, Width. */
-function KwgtRows({ bitmap, checked = false, width }: { bitmap: string; checked?: boolean; width: string }) {
+function KwgtRows({ bitmap, checked = false, width, fit = 'width' }: { bitmap: string; checked?: boolean; width: string; fit?: 'width' | 'height' }) {
   const rows: [string, string][] = [
     ['Bitmap', bitmap],
     ['Mode', 'Bitmap'],
-    ['Sizing', 'Fit width'],
+    ['Sizing', fit === 'height' ? 'Fit height' : 'Fit width'],
   ];
   return (
     <>
@@ -581,7 +583,7 @@ function KwgtRows({ bitmap, checked = false, width }: { bitmap: string; checked?
           </g>
         );
       })}
-      <Label x={13} y={184.5} fill={K.text} size={4.6}>Width</Label>
+      <Label x={13} y={184.5} fill={K.text} size={4.6}>{fit === 'height' ? 'Height' : 'Width'}</Label>
       {/* ⏪ − value + ⏩, drawn: the arrow characters come out as emoji. */}
       <path d="M38 180.5l-2.5 2.5 2.5 2.5zM35.5 180.5l-2.5 2.5 2.5 2.5z" fill={K.text} />
       <path d="M42 183h3" stroke={K.text} strokeWidth={0.8} />
