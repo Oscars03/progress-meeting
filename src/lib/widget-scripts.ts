@@ -14,6 +14,8 @@
  * JavaScript too, and one stray backtick or `${` in it would be evaluated here
  * instead of on the phone.
  */
+import type { WidgetSize } from './widget-svg';
+
 const SCRIPTABLE_LINES = [
   '// Progress Meeting — widget for Scriptable',
   '// Long-press the widget → Edit Widget → put your widget key in "Parameter".',
@@ -189,7 +191,7 @@ export function scriptableScript(appUrl: string): string {
  *
  * The server ignores both.
  */
-export function kwgtImageUrl(appUrl: string, key: string, size: 'wide' | 'square', theme: 'light' | 'dark'): string {
+export function kwgtImageUrl(appUrl: string, key: string, size: WidgetSize, theme: 'light' | 'dark'): string {
   return `${appUrl.replace(/\/+$/, '')}/api/widget/image?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}&t=$df(yyMMddHH)$&r=$gv(refresh)$`;
 }
 
@@ -198,7 +200,7 @@ export function kwgtImageUrl(appUrl: string, key: string, size: 'wide' | 'square
  * out of a web page and refreshes it by itself -- so the address needs none
  * of KWGT's changing parts. See api/widget/page for why a page and not the PNG.
  */
-export function pageUrl(appUrl: string, key: string, size: 'wide' | 'square', theme: 'light' | 'dark'): string {
+export function pageUrl(appUrl: string, key: string, size: WidgetSize, theme: 'light' | 'dark'): string {
   return `${appUrl.replace(/\/+$/, '')}/api/widget/page?key=${encodeURIComponent(key)}&size=${size}&theme=${theme}`;
 }
 

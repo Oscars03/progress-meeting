@@ -4,6 +4,7 @@ import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createWidgetKeyAction, revokeWidgetKeyAction } from './widget-actions';
 import { kwgtFormulas, kwgtImageUrl, pageUrl } from '@/lib/widget-scripts';
+import { readWidgetSize, type WidgetSize } from '@/lib/widget-svg';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import Spinner from '@/lib/ui/spinner';
@@ -120,7 +121,8 @@ export default function WidgetCard({
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [os, setOs] = useState<Os>('ios');
-  const [size, setSize] = useState<'wide' | 'square'>('wide');
+  const [size, setSize] = useState<WidgetSize>('wide');
+  const [pageSize, setPageSize] = useState<WidgetSize>('mid');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const copy = async (id: string, text: string) => {
@@ -215,11 +217,15 @@ export default function WidgetCard({
     if (action === 'key') return newKey ? copyButton('key-step', newKey, t('widget.copyKey'), true) : needKey;
     if (action === 'page' || action === 'imageKwgt') {
       if (!newKey) return needKey;
-      const url = action === 'imageKwgt' ? kwgtImageUrl(appUrl, newKey, size, theme) : pageUrl(appUrl, newKey, size, theme);
+      // Each link keeps its own size: AnyWidget's 3×2 is not KWGT's 4×2.
+      const current = action === 'page' ? pageSize : size;
+      const setCurrent = action === 'page' ? setPageSize : setSize;
+      const url = action === 'imageKwgt' ? kwgtImageUrl(appUrl, newKey, current, theme) : pageUrl(appUrl, newKey, current, theme);
       return (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2 text-xs">
-            <select value={size} onChange={(e) => setSize(e.target.value as 'wide' | 'square')} className="border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-900">
+            <select value={current} onChange={(e) => setCurrent(readWidgetSize(e.target.value))} className="border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-900">
+              <option value="mid">{t('widget.size.mid')}</option>
               <option value="wide">{t('widget.size.wide')}</option>
               <option value="square">{t('widget.size.square')}</option>
             </select>
