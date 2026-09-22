@@ -161,11 +161,14 @@ export default function PollGrid({
 
       {!closed && (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-gray-600">
-            {t('polls.answeredCount')}{' '}
-            <span className="font-semibold text-gray-900 tabular-nums">{answered}</span> {t('polls.answeredFrom')}{' '}
-            <span className="tabular-nums">{slots.length}</span> {t('polls.answeredUnit')}
-          </p>
+          {/* "You answered 0 of 3" only means something to somebody asked. */}
+          {canVote && (
+            <p className="text-sm text-gray-600">
+              {t('polls.answeredCount')}{' '}
+              <span className="font-semibold text-gray-900 tabular-nums">{answered}</span> {t('polls.answeredFrom')}{' '}
+              <span className="tabular-nums">{slots.length}</span> {t('polls.answeredUnit')}
+            </p>
+          )}
           <button
             onClick={checkCalendars}
             disabled={isPending}

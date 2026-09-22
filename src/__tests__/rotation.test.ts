@@ -9,6 +9,7 @@ import {
   nextMeeting,
   planWeekLeads,
   weeksRunBy,
+  leadsCurrentOrLater,
 } from '../lib/rotation';
 import { weekKey } from '../lib/week';
 import type { MeetingRecord, TermBreakRecord, UserRecord, WeekLeadRecord } from '../lib/db/schema';
@@ -210,6 +211,23 @@ describe('weeksRunBy', () => {
   it('does not list the current week twice for a lead previewing their own week', () => {
     const leads = [lead(weekKey(), 'stu1')];
     expect(weeksRunBy({ id: 'stu1', previewingLead: true }, leads)).toEqual([weekKey()]);
+  });
+});
+
+// Decides whether the free-time button reads "schedule" or "summary".
+describe('leadsCurrentOrLater', () => {
+  it('counts this week and weeks to come', () => {
+    expect(leadsCurrentOrLater({ id: 'stu1' }, [lead(weekKey(), 'stu1')])).toBe(true);
+    expect(leadsCurrentOrLater({ id: 'stu1' }, [lead('2099-W01', 'stu1')])).toBe(true);
+  });
+
+  // Leading a week once does not make you the one who schedules now.
+  it('does not count a week already over', () => {
+    expect(leadsCurrentOrLater({ id: 'stu1' }, [lead('2020-W01', 'stu1')])).toBe(false);
+  });
+
+  it('is false for somebody who leads nothing', () => {
+    expect(leadsCurrentOrLater({ id: 'prof' }, [lead(weekKey(), 'stu1')])).toBe(false);
   });
 });
 

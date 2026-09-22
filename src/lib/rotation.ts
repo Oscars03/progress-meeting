@@ -107,6 +107,18 @@ export function weeksRunBy(actor: LeadActor, leads: WeekLeadRecord[]): string[] 
   return held.includes(current) ? held : [...held, current];
 }
 
+/**
+ * Whether this caller runs this week or one still to come.
+ *
+ * For wording, not for rights: the actions still ask actsAsWeekLead about the
+ * week in hand. A week led months ago does not make someone the person who
+ * schedules the next meeting, so it should not change what their buttons say.
+ */
+export function leadsCurrentOrLater(actor: LeadActor, leads: WeekLeadRecord[]): boolean {
+  const now = weekKey();
+  return weeksRunBy(actor, leads).some((week) => week >= now);
+}
+
 /** The most recently assigned week, or null when none has been. */
 function latestLead(leads: WeekLeadRecord[]): WeekLeadRecord | null {
   let latest: WeekLeadRecord | null = null;

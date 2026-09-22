@@ -3,11 +3,13 @@ import BackLink from '@/lib/ui/back-link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
-import { weeksRunBy } from '@/lib/rotation';
+import { leadsCurrentOrLater, weeksRunBy } from '@/lib/rotation';
+import { memberIds } from '@/lib/members';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
   AvailabilityVoteRecord,
+  UserRecord,
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import WeekAvailabilityGrid from './week-availability';
@@ -21,11 +23,12 @@ export default async function PollsPage() {
 
   // The current week is read on the server so the grid arrives filled in,
   // rather than rendering empty and fetching from an effect.
-  const [polls, slots, votes, leads, availability] = await Promise.all([
+  const [polls, slots, votes, leads, users, availability] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
     SheetRepo.find<AvailabilitySlotRecord>('availability_slots'),
     SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
     SheetRepo.find<WeekLeadRecord>('week_leads'),
+    SheetRepo.find<UserRecord>('users'),
     weekAvailabilityAction(),
   ]);
 
@@ -33,6 +36,15 @@ export default async function PollsPage() {
   const leadWeeks = weeksRunBy(actor, leads);
   // Asking is the lead's job, so the page offers it to whoever leads a week.
   const canManage = isAdmin || leadWeeks.length > 0;
+  // Only the students are asked to confirm a time (see pollVoters). A
+  // professor sees who is free, but a list of polls marked "you have not
+  // answered" asks them for something the vote would refuse.
+  // An admin previewing a role sees that role's page, not admin's.
+  const isVoter = actor.previewing ? actor.role === 'student' : memberIds(users).has(actor.id);
+  const showPolls = canManage || isVoter;
+  // Whoever schedules the coming meeting reads "schedule"; everybody else
+  // comes here to see when people are free, and the heading says that.
+  const schedules = isAdmin || leadsCurrentOrLater(actor, leads);
 
   const rows = polls
     .map((poll) => {
@@ -59,9 +71,15 @@ export default async function PollsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t('polls.header')}</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {schedules ? t('polls.header') : t('polls.headerSummary')}
+          </h2>
           <p className="text-sm text-gray-500 mt-1">
-            {t('polls.headerDesc')}
+            {schedules
+              ? t('polls.headerDesc')
+              : isVoter
+                ? t('polls.headerDescVoter')
+                : t('polls.headerDescViewer')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -77,7 +95,7 @@ export default async function PollsPage() {
         <WeekAvailabilityGrid initial={availability} leadWeeks={leadWeeks} isAdmin={isAdmin} />
       </div>
 
-      {rows.length === 0 && (
+      {showPolls && rows.length === 0 && (
         <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-100">
           <p className="text-gray-500 mb-2">
             {t('polls.empty')}
@@ -88,7 +106,7 @@ export default async function PollsPage() {
         </div>
       )}
 
-      {open.length > 0 && (
+      {showPolls && open.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">{t('polls.openLabel')}</h3>
           <ul className="space-y-2">
@@ -122,7 +140,7 @@ export default async function PollsPage() {
         </section>
       )}
 
-      {closed.length > 0 && (
+      {showPolls && closed.length > 0 && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">{t('polls.closedLabel')}</h3>
           <ul className="space-y-2">
