@@ -449,8 +449,9 @@ export default async function DashboardPage() {
 
       {/* Your place in the running order. Shown even when you have nothing
           down, because "you have not added a topic" is the more useful of the
-          two answers in the days before a meeting. */}
-      {!currentBreak && (
+          two answers in the days before a meeting. Not to a professor: they
+          listen to the order rather than take a place in it. */}
+      {!currentBreak && actor.role !== 'professor' && (
         <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 className="font-semibold text-gray-900">{t('dashboard.yourTurn')}</h3>

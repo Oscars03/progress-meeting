@@ -40,9 +40,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="h-dvh flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
       <NavDepth />
-      {/* realRole: an admin previewing another role still needs Users, where
-          the preview is switched off. */}
-      <AppNav userName={userName} isAdmin={actor?.realRole === 'admin'} />
+      {/* The role being looked through, not realRole: an admin previewing a
+          professor sees a professor's menu, with no admin pages in it. The
+          way back is the banner's own button, so Users is not needed for it. */}
+      <AppNav userName={userName} isAdmin={actor?.role === 'admin'} />
 
       {/* Inside the scrolling column, above the page: the banner belongs to
           what is being looked at, and pinning it over the nav would cover the

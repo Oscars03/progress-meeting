@@ -11,7 +11,7 @@ import { requirePageSession } from '@/lib/auth-guard';
 import { labMembers } from '@/lib/members';
 import { myEvents, busyTimes, type GoogleEvent } from '@/lib/google/calendar';
 import type { PersonalEventRecord, UserRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
-import { planWeekLeads } from '@/lib/rotation';
+import { leadsCurrentOrLater, planWeekLeads } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
@@ -40,6 +40,9 @@ export default async function MeetingsPage() {
 
   // Booking a meeting outright skips the poll, so it is admin's escape hatch.
   const canSchedule = actor.role === 'admin';
+  // The button to the free-time page says what the reader goes there to do:
+  // schedule, for whoever runs this week or a coming one; look, for the rest.
+  const schedules = canSchedule || leadsCurrentOrLater(actor, weekLeads);
 
   const userMap = new Map(users.map(u => [u.id, u.name]));
 
@@ -144,7 +147,7 @@ export default async function MeetingsPage() {
             href="/meetings/polls"
             className="inline-flex items-center justify-center h-10 px-4 text-sm sm:text-base font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition whitespace-nowrap"
           >
-            {t('meetings.findTime')}
+            {schedules ? t('meetings.findTime') : t('meetings.freeTimeSummary')}
           </Link>
 
           {/* Booking outright is the admin's escape hatch around the poll, and
