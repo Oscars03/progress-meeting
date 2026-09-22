@@ -13,7 +13,8 @@
     "db:migrate-passwords": "node --env-file=.env.local --import tsx scripts/migrate-passwords.ts",
     "db:trim-audit": "node --env-file=.env.local --import tsx scripts/trim-audit-log.ts",
     "db:rename-meetings": "node --env-file=.env.local --import tsx scripts/rename-dated-meetings.ts",
-    "changelog": "node --import tsx scripts/build-changelog.ts"
+    "changelog": "node --import tsx scripts/build-changelog.ts",
+    "postinstall": "node scripts/patch-openid-client.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.15",
