@@ -48,6 +48,32 @@ export const APP_VERSION = GENERATED_VERSION;
  * older entries scroll off and nobody will miss them.
  */
 const TH_BY_SUBJECT: Record<string, string> = {
+  // 2026-09-22 -- shipped without a Changelog-TH trailer.
+  'Android widget in three steps with Web Image Widget; KWGT in seven':
+    'วิดเจ็ต Android ตั้งง่ายขึ้น — ใช้แอป Web Image Widget แค่ 3 ขั้น (แบบ KWGT เหลือ 7 ขั้น)',
+  "the login page shows the lab's mark and name": 'หน้าเข้าสู่ระบบมีโลโก้และชื่อแล็บแล้ว',
+  'sidebar links stay compact; Settings sub-menu opens on every visit':
+    'เมนูด้านซ้ายไม่ห่างกันแล้ว และเมนูย่อยการตั้งค่าเปิดเองทุกครั้งที่เข้า',
+  'Settings becomes five pages with a sub-menu in the sidebar': 'การตั้งค่าแยกเป็น 5 หน้า เลือกได้จากเมนูย่อยในแถบซ้าย',
+  'pages use the full width; users listed by role, one colour each':
+    'หน้าต่าง ๆ กว้างเต็มจอ และรายชื่อผู้ใช้เรียงตามสิทธิ์ แยกสีแต่ละสิทธิ์',
+  'tapping the Android widget opens the site and refreshes it': 'แตะวิดเจ็ต Android แล้วเปิดเว็บและรีเฟรชข้อมูลทันที',
+  "Android steps follow KWGT's real editor, screen by screen": 'ภาพขั้นตอน Android ตรงกับหน้าจอ KWGT จริงทุกขั้น',
+  "Android set-up shows KWGT's Explore screen and its + Create button": 'เพิ่มขั้นตอนหน้า Explore และปุ่ม + Create ของ KWGT',
+  'widget set-up links to the App Store and Play Store again': 'มีปุ่มดาวน์โหลดแอปสำหรับตั้งวิดเจ็ตกลับมาแล้ว',
+  'widget becomes a four-tile dashboard; Settings shows every step':
+    'วิดเจ็ตเป็นแดชบอร์ด 4 ช่อง พร้อมภาพทุกขั้นตอนในหน้าการตั้งค่า',
+  'phone widget for iPhone and Android':
+    'วิดเจ็ตบนมือถือ iPhone และ Android — ดูประชุม ลำดับนำเสนอ งาน และโพลได้จากหน้าจอโฮม',
+  'serve /favicon.ico so clients that skip <link rel="icon"> stop getting 404':
+    'ไอคอนเว็บขึ้นครบทุกเบราว์เซอร์และในพรีวิวลิงก์',
+  'a signed-out visit to a page redirects without logging an error':
+    'เปิดหน้าตอนยังไม่ได้เข้าสู่ระบบ จะพาไปหน้าเข้าสู่ระบบอย่างเรียบร้อย',
+  'Google sign-in no longer logs a url.parse() deprecation as an error':
+    'เข้าสู่ระบบด้วย Google ไม่ทิ้งคำเตือนไว้ใน log ของระบบแล้ว',
+  "match branches with a slash -- '*' stops at '/', '**' does not":
+    'ไม่สร้างเว็บทดลองของกิ่งอื่นอีก เหลือเฉพาะเว็บจริง',
+
   "the what's-new panel folds into the days things shipped":
     'แถบ "มีอะไรใหม่" จัดกลุ่มตามวัน กดเปิดดูย้อนหลังได้ทีละวัน',
   'put back the 33 changelog entries a shallow clone dropped':
