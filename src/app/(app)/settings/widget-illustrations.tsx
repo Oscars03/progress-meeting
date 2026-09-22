@@ -26,6 +26,7 @@ export type StepArt =
   | 'android-store'
   | 'android-home-menu'
   | 'android-picker'
+  | 'android-explore'
   | 'android-add-image'
   | 'android-bitmap';
 
@@ -197,6 +198,42 @@ function Screen({ art }: { art: StepArt }) {
           <Label x={40} y={146} size={6.5}>การตั้งค่า</Label>
           <TapBox x={34} y={119} w={54} h={14} />
           <Tap x={60} y={185} hold />
+        </>
+      );
+    case 'android-explore':
+      // KWGT's own start screen, drawn from a screenshot of the app: dark,
+      // "Explore" at the top, Create and Import side by side, the widget
+      // just placed shown as "Currently editing".
+      return (
+        <>
+          <rect x={9} y={12} width={102} height={196} fill="#303030" />
+          <rect x={9} y={12} width={102} height={30} fill="#3a3a3a" />
+          <rect x={16} y={27} width={4} height={4} rx={1} fill="#e5e7eb" />
+          <rect x={21} y={27} width={4} height={4} rx={1} fill="#e5e7eb" />
+          <rect x={16} y={32} width={4} height={4} rx={1} fill="#e5e7eb" />
+          <rect x={21} y={32} width={4} height={4} rx={1} fill="#9ca3af" />
+          <Label x={30} y={35} fill="#f9fafb" size={9} weight={600}>Explore</Label>
+          <circle cx={94} cy={31} r={3.5} fill="none" stroke="#f9fafb" strokeWidth={1} />
+          <rect x={15} y={48} width={42} height={16} rx={3} fill="none" stroke="#9ca3af" strokeWidth={0.7} />
+          <Label x={36} y={58.5} fill="#f9fafb" size={6.5} anchor="middle">+  Create</Label>
+          <rect x={63} y={48} width={42} height={16} rx={3} fill="none" stroke="#9ca3af" strokeWidth={0.7} />
+          <Label x={84} y={58.5} fill="#f9fafb" size={6.5} anchor="middle">Import</Label>
+          <rect x={15} y={70} width={90} height={26} rx={6} fill="#424242" />
+          <Label x={21} y={81} fill="#f9fafb" size={7} weight={600}>Widget 64</Label>
+          <circle cx={23.5} cy={89} r={2.6} fill="#3b82f6" />
+          <Label x={29} y={91} fill="#60a5fa" size={5.5}>Currently editing</Label>
+          <Label x={15} y={110} fill="#f9fafb" size={6.5} weight={600}>Discover new packs</Label>
+          <rect x={15} y={115} width={62} height={20} rx={5} fill="#4a2b2b" />
+          <rect x={80} y={115} width={30} height={20} rx={5} fill="#3b2a55" />
+          <Label x={15} y={150} fill="#f9fafb" size={6.5} weight={600}>Installed packs</Label>
+          <rect x={15} y={155} width={62} height={18} rx={5} fill="#424242" />
+          <rect x={9} y={188} width={102} height={20} fill="#262626" />
+          <circle cx={28} cy={196} r={3} fill="none" stroke="#60a5fa" strokeWidth={1} />
+          <Label x={28} y={205} fill="#60a5fa" size={4.5} anchor="middle">Explore</Label>
+          <rect x={57} y={193.5} width={6} height={5} rx={1} fill="none" stroke="#9ca3af" strokeWidth={0.8} />
+          <Label x={60} y={205} fill="#9ca3af" size={4.5} anchor="middle">Library</Label>
+          <Label x={92} y={205} fill="#9ca3af" size={4.5} anchor="middle">Backups</Label>
+          <TapBox x={15} y={48} w={42} h={16} />
         </>
       );
     case 'android-add-image':

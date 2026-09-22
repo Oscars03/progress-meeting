@@ -25,8 +25,9 @@ const ANDROID_STEPS: { art: StepArt; title: TranslationKey; body: TranslationKey
   { art: 'android-store', title: 'widget.android.1.title', body: 'widget.android.1.body', action: 'store' },
   { art: 'android-home-menu', title: 'widget.android.2.title', body: 'widget.android.2.body' },
   { art: 'android-picker', title: 'widget.android.3.title', body: 'widget.android.3.body' },
-  { art: 'android-add-image', title: 'widget.android.4.title', body: 'widget.android.4.body' },
-  { art: 'android-bitmap', title: 'widget.android.5.title', body: 'widget.android.5.body', action: 'image' },
+  { art: 'android-explore', title: 'widget.android.4.title', body: 'widget.android.4.body' },
+  { art: 'android-add-image', title: 'widget.android.5.title', body: 'widget.android.5.body' },
+  { art: 'android-bitmap', title: 'widget.android.6.title', body: 'widget.android.6.body', action: 'image' },
 ];
 
 /**
