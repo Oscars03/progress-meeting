@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { byRoleThenName, roleStyle } from '@/lib/role-display';
 import {
   initDbAction,
   clearDatabaseAction,
@@ -463,9 +464,9 @@ export default function UserManager({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {initialUsers.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50/50">
-                  <td className="py-3 px-3 font-medium text-gray-900">
+              {[...initialUsers].sort(byRoleThenName).map((u) => (
+                <tr key={u.id} className={roleStyle(u.role).row}>
+                  <td className={`py-3 px-3 font-medium text-gray-900 border-l-4 ${roleStyle(u.role).stripe}`}>
                     {editingNameId === u.id ? (
                       <div className="flex items-center gap-1.5">
                         <input
@@ -545,13 +546,7 @@ export default function UserManager({
                           setDraftRole(u.role);
                         }}
                         title="คลิกเพื่อเปลี่ยนสิทธิ์"
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 ${
-                          u.role === 'admin'
-                            ? 'bg-purple-100 text-purple-700'
-                            : u.role === 'professor'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-blue-100 text-blue-700'
-                        }`}
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 ${roleStyle(u.role).badge}`}
                       >
                         {u.role} ✎
                       </button>

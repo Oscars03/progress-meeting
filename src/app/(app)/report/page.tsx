@@ -7,7 +7,7 @@ export default async function ReportPage() {
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${process.env.SPREADSHEET_ID}/edit`;
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <h2 className="text-2xl font-bold">{t('report.title')}</h2>
 
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">

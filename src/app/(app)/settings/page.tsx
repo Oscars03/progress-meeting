@@ -97,7 +97,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">การตั้งค่าระบบ (Settings)</h2>
 
       {/* First, because it is the only thing here every member can act on. */}
