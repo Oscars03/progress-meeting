@@ -33,6 +33,26 @@ export function canEditWork(actor: SessionUser, task: Pick<TaskRecord, 'assignee
 }
 
 /**
+ * Who may change what a piece of work *is* -- its name, round, dates and label.
+ *
+ * The advisors, and whoever wrote it down. A student who added their own work
+ * can correct it; one who was handed work cannot rename the assignment. Who
+ * it is *for* stays with canAssignWork: a student's own work is theirs alone.
+ */
+export function canEditDetails(actor: SessionUser, task: Pick<TaskRecord, 'owner_id'>): boolean {
+  if (canAssignWork(actor)) return true;
+  return Boolean(task.owner_id) && task.owner_id === actor.id;
+}
+
+/**
+ * Submission rounds belong to whoever hands out work: a round is a deadline
+ * the advisors set, not one a student declares for themselves.
+ */
+export function canManageRounds(actor: SessionUser): boolean {
+  return canAssignWork(actor);
+}
+
+/**
  * Whose progress figure this is: the person the work belongs to, whoever leads
  * the week the update is *for*, or a manager.
  *

@@ -5,7 +5,8 @@ export const SCHEMAS = {
   teams: [...COMMON_COLUMNS, 'name'],
   meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at', 'host_id'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
-  tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links', 'assigner_id'],
+  tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links', 'assigner_id', 'round_id', 'start_date', 'subtasks', 'progress_at'],
+  task_rounds: [...COMMON_COLUMNS, 'name', 'due_date'],
   task_updates: [...COMMON_COLUMNS, 'task_id', 'week_key', 'progress_pct', 'summary', 'risks', 'next_plan', 'updated_by'],
   action_items: [...COMMON_COLUMNS, 'meeting_id', 'title', 'owner_id', 'due_date', 'status', 'source_task_id'],
   minutes: [...COMMON_COLUMNS, 'meeting_id', 'content', 'recorded_by'],
@@ -85,6 +86,32 @@ export type TaskRecord = BaseRecord & {
   links: string[] | string;
   /** The professor who asked for this, when a student entered it themselves. */
   assigner_id: string;
+  /** The submission round (`task_rounds.id`) this is grouped under; '' for none yet. */
+  round_id: string;
+  /**
+   * YYYY-MM-DD the work begins, which is where its bar starts on the timeline.
+   * '' on rows written before the tracker existed -- read those as starting on
+   * the day they were created.
+   */
+  start_date: string;
+  /** The checklist under this piece of work, as JSON -- see lib/tracker.ts. */
+  subtasks: unknown[] | string;
+  /**
+   * When progress_pct was last set, ISO. "Not updated" is judged on this and on
+   * the weekly reports, not on updated_at: renaming a task is not news of it.
+   */
+  progress_at: string;
+};
+
+/**
+ * One submission round -- "รอบ 1, due 31 Oct" -- that work is grouped under.
+ *
+ * `due_date` may be '' for a group whose projects each keep their own dates,
+ * such as work the whole lab helps with at different times of the year.
+ */
+export type TaskRoundRecord = BaseRecord & {
+  name: string;
+  due_date: string;
 };
 
 export type MeetingRecord = BaseRecord & {
