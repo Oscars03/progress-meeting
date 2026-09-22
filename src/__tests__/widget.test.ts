@@ -261,6 +261,13 @@ describe('kwgtImageUrl', () => {
     expect(url.endsWith('&r=$gv(refresh)$')).toBe(true);
   });
 
+  it('has a plain twin for apps that refresh by themselves, without KWGT formulas', async () => {
+    const { plainImageUrl } = await import('../lib/widget-scripts');
+    const url = plainImageUrl('https://app.test/', 'pmw_a+b/c', 'wide', 'light');
+    expect(url).toBe('https://app.test/api/widget/image?key=pmw_a%2Bb%2Fc&size=wide&theme=light');
+    expect(url).not.toContain('$');
+  });
+
   it('is still answered by the image route with the KWGT parts left unevaluated', async () => {
     const { kwgtImageUrl } = await import('../lib/widget-scripts');
     const KEY = generateWidgetKey();

@@ -3,7 +3,7 @@
 import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createWidgetKeyAction, revokeWidgetKeyAction } from './widget-actions';
-import { kwgtFormulas, kwgtImageUrl } from '@/lib/widget-scripts';
+import { kwgtFormulas, kwgtImageUrl, plainImageUrl } from '@/lib/widget-scripts';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import Spinner from '@/lib/ui/spinner';
@@ -12,22 +12,38 @@ import { PhoneArt, type StepArt } from './widget-illustrations';
 type Status = { createdAt: string; lastUsedAt: string } | null;
 type Os = 'ios' | 'android';
 
-type StepAction = 'store' | 'script' | 'key' | 'image' | 'dashboard' | 'flowFormula';
+type StepAction =
+  | 'storeScriptable'
+  | 'storeWiw'
+  | 'storeKwgt'
+  | 'script'
+  | 'key'
+  | 'imagePlain'
+  | 'imageKwgt'
+  | 'dashboard'
+  | 'flowFormula';
 
 type Step = {
-  art: StepArt;
+  /** One picture, or two side by side for a step that crosses two screens. */
+  art: StepArt | StepArt[];
   title: TranslationKey;
   body: TranslationKey;
   action?: StepAction;
-  /** Starts a new group of steps under this heading; numbering carries on. */
-  section?: TranslationKey;
+  /** Starts a new, separately numbered group of steps under this heading. */
+  section?: { title: TranslationKey; hint: TranslationKey };
 };
 
 /** Stamps the refresh global with the moment of the tap -- different every time. */
 const FLOW_FORMULA = '$df(Hmmss)$';
 
+const STORES = {
+  storeScriptable: { href: 'https://apps.apple.com/app/scriptable/id1405459188', label: 'widget.openAppStore' },
+  storeWiw: { href: 'https://play.google.com/store/apps/details?id=com.ibuffed.webimagewidget', label: 'widget.openWiw' },
+  storeKwgt: { href: 'https://play.google.com/store/apps/details?id=org.kustom.widget', label: 'widget.openPlayStore' },
+} satisfies Record<string, { href: string; label: TranslationKey }>;
+
 const IOS_STEPS: Step[] = [
-  { art: 'ios-store', title: 'widget.ios.1.title', body: 'widget.ios.1.body', action: 'store' },
+  { art: 'ios-store', title: 'widget.ios.1.title', body: 'widget.ios.1.body', action: 'storeScriptable' },
   { art: 'ios-new-script', title: 'widget.ios.2.title', body: 'widget.ios.2.body', action: 'script' },
   { art: 'ios-paste', title: 'widget.ios.3.title', body: 'widget.ios.3.body' },
   { art: 'ios-home-edit', title: 'widget.ios.4.title', body: 'widget.ios.4.body' },
@@ -35,26 +51,41 @@ const IOS_STEPS: Step[] = [
   { art: 'ios-edit-widget', title: 'widget.ios.6.title', body: 'widget.ios.6.body', action: 'key' },
 ];
 
+/**
+ * Android offers two ways, each numbered from 1:
+ *
+ * - Web Image Widget, first: install, place, paste the link. It refreshes the
+ *   picture every 15 minutes and on a double tap by itself. Chosen by the
+ *   owner as the default for being three steps against KWGT's fourteen.
+ * - KWGT, for a tap that opens the web app, or a phone where Web Image Widget
+ *   stops updating (reported in its reviews; it was last updated Dec 2023).
+ *   Seven steps, refresh included: each merges screens drawn from the
+ *   owner's screenshots, two pictures where a step crosses two screens.
+ */
 const ANDROID_STEPS: Step[] = [
-  { art: 'android-store', title: 'widget.android.1.title', body: 'widget.android.1.body', action: 'store', section: 'widget.android.section.image' },
-  { art: 'android-home-menu', title: 'widget.android.2.title', body: 'widget.android.2.body' },
-  { art: 'android-picker', title: 'widget.android.3.title', body: 'widget.android.3.body' },
-  { art: 'android-explore', title: 'widget.android.4.title', body: 'widget.android.4.body' },
-  // 5-10 follow KWGT 3.82's own screens, from the owner's screenshots.
-  { art: 'kwgt-editor', title: 'widget.android.5.title', body: 'widget.android.5.body' },
-  { art: 'kwgt-add-menu', title: 'widget.android.6.title', body: 'widget.android.6.body' },
-  { art: 'kwgt-items', title: 'widget.android.7.title', body: 'widget.android.7.body' },
-  { art: 'kwgt-bitmap', title: 'widget.android.8.title', body: 'widget.android.8.body' },
-  { art: 'kwgt-formula', title: 'widget.android.9.title', body: 'widget.android.9.body', action: 'image' },
-  { art: 'kwgt-width', title: 'widget.android.10.title', body: 'widget.android.10.body' },
-  // 11-14: a tap opens the web app and, through a Flow, stamps the global the
-  // image link carries -- so the link changes and KWGT fetches it afresh.
-  // Confirmed on the owner's phone: the site opened and a new image request
-  // reached the server on each tap.
-  { art: 'kwgt-touch-link', title: 'widget.android.11.title', body: 'widget.android.11.body', action: 'dashboard', section: 'widget.android.section.touch' },
-  { art: 'kwgt-add-global', title: 'widget.android.12.title', body: 'widget.android.12.body' },
-  { art: 'kwgt-flow', title: 'widget.android.13.title', body: 'widget.android.13.body', action: 'flowFormula' },
-  { art: 'kwgt-touch-flow', title: 'widget.android.14.title', body: 'widget.android.14.body' },
+  {
+    art: 'wiw-store',
+    title: 'widget.wiw.1.title',
+    body: 'widget.wiw.1.body',
+    action: 'storeWiw',
+    section: { title: 'widget.android.section.simple', hint: 'widget.android.section.simpleHint' },
+  },
+  { art: ['android-home-menu', 'wiw-picker'], title: 'widget.wiw.2.title', body: 'widget.wiw.2.body' },
+  { art: 'wiw-home', title: 'widget.wiw.3.title', body: 'widget.wiw.3.body', action: 'imagePlain' },
+
+  {
+    art: 'android-store',
+    title: 'widget.kwgt.1.title',
+    body: 'widget.kwgt.1.body',
+    action: 'storeKwgt',
+    section: { title: 'widget.android.section.kwgt', hint: 'widget.android.section.kwgtHint' },
+  },
+  { art: ['android-picker', 'android-explore'], title: 'widget.kwgt.2.title', body: 'widget.kwgt.2.body' },
+  { art: ['kwgt-editor', 'kwgt-add-menu'], title: 'widget.kwgt.3.title', body: 'widget.kwgt.3.body' },
+  { art: ['kwgt-bitmap', 'kwgt-formula'], title: 'widget.kwgt.4.title', body: 'widget.kwgt.4.body', action: 'imageKwgt' },
+  { art: 'kwgt-width', title: 'widget.kwgt.5.title', body: 'widget.kwgt.5.body' },
+  { art: ['kwgt-add-global', 'kwgt-flow'], title: 'widget.kwgt.6.title', body: 'widget.kwgt.6.body', action: 'flowFormula' },
+  { art: 'kwgt-touch-flow', title: 'widget.kwgt.7.title', body: 'widget.kwgt.7.body', action: 'dashboard' },
 ];
 
 /**
@@ -162,12 +193,9 @@ export default function WidgetCard({
         </div>
       );
     }
-    if (action === 'store') {
+    if (action === 'storeScriptable' || action === 'storeWiw' || action === 'storeKwgt') {
       // Opened from a phone, these land in the store app itself.
-      const store =
-        os === 'ios'
-          ? { href: 'https://apps.apple.com/app/scriptable/id1405459188', label: t('widget.openAppStore') }
-          : { href: 'https://play.google.com/store/apps/details?id=org.kustom.widget', label: t('widget.openPlayStore') };
+      const store = STORES[action];
       return (
         <a
           href={store.href}
@@ -175,15 +203,15 @@ export default function WidgetCard({
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
         >
-          {store.label} ↗
+          {t(store.label)} ↗
         </a>
       );
     }
     if (action === 'script') return copyButton('script', script, t('widget.copyScript'), true);
     if (action === 'key') return newKey ? copyButton('key-step', newKey, t('widget.copyKey'), true) : needKey;
-    if (action === 'image') {
+    if (action === 'imagePlain' || action === 'imageKwgt') {
       if (!newKey) return needKey;
-      const url = kwgtImageUrl(appUrl, newKey, size, theme);
+      const url = action === 'imageKwgt' ? kwgtImageUrl(appUrl, newKey, size, theme) : plainImageUrl(appUrl, newKey, size, theme);
       return (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2 text-xs">
@@ -197,7 +225,7 @@ export default function WidgetCard({
             </select>
           </div>
           <code className="block break-all text-[11px] bg-gray-50 border border-gray-200 rounded px-2 py-1.5 text-gray-900">{url}</code>
-          {copyButton('image', url, t('widget.copyLink'), true)}
+          {copyButton(action, url, t('widget.copyLink'), true)}
         </div>
       );
     }
@@ -206,9 +234,9 @@ export default function WidgetCard({
 
   const steps = os === 'ios' ? IOS_STEPS : ANDROID_STEPS;
   // Consecutive steps under the heading of the first that has one.
-  const groups: { heading?: TranslationKey; start: number; steps: Step[] }[] = [];
-  steps.forEach((step, index) => {
-    if (step.section || groups.length === 0) groups.push({ heading: step.section, start: index, steps: [] });
+  const groups: { section?: Step['section']; steps: Step[] }[] = [];
+  steps.forEach((step) => {
+    if (step.section || groups.length === 0) groups.push({ section: step.section, steps: [] });
     groups[groups.length - 1].steps.push(step);
   });
 
@@ -306,17 +334,29 @@ export default function WidgetCard({
         ))}
       </div>
 
-      {groups.map((group) => (
-        <section key={group.start} className="space-y-3">
-          {group.heading && <h4 className="text-base font-semibold text-gray-800">{t(group.heading)}</h4>}
-          <ol start={group.start + 1} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {groups.map((group, g) => (
+        <section key={group.section?.title ?? g} className="space-y-3">
+          {group.section && (
+            <div>
+              <h4 className="text-base font-semibold text-gray-800">{t(group.section.title)}</h4>
+              <p className="text-sm text-gray-500">{t(group.section.hint)}</p>
+            </div>
+          )}
+          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {group.steps.map((step, i) => (
-              <li key={step.art} className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
-                <PhoneArt art={step.art} os={os} />
+              <li key={step.title} className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+                {/* A step that crosses two screens shows both, side by side. */}
+                <div className="flex justify-center gap-2">
+                  {(Array.isArray(step.art) ? step.art : [step.art]).map((art) => (
+                    <div key={art} className="flex-1 max-w-[150px]">
+                      <PhoneArt art={art} os={os} />
+                    </div>
+                  ))}
+                </div>
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-gray-900">
                     <span className="inline-flex items-center justify-center w-6 h-6 mr-2 rounded-full bg-blue-100 text-blue-700 text-xs">
-                      {group.start + i + 1}
+                      {i + 1}
                     </span>
                     {t(step.title)}
                   </p>
