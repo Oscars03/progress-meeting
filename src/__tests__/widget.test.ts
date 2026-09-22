@@ -27,8 +27,9 @@ const { generateWidgetKey, hashWidgetKey, widgetKeyMatches, widgetKeyFrom, WIDGE
 const { buildWidgetSummary } = await import('../lib/widget-summary');
 const { GET } = await import('../app/api/widget/route');
 const { GET: GET_IMAGE } = await import('../app/api/widget/image/route');
+const { GET: GET_PAGE } = await import('../app/api/widget/page/route');
 const { buildTiles } = await import('../lib/widget-tiles');
-const { renderWidgetSvg, splitSaraAm, clip } = await import('../lib/widget-svg');
+const { renderWidgetSvg, splitSaraAm, clip, widgetBackground } = await import('../lib/widget-svg');
 const { woffToSfnt, svgToPng } = await import('../lib/widget-png');
 
 // Tuesday 22 Sep 2026, 12:00 in the lab (UTC+7).
@@ -261,10 +262,10 @@ describe('kwgtImageUrl', () => {
     expect(url.endsWith('&r=$gv(refresh)$')).toBe(true);
   });
 
-  it('has a plain twin for apps that refresh by themselves, without KWGT formulas', async () => {
-    const { plainImageUrl } = await import('../lib/widget-scripts');
-    const url = plainImageUrl('https://app.test/', 'pmw_a+b/c', 'wide', 'light');
-    expect(url).toBe('https://app.test/api/widget/image?key=pmw_a%2Bb%2Fc&size=wide&theme=light');
+  it('has a page twin for AnyWidget, which refreshes by itself, without KWGT formulas', async () => {
+    const { pageUrl } = await import('../lib/widget-scripts');
+    const url = pageUrl('https://app.test/', 'pmw_a+b/c', 'wide', 'light');
+    expect(url).toBe('https://app.test/api/widget/page?key=pmw_a%2Bb%2Fc&size=wide&theme=light');
     expect(url).not.toContain('$');
   });
 
@@ -420,4 +421,37 @@ describe('GET /api/widget/image', () => {
     // PNG IHDR: width and height at bytes 16-23.
     expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([1000, 1000]);
   }, 20_000);
+});
+
+// AnyWidget frames the top of a page. Handed the bare PNG, the browser
+// centred it on black and the widget showed mostly black.
+describe('GET /api/widget/page', () => {
+  const KEY = generateWidgetKey();
+
+  beforeEach(() => {
+    updateMock.mockReset();
+    updateMock.mockResolvedValue({});
+    Object.assign(tables, fixtures());
+    tables.widget_keys = [base('w-me', { user_id: 'u-me', key_hash: hashWidgetKey(KEY), last_used_at: '' })];
+  });
+
+  it('is the picture alone, flush to the top, on the picture’s own background', async () => {
+    const res = await GET_PAGE(new Request(`https://x.test/api/widget/page?key=${encodeURIComponent(KEY)}&theme=dark`));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const html = await res.text();
+    expect(html).toContain('<meta name="viewport" content="width=device-width,initial-scale=1">');
+    expect(html).toContain('margin:0');
+    expect(html).toContain(`background:${widgetBackground('dark')}`);
+    expect(html).toMatch(/<body><img alt="" src="data:image\/png;base64,[A-Za-z0-9+/=]+"><\/body>/);
+  }, 20_000);
+
+  // The widget is the only place this is read, so the refusal is words.
+  it('says a refused key is dead, as a page, with the refusal’s status', async () => {
+    const res = await GET_PAGE(new Request('https://x.test/api/widget/page?key=pmw_nope'));
+    expect(res.status).toBe(401);
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(await res.text()).toContain('คีย์วิดเจ็ตนี้ใช้ไม่ได้แล้ว');
+  });
 });
