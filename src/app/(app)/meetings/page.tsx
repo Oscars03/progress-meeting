@@ -10,21 +10,33 @@ import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requireSession } from '@/lib/auth-guard';
 import { labMembers } from '@/lib/members';
 import { myEvents, busyTimes, type GoogleEvent } from '@/lib/google/calendar';
-import type { PersonalEventRecord, UserRecord, TermBreakRecord } from '@/lib/db/schema';
+import type { PersonalEventRecord, UserRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { planWeekLeads } from '@/lib/rotation';
+import { weekKey } from '@/lib/week';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
 export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string };
 
 export default async function MeetingsPage() {
   const actor = await requireSession();
-  const [meetings, t, storedToken, allPersonalEvents, users, termBreaks] = await Promise.all([
+  const [meetings, t, storedToken, allPersonalEvents, users, termBreaks, weekLeads] = await Promise.all([
     SheetRepo.find<MeetingRecord>('meetings'), 
     getT(),
     getStoredToken(actor.id).catch(() => null),
     SheetRepo.find<PersonalEventRecord>('personal_events').catch(() => []),
     SheetRepo.find<UserRecord>('users').catch(() => []),
     SheetRepo.find<TermBreakRecord>('term_breaks').catch(() => []),
+    SheetRepo.find<WeekLeadRecord>('week_leads').catch(() => []),
   ]);
+
+  // Whose week it is, for as far ahead as anybody plans: a term's worth past
+  // today, and a few weeks back so paging to last week still says who ran it.
+  // Past the last confirmed week these are where the arranged order lands,
+  // skipping term breaks -- the same walk that confirms each week when it
+  // comes, so the name shown ahead of time is the one that turns up.
+  const planFrom = new Date();
+  planFrom.setDate(planFrom.getDate() - 8 * 7);
+  const weekPlan = planWeekLeads(users, weekLeads, termBreaks, weekKey(planFrom), 8 + 26);
 
   // Booking a meeting outright skips the poll, so it is admin's escape hatch.
   const canSchedule = actor.role === 'admin';
@@ -153,6 +165,7 @@ export default async function MeetingsPage() {
         googleEvents={allGoogleEvents} 
         currentUserId={actor.id} 
         termBreaks={termBreaks}
+        weekPlan={weekPlan}
       />
     </div>
   );

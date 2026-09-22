@@ -25,6 +25,15 @@ import type { DateClickArg } from '@fullcalendar/interaction';
 import type { MappedMeeting, MappedPersonalEvent } from './page';
 import type { TermBreakRecord } from '@/lib/db/schema';
 import { breakCovering } from '@/lib/term-breaks';
+import type { WeekLeadPlan } from '@/lib/rotation';
+
+/** YYYY-MM-DD of the Monday of the week `date` falls in, in the viewer's time. */
+function mondayOf(date: Date): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 
 
@@ -62,6 +71,10 @@ type GoogleEvent = {
   colorId?: string;
 };
 
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 function safeHttpUrl(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value) return undefined;
   try {
@@ -76,13 +89,15 @@ export default function CalendarView({
   personalEvents = [],
   googleEvents = [],
   currentUserId = '',
-  termBreaks = []
+  termBreaks = [],
+  weekPlan = []
 }: { 
   meetings: MappedMeeting[],
   personalEvents?: MappedPersonalEvent[],
   googleEvents?: GoogleEvent[],
   currentUserId?: string,
-  termBreaks?: TermBreakRecord[]
+  termBreaks?: TermBreakRecord[],
+  weekPlan?: WeekLeadPlan[]
 }) {
   const router = useRouter();
   const { locale, t } = usePrefs();
@@ -467,6 +482,15 @@ export default function CalendarView({
     });
   };
 
+  /**
+   * Whose week is on screen. The week and day views show one week, so it is
+   * one line above the grid; the month view has a row per week, and gives each
+   * row its own name in the week-number cell instead.
+   */
+  const planByMonday = new Map(weekPlan.map((w) => [w.monday, w]));
+  const planFor = (date: Date) => planByMonday.get(mondayOf(date));
+  const shownWeek = range && viewType !== 'dayGridMonth' ? planFor(new Date(range.start)) : undefined;
+
   return (
     <div className="space-y-2">
       {/* Hint and toggle on one line, at every width. Two rows -- one of which
@@ -509,6 +533,26 @@ export default function CalendarView({
           <span className="hidden sm:inline">{t('meetings.onlyMine')}</span>
         </label>
       </div>
+
+      {shownWeek && (
+        <div
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-sm"
+          title={shownWeek.name && !shownWeek.confirmed ? t('meetings.weekLeadPlanned') : undefined}
+        >
+          {shownWeek.break_name ? (
+            <span className="font-medium text-gray-600">
+              {t('meetings.weekBreak', { name: shownWeek.break_name })}
+            </span>
+          ) : (
+            <>
+              <span className="text-blue-700">{t('meetings.weekLead')}</span>
+              <span className="font-semibold text-blue-800">
+                {shownWeek.name ?? t('meetings.weekNoLead')}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* No fixed height, so the calendar is not a scrolling box inside a
           scrolling page. It used to own its own scrollbar: reaching the
@@ -556,6 +600,17 @@ export default function CalendarView({
             timeGridDay: { dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'short', omitCommas: true } },
             dayGridMonth: {
               dayHeaderFormat: { weekday: 'narrow' },
+              // The week-number cell carries the week's lead instead of a
+              // number nobody in the lab counts by.
+              weekNumbers: true,
+              weekNumberContent: (arg: { date: Date }) => {
+                const mid = new Date(arg.date);
+                // Mid-row, so a row that starts on Sunday still finds its Monday.
+                mid.setDate(mid.getDate() + 3);
+                const week = planFor(mid);
+                const label = week?.break_name ? '—' : week?.name ?? '';
+                return { html: `<span class="cal-week-lead">${escapeHtml(label)}</span>` };
+              },
               // A month cell on a phone is ~50px wide. Three truncated titles
               // in it say less than three dots do, and the dots leave the date
               // legible, which is what a month view is actually for.

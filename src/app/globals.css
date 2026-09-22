@@ -788,3 +788,22 @@ body {
    bootstrap script before first paint, so the rail never renders wide and then
    snaps narrow. Use as `md:collapsed:w-16`. */
 @custom-variant collapsed (&:where([data-sidebar="collapsed"], [data-sidebar="collapsed"] *));
+
+/* The month view's week-number cell, which carries the week's lead instead of
+   a number. FullCalendar draws it as a small link-coloured tab; it is a label
+   here, so it takes the calendar's own ink and does not truncate the name to
+   nothing on a narrow cell. Colours are the calendar variables, which the
+   dark theme already restates. */
+.fc .fc-daygrid-week-number {
+  background: var(--cal-today);
+  color: var(--cal-ink);
+  max-width: calc(100% - 1.75rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cal-week-lead {
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
