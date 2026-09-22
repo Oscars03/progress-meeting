@@ -138,10 +138,9 @@ export const common = defineMessages({
 
     'dashboard.yourLeadTurn': 'สัปดาห์นี้คุณเป็นผู้รับผิดชอบ',
     'dashboard.runThisWeek': 'จัดการประชุมสัปดาห์นี้',
-    'dashboard.yourLeadTurnHint': 'หาเวลาที่ทุกคนว่าง ส่งให้ยืนยัน แล้วจัดลำดับผู้นำเสนอ',
+    'dashboard.yourLeadTurnHint': 'เลือกช่วงเวลาที่ทุกคนว่างจากตาราง ส่งให้ทุกคนยืนยัน และจัดลำดับผู้นำเสนอ',
     'dashboard.arrangeOnlyHint': 'จัดลำดับผู้นำเสนอของสัปดาห์นี้ได้',
-    'dashboard.findFreeTime': 'หาเวลาว่าง',
-    'dashboard.createPoll': 'สร้างโพลยืนยันเวลา',
+    'dashboard.findFreeTime': 'นัดหมายเวลาประชุม',
     'dashboard.arrangeOrder': 'จัดลำดับผู้นำเสนอ',
 
     'dashboard.today': 'ตารางของคุณวันนี้',
@@ -359,10 +358,9 @@ export const common = defineMessages({
     'dashboard.yourLeadTurn': 'This week is yours to run',
     'dashboard.runThisWeek': "Run this week's meeting",
     'dashboard.yourLeadTurnHint':
-      'Find an hour everyone is free, ask them to confirm it, then arrange the order.',
+      'Pick a time everyone is free from the grid, ask them to confirm it, then arrange the order.',
     'dashboard.arrangeOnlyHint': "You can arrange this week's running order.",
-    'dashboard.findFreeTime': 'Find free time',
-    'dashboard.createPoll': 'Create a poll',
+    'dashboard.findFreeTime': 'Schedule a meeting',
     'dashboard.arrangeOrder': 'Arrange the order',
 
     'dashboard.today': 'Your day',

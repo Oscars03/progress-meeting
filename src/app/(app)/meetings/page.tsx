@@ -130,7 +130,7 @@ export default async function MeetingsPage() {
         <div className="ml-auto flex items-center gap-2">
           <Link
             href="/meetings/polls"
-            className="inline-flex items-center justify-center h-9 px-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition whitespace-nowrap"
+            className="inline-flex items-center justify-center h-10 px-4 text-sm sm:text-base font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition whitespace-nowrap"
           >
             {t('meetings.findTime')}
           </Link>

@@ -10,15 +10,11 @@ import type {
   AvailabilityVoteRecord,
   WeekLeadRecord,
 } from '@/lib/db/schema';
-import NewPollButton from './new-poll-button';
 import WeekAvailabilityGrid from './week-availability';
 import { weekAvailabilityAction } from '../../calendar-actions';
 
-export default async function PollsPage(props: {
-  searchParams: Promise<{ new?: string }>;
-}) {
-  const [{ new: openNew }, actor, t] = await Promise.all([
-    props.searchParams,
+export default async function PollsPage() {
+  const [actor, t] = await Promise.all([
     requireSession(),
     getT(),
   ]);
@@ -72,7 +68,6 @@ export default async function PollsPage(props: {
           <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">
             {t('polls.backToCalendar')}
           </BackLink>
-          {canManage && <NewPollButton defaultOpen={openNew === '1' && canManage} />}
         </div>
       </div>
 

@@ -38,6 +38,15 @@ import type {
   FeedbackRecord,
 } from '@/lib/db/schema';
 
+/**
+ * The lead's buttons. Big enough to hit on a tablet (44px) and a clear step
+ * apart: the one thing to do next is solid, anything after it is outlined.
+ * Every colour here is one globals.css already remaps for the dark theme.
+ */
+const ACTION = 'inline-flex items-center justify-center min-h-11 px-5 rounded-lg text-base font-semibold shadow-sm transition';
+const PRIMARY_ACTION = `${ACTION} bg-blue-600 hover:bg-blue-700 text-white`;
+const SECONDARY_ACTION = `${ACTION} border-2 border-blue-300 bg-white text-blue-700 hover:bg-blue-100`;
+
 export default async function DashboardPage() {
   const [
     actor,
@@ -414,31 +423,22 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* One way in: the grid. Picking a free block there already makes
+                the poll, so a separate "create a poll" button was a second
+                road to the same place, and the longer one. */}
             {canRunTheWeek && (
-              <>
-                <Link
-                  href="/meetings/polls#availability"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition"
-                >
-                  {t('dashboard.findFreeTime')}
-                </Link>
-                <Link
-                  href="/meetings/polls?new=1"
-                  className="px-4 py-2 rounded-lg border border-blue-300 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition"
-                >
-                  {t('dashboard.createPoll')}
-                </Link>
-              </>
+              <Link
+                href="/meetings/polls#availability"
+                className={PRIMARY_ACTION}
+              >
+                {t('dashboard.findFreeTime')}
+              </Link>
             )}
 
             {canArrangeOrder && (
               <Link
                 href="/presentations"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  canRunTheWeek
-                    ? 'border border-blue-300 bg-white text-blue-700 hover:bg-blue-100'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
+                className={canRunTheWeek ? SECONDARY_ACTION : PRIMARY_ACTION}
               >
                 {t('dashboard.arrangeOrder')}
               </Link>
