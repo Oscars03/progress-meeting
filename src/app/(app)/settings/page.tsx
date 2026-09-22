@@ -16,7 +16,9 @@ import TermBreaks from './term-breaks';
 import MyName from './my-name';
 import { rotationMembers } from '@/lib/rotation';
 import { labMembers } from '@/lib/members';
-import type { TermBreakRecord } from '@/lib/db/schema';
+import type { TermBreakRecord, WidgetKeyRecord } from '@/lib/db/schema';
+import WidgetCard from './widget-card';
+import { scriptableScript } from '@/lib/widget-scripts';
 
 export default async function SettingsPage() {
   const actor = await requirePageSession();
@@ -31,6 +33,15 @@ export default async function SettingsPage() {
   // The session carries the name from whenever it was issued, so it goes stale
   // the moment somebody renames themselves. The sheet is the current answer.
   const me = await SheetRepo.findOne<UserRecord>('users', actor.id).catch(() => null);
+
+  // Your own widget key, if you have one -- its dates only; the key itself is
+  // not stored anywhere it could be read back from.
+  const myWidgetKey = await SheetRepo.find<WidgetKeyRecord>('widget_keys')
+    .then((rows) => rows.find((row) => row.user_id === actor.id) ?? null)
+    .catch(() => null);
+  // The address the phone must call. NEXTAUTH_URL is the canonical host --
+  // the one proxy.ts sends every other hostname to.
+  const appUrl = process.env.NEXTAUTH_URL ?? '';
 
   // Calendar status is per-person, so it is read for everyone, not just admins.
   const stored = await getStoredToken(actor.id).catch(() => null);
@@ -88,6 +99,15 @@ export default async function SettingsPage() {
 
       {/* First, because it is the only thing here every member can act on. */}
       <MyName name={me?.name ?? (actor.name ?? '')} email={actor.email ?? ''} />
+
+      {/* Also for every member: it is about your own phone. */}
+      <WidgetCard
+        status={
+          myWidgetKey ? { createdAt: myWidgetKey.created_at, lastUsedAt: myWidgetKey.last_used_at ?? '' } : null
+        }
+        appUrl={appUrl}
+        script={scriptableScript(appUrl)}
+      />
 
       {/* On realRole, not isAdmin: previewing as a student makes isAdmin
           false, and gating this on that would hide the only control that can
