@@ -237,7 +237,7 @@ export async function disconnectCalendarAction(): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireSession();
     await disconnect(actor.id);
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
   });
 }
 

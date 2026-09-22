@@ -61,7 +61,7 @@ export default function DriveCard({ status }: { status: DriveStatus }) {
             disabled={connecting}
             onClick={() => {
               setConnecting(true);
-              signIn('google', { callbackUrl: '/settings' }, driveAuthParams());
+              signIn('google', { callbackUrl: '/settings/lab' }, driveAuthParams());
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition disabled:opacity-50"
           >

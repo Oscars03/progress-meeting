@@ -51,7 +51,7 @@ function normalizeEmail(email: string): string {
 export async function initDbAction(force = false) {
   await requireRole('admin');
   const result = await initDatabase({ force });
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return result;
 }
 
@@ -84,7 +84,7 @@ export async function clearDatabaseAction(password: string) {
   }
 
   const result = await clearDatabase();
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return result;
 }
 
@@ -118,7 +118,7 @@ export async function updateUserPasswordAction(
     actor.id
   );
 
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
 }
 
 export async function addUserAction(formData: {
@@ -164,7 +164,7 @@ export async function addUserAction(formData: {
     actor.id
   );
 
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
 }
 
 /**
@@ -210,7 +210,7 @@ export async function updateUserRoleAction(userId: string, role: string, rowVers
   }
 
   await SheetRepo.update<UserRecord>('users', userId, { role: nextRole }, rowVersion, actor.id);
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
 }
 
 /**
@@ -254,7 +254,7 @@ export async function setUserPermissionsAction(
     if (next === current) return;
 
     await SheetRepo.update<UserRecord>('users', userId, { permissions: next }, rowVersion, actor.id);
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
   });
 }
 
@@ -288,7 +288,7 @@ export async function deleteUserAction(userId: string, rowVersion: number) {
   }
 
   await SheetRepo.delete('users', userId, rowVersion, actor.id);
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   return { email: target.email };
 }
 
@@ -300,7 +300,7 @@ export async function setUserActiveAction(userId: string, active: boolean, rowVe
   }
 
   await SheetRepo.update<UserRecord>('users', userId, { active }, rowVersion, actor.id);
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
 }
 
 /**
@@ -330,7 +330,7 @@ export async function setRotationOrderAction(userIds: string[]) {
     );
   }
 
-  revalidatePath('/settings');
+  revalidatePath('/settings', 'layout');
   revalidatePath('/dashboard');
 }
 
@@ -387,7 +387,7 @@ export async function addTermBreakAction(
       actor.id
     );
 
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     revalidatePath('/dashboard');
     revalidatePath('/meetings');
   });
@@ -398,7 +398,7 @@ export async function deleteTermBreakAction(id: string, rowVersion: number): Pro
     const actor = await requireRole('admin');
     await SheetRepo.delete('term_breaks', id, rowVersion, actor.id);
 
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     revalidatePath('/dashboard');
     revalidatePath('/meetings');
   });
@@ -432,7 +432,7 @@ export async function updateUserNameAction(
     await SheetRepo.update<UserRecord>('users', userId, { name: trimmed }, rowVersion, actor.id);
 
     // The name is read on every page that names anybody.
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     revalidatePath('/dashboard');
     revalidatePath('/meetings');
     revalidatePath('/presentations');
@@ -466,7 +466,7 @@ export async function updateMyNameAction(name: string): Promise<ActionResult> {
 
     await SheetRepo.update<UserRecord>('users', actor.id, { name: trimmed }, me.row_version, actor.id);
 
-    revalidatePath('/settings');
+    revalidatePath('/settings', 'layout');
     revalidatePath('/dashboard');
     revalidatePath('/meetings');
     revalidatePath('/presentations');
