@@ -5,6 +5,7 @@ import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
 import { leadsCurrentOrLater, weeksRunBy } from '@/lib/rotation';
 import { memberIds } from '@/lib/members';
+import { pollIsOver } from '@/lib/poll-tally';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -64,8 +65,11 @@ export default async function PollsPage() {
     })
     .sort((a, b) => b.poll.created_at.localeCompare(a.poll.created_at));
 
-  const open = rows.filter((r) => r.poll.status !== 'closed');
-  const closed = rows.filter((r) => r.poll.status === 'closed');
+  // A poll whose every slot has ended is over whether or not anybody closed it.
+  const over = (r: (typeof rows)[number]) =>
+    r.poll.status === 'closed' || pollIsOver(slots.filter((s) => s.poll_id === r.poll.id));
+  const open = rows.filter((r) => !over(r));
+  const closed = rows.filter(over);
 
   return (
     <div className="space-y-6">

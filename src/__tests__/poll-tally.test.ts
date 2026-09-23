@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tallySlot, rankSlots, bestSlot, type Choice, type SlotTally } from '../lib/poll-tally';
+import { tallySlot, rankSlots, bestSlot, openPolls, pollIsOver, type Choice, type SlotTally } from '../lib/poll-tally';
 
 const votes = (entries: [string, Choice][]) => new Map<string, Choice>(entries);
 
@@ -105,5 +105,26 @@ describe('bestSlot', () => {
       tallySlot('clear', votes([['u1', 'yes'], ['u2', 'yes']]), 2),
     ];
     expect(bestSlot(tallies)?.slotId).toBe('clear');
+  });
+});
+
+// A poll for last Saturday stayed on the dashboard under "answered" and took
+// the place a new poll would have. Once every slot has ended it is over.
+describe('polls that are over', () => {
+  const NOW = new Date('2026-09-23T02:00:00.000Z');
+  const poll = (id: string) => ({ id, status: 'open', title: id, created_at: '2026-09-18T00:00:00.000Z' });
+  const slots = [
+    { id: 'past', poll_id: 'old', end_at: '2026-09-19T11:00:00.000Z' },
+    { id: 'p1', poll_id: 'mixed', end_at: '2026-09-19T11:00:00.000Z' },
+    { id: 'p2', poll_id: 'mixed', end_at: '2026-09-26T11:00:00.000Z' },
+  ];
+
+  it('drops a poll whose every slot has ended, and keeps one with time left', () => {
+    const shown = openPolls([poll('old'), poll('mixed'), poll('empty')], slots, [], 'me', NOW).map((r) => r.poll.id);
+    expect(shown).toEqual(['old', 'mixed', 'empty'].filter((id) => id !== 'old'));
+  });
+
+  it('does not call a poll with no slots over', () => {
+    expect(pollIsOver([], NOW)).toBe(false);
   });
 });
