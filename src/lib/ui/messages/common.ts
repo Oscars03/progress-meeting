@@ -157,7 +157,6 @@ export const common = defineMessages({
 
     'dashboard.nextMeeting': 'การประชุมครั้งถัดไป',
     'dashboard.notScheduled': 'ยังไม่ได้นัดหมาย',
-    'dashboard.notScheduledHint': 'ยังไม่มีการประชุมที่นัดไว้ล่วงหน้า',
     'dashboard.breakWeek': 'ปิดเทอม: {name}',
     'dashboard.breakResumes': 'เริ่มเปิดเทอมวันที่ {date}',
     'dashboard.scheduleNow': 'นัดหมายการประชุม',
@@ -179,7 +178,6 @@ export const common = defineMessages({
     'calendarBroken.title': 'ปฏิทินที่ระบบอ่านไม่ได้แล้ว',
     'calendarBroken.hint': 'คนเหล่านี้เคยเชื่อม Google Calendar ไว้ แต่สิทธิ์ถูกถอนแล้ว เวลาว่างของเขาจะไม่ถูกนับในตารางหาเวลา — ต้องให้เจ้าตัวกดเชื่อมใหม่เองที่หน้าการตั้งค่า',
     'myName.title': 'ชื่อที่แสดง',
-    'myName.hint': 'ชื่อที่คนอื่นเห็นในลำดับผู้รับผิดชอบ ปฏิทิน และรายการงาน',
     'myName.label': 'ชื่อของคุณ',
     'users.error.nameRequired': 'กรุณากรอกชื่อที่จะแสดง',
     'users.error.nameTooLong': 'ชื่อยาวเกินไป (ไม่เกิน 60 ตัวอักษร)',
@@ -383,7 +381,6 @@ export const common = defineMessages({
 
     'dashboard.nextMeeting': 'Next meeting',
     'dashboard.notScheduled': 'Not scheduled yet',
-    'dashboard.notScheduledHint': 'No meeting has been booked ahead',
     'dashboard.breakWeek': 'Term break: {name}',
     'dashboard.breakResumes': 'Term resumes on {date}',
     'dashboard.scheduleNow': 'Schedule a meeting',
@@ -405,7 +402,6 @@ export const common = defineMessages({
     'calendarBroken.title': 'Calendars the app can no longer read',
     'calendarBroken.hint': 'These people connected Google Calendar, but the grant has since been withdrawn. Their free time is not counted in the availability grid until they reconnect from Settings themselves.',
     'myName.title': 'Your display name',
-    'myName.hint': 'What everyone else sees in the rotation, the calendar and task lists',
     'myName.label': 'Your name',
     'users.error.nameRequired': 'Give a name to show',
     'users.error.nameTooLong': 'That name is too long (60 characters at most)',

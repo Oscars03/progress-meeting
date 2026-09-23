@@ -39,10 +39,7 @@ export default function MyName({ name, email }: { name: string; email: string })
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900">{t('myName.title')}</h3>
-        <p className="text-sm text-gray-500 mt-1">{t('myName.hint')}</p>
-      </div>
+      <h3 className="text-lg font-semibold text-gray-900">{t('myName.title')}</h3>
 
       {message && (
         <p

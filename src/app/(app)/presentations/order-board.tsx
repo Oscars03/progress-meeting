@@ -222,7 +222,6 @@ export default function OrderBoard({
         >
           {custom ? t('presentations.customBadge') : t('presentations.suggestedBadge')}
         </span>
-        {!custom && <span className="text-xs text-gray-500">{t('presentations.suggestedHint')}</span>}
         {custom && arrangedBy && (
           <span className="text-xs text-gray-500">
             {t('presentations.arrangedBy', { name: arrangedBy })}

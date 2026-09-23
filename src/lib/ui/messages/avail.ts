@@ -3,8 +3,6 @@ import { defineMessages } from './define';
 /** The weekly availability grid on the polls page. */
 export const avail = defineMessages({
   th: {
-    'avail.title': 'ตารางเวลาว่างรายสัปดาห์',
-    'avail.subtitle': 'รวมเวลาว่างของทุกคนให้อัตโนมัติ ช่วงที่เหมือนกันรวมเป็นบล็อกเดียว',
     'avail.prevWeek': 'สัปดาห์ก่อน',
     'avail.thisWeek': 'สัปดาห์นี้',
     'avail.nextWeek': 'สัปดาห์ถัดไป',
@@ -61,8 +59,6 @@ export const avail = defineMessages({
     'avail.failed': 'โหลดตารางเวลาว่างไม่สำเร็จ',
   },
   en: {
-    'avail.title': 'Weekly availability',
-    'avail.subtitle': "Everyone's free time, gathered automatically, equal stretches merged",
     'avail.prevWeek': 'Previous week',
     'avail.thisWeek': 'This week',
     'avail.nextWeek': 'Next week',

@@ -1,8 +1,7 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { getConnectedUserIds, getStoredToken, googleOAuthConfigured } from '@/lib/google/tokens';
+import { getStoredToken, googleOAuthConfigured } from '@/lib/google/tokens';
 import { requirePageSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
-import { labMembers } from '@/lib/members';
 import CalendarCard from '../calendar-card';
 import MyName from '../my-name';
 
@@ -16,16 +15,6 @@ export default async function AccountSettingsPage() {
 
   // Calendar status is per-person, so it is read for everyone, not just admins.
   const stored = await getStoredToken(actor.id).catch(() => null);
-  let connectedCount = 0;
-  let activeCount = 0;
-  try {
-    const connected = await getConnectedUserIds();
-    const active = labMembers(await SheetRepo.find<UserRecord>('users'));
-    activeCount = active.length;
-    connectedCount = active.filter((u) => connected.has(u.id)).length;
-  } catch {
-    // The card still renders; it just cannot report group coverage.
-  }
 
   return (
     <>
@@ -38,8 +27,6 @@ export default async function AccountSettingsPage() {
           brokeWith: stored?.lastError ?? '',
         }}
         googleEnabled={googleOAuthConfigured()}
-        connectedCount={connectedCount}
-        activeCount={activeCount}
       />
     </>
   );
