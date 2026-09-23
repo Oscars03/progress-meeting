@@ -92,7 +92,27 @@ gh pr merge <เลข PR> --rebase --delete-branch
 rebase ทำให้ commit ได้ SHA ใหม่ `git branch -d` จึงบอกว่ากิ่งยัง unmerged —
 ยืนยันด้วย `git diff --quiet master <กิ่ง>` ก่อนลบด้วย `-D`
 
-### 6. รีเฟรช changelog — **เป็น PR อีกใบ ไม่ใช่ commit ลง master**
+### 6. changelog — **อัปเดตเองตอน deploy** (รีเฟรชไฟล์เป็นครั้งคราวก็พอ)
+
+ตั้งแต่ PR นี้ `npm run build` รัน `scripts/changelog-at-build.ts` ก่อน
+`next build` ทุกครั้ง บน Vercel (มีตัวแปร `VERCEL=1`) มันจะหา commit `feat:` /
+`fix:` ที่ใหม่กว่าไฟล์ `changelog.generated.ts` ที่ commit ไว้ แล้วเติมลงไปใน build
+นั้น — release ไหน ship อะไร แผง "มีอะไรใหม่" ก็ขึ้นบรรทัดนั้นใน release เดียวกัน
+ไม่ต้องรอใครมารีเฟรช
+
+- อ่านจาก GitHub API ก่อน (repo เป็น public ไม่ต้องใช้ token ถ้าตั้ง
+  `GITHUB_TOKEN` ไว้จะใช้) เพราะ Vercel clone แบบตื้น ถ้า GitHub ไม่ตอบค่อยใช้
+  `git log` ของ build เอง
+- **เติมอย่างเดียว ไม่ลบ** และ**ไม่มีวันทำ build ล้ม** — ถ้าหาไม่เจอสักทาง
+  แผงก็แสดงตามไฟล์ที่ commit ไว้เหมือนเดิม ดูผลได้ใน build log บรรทัดที่ขึ้นต้น
+  ด้วย `changelog:`
+- นอก Vercel (เครื่องตัวเอง, CI) ไม่ทำอะไร ไฟล์ที่ commit ไว้จึงไม่เปลี่ยน
+
+**ข้อจำกัด:** บรรทัดที่เติมตอน build ไม่ผ่าน `changelog.test.ts` — commit ที่ลืม
+`Changelog-TH:` จะขึ้นเป็นอังกฤษบนเว็บเลย จนกว่าจะเติมคำแปลใน `TH_BY_SUBJECT`
+ดังนั้นยังควรรีเฟรชไฟล์เป็น PR เป็นครั้งคราว (เช่นหลังปล่อยของหลายชิ้น) ให้เทสต์ได้
+ตรวจ และให้ไฟล์ที่ commit ไว้ไม่ห่างจากปัจจุบันเกิน 100 commit ที่ GitHub API
+ส่งมาให้ต่อครั้ง:
 
 ```bash
 git checkout master
@@ -112,8 +132,8 @@ gh pr create --title "chore: refresh the changelog" --body "..."
 generate
 
 `npm run changelog` สร้างรายการ "มีอะไรใหม่" ในแถบซ้ายจาก commit บน HEAD
-เก็บเฉพาะ `feat:` กับ `fix:` และต้อง commit ไฟล์ที่ได้ไปด้วย เพราะ Vercel
-clone แบบตื้นจึงอ่านประวัติ commit เองไม่ได้
+เก็บเฉพาะ `feat:` กับ `fix:` ไฟล์ที่ได้ต้อง commit ไปด้วย เพราะเป็นฐานที่
+build บน Vercel เอาไปเติม (build clone แบบตื้น อ่านประวัติเก่าเองไม่ได้)
 
 ข้อความไทยมาจาก trailer บน commit — เขียนบรรทัดนี้ต่อท้าย commit message:
 
