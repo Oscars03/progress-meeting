@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node --import tsx scripts/changelog-at-build.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "db:init": "node --env-file=.env.local --import tsx scripts/db-init.ts",
