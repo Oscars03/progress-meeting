@@ -135,7 +135,10 @@ export default async function DashboardPage() {
   // not counted when deciding whether everyone has answered, so being chased
   // for an answer nobody wants is the one thing left that treated it as a
   // member.
-  const iAmAVoter = memberIds(users).has(actor.id);
+  // An admin previewing a role sees that role's dashboard: previewing a
+  // student has to show the polls a student is asked to answer, or the
+  // preview reads as "students get no polls" when they do.
+  const iAmAVoter = actor.previewing ? actor.role === 'student' : memberIds(users).has(actor.id);
   const open = iAmAVoter ? openPolls(polls, slots, votes, actor.id) : [];
   const awaiting = open.filter((row) => row.remaining > 0);
   const answered = open.filter((row) => row.remaining === 0);
