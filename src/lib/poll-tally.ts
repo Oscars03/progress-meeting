@@ -99,6 +99,15 @@ export function bestSlot(tallies: SlotTally[]): SlotTally | null {
   return rankSlots(answered)[0];
 }
 
+/** Every slot has ended. A poll with no slots is not over -- there is nothing to be over. */
+export function pollIsOver(slots: { end_at: string }[], now: Date = new Date()): boolean {
+  if (slots.length === 0) return false;
+  return slots.every((slot) => {
+    const end = new Date(slot.end_at).getTime();
+    return Number.isFinite(end) && end <= now.getTime();
+  });
+}
+
 /**
  * Every open poll, newest first, with how many slots this person has left to
  * answer.
@@ -106,14 +115,19 @@ export function bestSlot(tallies: SlotTally[]): SlotTally | null {
  * Answered polls are kept rather than filtered out: an answer can be changed
  * while the poll is open, and a poll you can no longer find is a poll you can
  * no longer change. The caller decides how loudly to show each group.
+ *
+ * A poll whose every slot has already ended is left out, closed or not: there
+ * is no time left in it to meet, and it only kept the place a new poll would
+ * take. (Nobody closes a poll once the week has moved on.)
  */
 export function openPolls<
   P extends { id: string; status: string; title: string; created_at: string },
-  S extends { id: string; poll_id: string },
+  S extends { id: string; poll_id: string; end_at: string },
   V extends { slot_id: string; user_id: string },
->(polls: P[], slots: S[], votes: V[], userId: string): { poll: P; remaining: number }[] {
+>(polls: P[], slots: S[], votes: V[], userId: string, now: Date = new Date()): { poll: P; remaining: number }[] {
   return polls
     .filter((poll) => poll.status !== 'closed')
+    .filter((poll) => !pollIsOver(slots.filter((slot) => slot.poll_id === poll.id), now))
     .map((poll) => {
       const mySlots = slots.filter((slot) => slot.poll_id === poll.id);
       const slotIds = new Set(mySlots.map((slot) => slot.id));
