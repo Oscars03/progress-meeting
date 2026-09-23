@@ -135,10 +135,7 @@ export default function FeedbackForm() {
       onSubmit={submit}
       className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4"
     >
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900">{t('feedback.writeTitle')}</h3>
-        <p className="text-sm text-gray-500 mt-1">{t('feedback.writeHint')}</p>
-      </div>
+      <h3 className="text-lg font-semibold text-gray-900">{t('feedback.writeTitle')}</h3>
 
       {message && (
         <p

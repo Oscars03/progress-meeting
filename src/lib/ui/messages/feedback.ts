@@ -10,7 +10,6 @@ export const feedback = defineMessages({
     'feedback.adminHint': 'ข้อเสนอแนะทั้งหมดจากสมาชิกในแล็บ',
 
     'feedback.writeTitle': 'เขียนถึงผู้ดูแลระบบ',
-    'feedback.writeHint': 'เขียนสั้นๆ ได้ ไม่ต้องเป็นทางการ',
     'feedback.placeholder': 'เช่น ตอนกดยืนยันเวลาแล้วไม่มีอะไรเกิดขึ้น',
     'feedback.category': 'ประเภท',
     'feedback.category.problem': 'มีปัญหา',
@@ -40,7 +39,6 @@ export const feedback = defineMessages({
     'feedback.openHeading': 'ยังไม่ได้จัดการ ({n})',
     'feedback.doneHeading': 'จัดการแล้ว ({n})',
     'feedback.nothingOpen': 'ไม่มีรายการที่ยังค้างอยู่',
-    'feedback.noneYetMine': 'คุณยังไม่ได้ส่งข้อเสนอแนะ',
     'feedback.noneYetAdmin': 'ยังไม่มีใครส่งข้อเสนอแนะเข้ามา',
     'feedback.done': 'จัดการแล้ว',
     'feedback.markDone': 'ทำเครื่องหมายว่าจัดการแล้ว',
@@ -62,7 +60,6 @@ export const feedback = defineMessages({
     'feedback.adminHint': 'Everything the lab has sent in.',
 
     'feedback.writeTitle': 'Write to the admins',
-    'feedback.writeHint': 'Short is fine. It does not have to be formal.',
     'feedback.placeholder': 'e.g. nothing happens when I confirm a time',
     'feedback.category': 'Kind',
     'feedback.category.problem': 'Something is broken',
@@ -96,7 +93,6 @@ export const feedback = defineMessages({
     'feedback.openHeading': 'Not dealt with yet ({n})',
     'feedback.doneHeading': 'Dealt with ({n})',
     'feedback.nothingOpen': 'Nothing outstanding.',
-    'feedback.noneYetMine': 'You have not sent anything yet.',
     'feedback.noneYetAdmin': 'Nobody has sent anything yet.',
     'feedback.done': 'Done',
     'feedback.markDone': 'Mark as dealt with',

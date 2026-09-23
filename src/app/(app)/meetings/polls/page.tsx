@@ -74,13 +74,9 @@ export default async function PollsPage() {
           <h2 className="text-2xl font-bold text-gray-900">
             {schedules ? t('polls.header') : t('polls.headerSummary')}
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {schedules
-              ? t('polls.headerDesc')
-              : isVoter
-                ? t('polls.headerDescVoter')
-                : t('polls.headerDescViewer')}
-          </p>
+          {/* Only whoever schedules needs telling what to do here; for anybody
+              else the heading says it. */}
+          {schedules && <p className="text-sm text-gray-500 mt-1">{t('polls.headerDesc')}</p>}
         </div>
         <div className="flex items-center gap-3">
           <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">

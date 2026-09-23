@@ -45,7 +45,6 @@ export default async function PresentationsPage(props: {
             {t('presentations.week', { week: activeWeek })}
           </span>
         </div>
-        <p className="text-sm text-gray-500">{t('presentations.subtitle')}</p>
       </div>
 
       <OrderBoard

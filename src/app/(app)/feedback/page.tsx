@@ -65,10 +65,10 @@ export default async function FeedbackPage() {
 
       {rows.length === 0 ? (
         /* Not a congratulation. Nothing has been said yet, which is different
-           from everything having been dealt with -- see CLAUDE.md. */
-        <p className="text-sm text-gray-500">
-          {isAdmin ? t('feedback.noneYetAdmin') : t('feedback.noneYetMine')}
-        </p>
+           from everything having been dealt with -- see CLAUDE.md. Said only
+           to the admin, who reads the list; a member with nothing sent sees
+           the form and nothing under it. */
+        isAdmin && <p className="text-sm text-gray-500">{t('feedback.noneYetAdmin')}</p>
       ) : (
         <div className="space-y-6">
           <section className="space-y-3">

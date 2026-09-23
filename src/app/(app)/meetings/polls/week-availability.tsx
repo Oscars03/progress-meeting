@@ -290,12 +290,8 @@ export default function WeekAvailabilityGrid({
 
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
+      {/* No heading of its own: the page's title already names it. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('avail.title')}</h3>
-          <p className="text-sm text-gray-500">{t('avail.subtitle')}</p>
-        </div>
-
         <div className="flex items-center gap-1.5">
           <button
             type="button"

@@ -10,13 +10,9 @@ import { calendarAuthParams } from '@/lib/google/scopes';
 export default function CalendarCard({
   status,
   googleEnabled,
-  connectedCount,
-  activeCount,
 }: {
   status: ConnectionStatus;
   googleEnabled: boolean;
-  connectedCount: number;
-  activeCount: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -145,13 +141,8 @@ export default function CalendarCard({
         </button>
       )}
 
-      <div className="pt-3 border-t border-gray-100 text-sm text-gray-500">
-        <p>
-          ในห้องแล็บนี้เชื่อมแล้ว{' '}
-          <span className="font-semibold text-gray-900 tabular-nums">{connectedCount}</span> จาก{' '}
-          <span className="tabular-nums">{activeCount}</span> คน
-        </p>
-        <p className="mt-1 text-xs text-gray-400">
+      <div className="pt-3 border-t border-gray-100">
+        <p className="text-xs text-gray-400">
           ระบบอ่านเฉพาะช่วงเวลาที่ไม่ว่าง ไม่เห็นหัวข้อหรือรายละเอียดนัดของคุณ
           และคนที่ยังไม่เชื่อมจะยังได้รับคำเชิญทางอีเมลตามปกติ
         </p>

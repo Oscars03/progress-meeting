@@ -276,7 +276,6 @@ export default async function DashboardPage() {
       ) : (
         <>
           <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
-          <p className="text-sm text-gray-500">{t('dashboard.notScheduledHint')}</p>
           {canSchedule && (
             <Link
               href="/meetings"
