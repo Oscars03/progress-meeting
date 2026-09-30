@@ -278,6 +278,29 @@ export function activeWeekKey(meetings: MeetingRecord[], now: Date = new Date())
   return active;
 }
 
+/**
+ * The week the running order is for: `activeWeekKey`, carried past any term
+ * break to the first working week after it.
+ *
+ * Nobody presents in a break, so showing one on the running order offered an
+ * empty week with no lead that topics could still be added to. During a break
+ * the board shows the week the lab comes back to instead, so what people add
+ * is what they will actually present.
+ *
+ * The dashboard keeps using `activeWeekKey`: there the break itself is the
+ * news, and it says so.
+ */
+export function agendaWeekKey(
+  meetings: MeetingRecord[],
+  breaks: TermBreakRecord[],
+  now: Date = new Date(),
+): string {
+  let key = activeWeekKey(meetings, now);
+  // Bounded: a break entered by mistake as years long must not hang the page.
+  for (let i = 0; i < 104 && breakForWeek(breaks, key); i++) key = nextWeekKey(key);
+  return key;
+}
+
 /** Meetings in the ISO week containing `date`, earliest first, cancelled ones dropped. */
 export function meetingsInWeek(meetings: MeetingRecord[], date: Date = new Date()): MeetingRecord[] {
   const target = weekKey(date);

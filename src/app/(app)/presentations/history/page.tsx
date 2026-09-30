@@ -4,11 +4,12 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import { formatLabTime } from '@/lib/lab-time';
-import { activeWeekKey } from '@/lib/rotation';
+import { agendaWeekKey } from '@/lib/rotation';
 import { pastWeeks, weekRange } from '@/lib/meeting-history';
 import type {
   MeetingRecord,
   MinutesRecord,
+  TermBreakRecord,
   TopicRecord,
   UserRecord,
   WeekLeadRecord,
@@ -22,7 +23,7 @@ import type {
  * and the topic actions refuse them anyway.
  */
 export default async function MeetingHistoryPage() {
-  const [actor, t, locale, users, meetings, minutes, topics, leads] = await Promise.all([
+  const [actor, t, locale, users, meetings, minutes, topics, leads, breaks] = await Promise.all([
     requirePageSession(),
     getT(),
     getLocale(),
@@ -31,9 +32,10 @@ export default async function MeetingHistoryPage() {
     SheetRepo.find<MinutesRecord>('minutes'),
     SheetRepo.find<TopicRecord>('topics'),
     SheetRepo.find<WeekLeadRecord>('week_leads'),
+    SheetRepo.find<TermBreakRecord>('term_breaks').catch(() => []),
   ]);
 
-  const weeks = pastWeeks({ meetings, minutes, topics, leads }, activeWeekKey(meetings));
+  const weeks = pastWeeks({ meetings, minutes, topics, leads }, agendaWeekKey(meetings, breaks));
   const nameOf = (id: string) => users.find((user) => user.id === id)?.name ?? t('common.deletedUser');
   const isAdmin = actor.role === 'admin';
 

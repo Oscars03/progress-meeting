@@ -9,8 +9,8 @@ import {
   canEditAnyTopic,
   type SessionUser,
 } from '@/lib/auth-guard';
-import { activeWeekKey, actsAsWeekLead } from '@/lib/rotation';
-import type { MeetingRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { actsAsWeekLead, agendaWeekKey } from '@/lib/rotation';
+import type { MeetingRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { weekKey } from '@/lib/week';
@@ -26,12 +26,16 @@ const MAX_TITLE = 200;
  * or dropped months later and the week's agenda would quietly change.
  *
  * "Over" is the same rollover the running order uses, so the week a meeting
- * has just finished in stays open until its grace day has passed.
+ * has just finished in stays open until its grace day has passed, and a term
+ * break counts as over -- nobody presents in one.
  */
 async function assertWeekOpen(actor: SessionUser, key: string): Promise<void> {
   if (actor.role === 'admin') return;
-  const meetings = await SheetRepo.find<MeetingRecord>('meetings');
-  if (isPastWeek(key, activeWeekKey(meetings))) throw new UserError('topics.pastWeekLocked');
+  const [meetings, breaks] = await Promise.all([
+    SheetRepo.find<MeetingRecord>('meetings'),
+    SheetRepo.find<TermBreakRecord>('term_breaks'),
+  ]);
+  if (isPastWeek(key, agendaWeekKey(meetings, breaks))) throw new UserError('topics.pastWeekLocked');
 }
 
 function cleanWeek(value: string | undefined): string {

@@ -39,6 +39,7 @@ export const presentations = defineMessages({
     'topics.advisorNoTopics': 'อาจารย์ที่ปรึกษาดูและจัดลำดับได้ แต่ไม่ได้เพิ่มหัวข้อนำเสนอเอง',
     'topics.pastWeekLocked': 'สัปดาห์นี้ผ่านไปแล้ว แก้ไขได้เฉพาะผู้ดูแลระบบ',
     'presentations.pastWeek': 'สัปดาห์นี้ผ่านไปแล้ว ดูได้อย่างเดียว',
+    'presentations.afterBreak': 'ตอนนี้ปิดภาค ({name}) — แสดงสัปดาห์แรกหลังปิดภาค',
 
     'history.title': 'ประชุมที่ผ่านมา',
     'history.link': 'ประชุมที่ผ่านมา',
@@ -89,6 +90,7 @@ export const presentations = defineMessages({
     'topics.advisorNoTopics': 'An advisor reads and arranges the order rather than presenting in it',
     'topics.pastWeekLocked': 'This week is over; only an admin can change it',
     'presentations.pastWeek': 'This week is over — read only',
+    'presentations.afterBreak': 'Term break ({name}) — showing the first week back',
 
     'history.title': 'Past meetings',
     'history.link': 'Past meetings',
