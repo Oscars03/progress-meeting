@@ -30,7 +30,8 @@ async function withRetry<T>(op: () => Promise<T>): Promise<T> {
   }
 }
 
-async function findUserByEmail(email: string): Promise<UserRecord | null> {
+/** `email` must already be normalized. Also used by the lab SSO route. */
+export async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const users = await withRetry(() => SheetRepo.find<UserRecord>('users'));
   return users.find((u) => normalizeEmail(u.email) === email) ?? null;
 }

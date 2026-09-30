@@ -107,6 +107,10 @@ export const common = defineMessages({
     'login.signInFailed': 'เข้าสู่ระบบไม่สำเร็จ',
     'login.googleRetry': 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณากดปุ่ม “เข้าสู่ระบบด้วย Google” อีกครั้ง',
     'login.accountNotLinked': 'อีเมลนี้สมัครไว้ด้วยรหัสผ่าน กรุณาเข้าสู่ระบบด้วยอีเมลและรหัสผ่าน',
+    'login.labSsoDenied':
+      'เข้าผ่านเว็บแลปไม่สำเร็จ เฉพาะผู้ดูแลเว็บแลปเท่านั้นที่เข้าทางนี้ได้ กรุณากดใหม่จากเว็บแลป หรือเข้าสู่ระบบด้วยอีเมลหรือ Google',
+    'login.labSsoUnavailable':
+      'ติดต่อเว็บแลปไม่ได้ในขณะนี้ กรุณากลับไปกดปุ่มบนเว็บแลปอีกครั้ง หรือเข้าสู่ระบบด้วยอีเมลหรือ Google',
     'login.configError': 'ระบบเข้าสู่ระบบตั้งค่าไม่ถูกต้อง กรุณาติดต่อผู้ดูแลระบบ',
     'login.sessionRequired': 'กรุณาเข้าสู่ระบบก่อนใช้งานหน้านี้',
     'login.errorCode': 'รหัสข้อผิดพลาด: {code}',
@@ -330,6 +334,10 @@ export const common = defineMessages({
       'Google sign-in did not finish. Please press “Sign in with Google” again.',
     'login.accountNotLinked':
       'This email is registered with a password. Please sign in with your email and password.',
+    'login.labSsoDenied':
+      'Signing in from the lab website did not work. Only lab website admins can sign in this way. Press the button on the lab website again, or sign in with email or Google.',
+    'login.labSsoUnavailable':
+      'The lab website could not be reached. Go back and press its button again, or sign in with email or Google.',
     'login.configError': 'Sign-in is misconfigured. Please contact an administrator.',
     'login.sessionRequired': 'Please sign in to see this page.',
     'login.errorCode': 'Error code: {code}',

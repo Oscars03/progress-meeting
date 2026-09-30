@@ -8,7 +8,12 @@ import { registerAction } from './actions';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey } from '@/lib/ui/i18n';
-import { isPendingApproval, TEMPORARY_ERROR } from '@/lib/auth-signals';
+import {
+  isPendingApproval,
+  LAB_SSO_DENIED,
+  LAB_SSO_UNAVAILABLE,
+  TEMPORARY_ERROR,
+} from '@/lib/auth-signals';
 import PendingCard from './pending-card';
 
 /**
@@ -35,6 +40,9 @@ const SIGNIN_ERRORS: Record<string, TranslationKey> = {
   Callback: 'login.googleRetry',
   // The address already has a password account. Another press cannot help.
   OAuthAccountNotLinked: 'login.accountNotLinked',
+  // Came from the lab website's button -- app/auth/firebase.
+  [LAB_SSO_DENIED]: 'login.labSsoDenied',
+  [LAB_SSO_UNAVAILABLE]: 'login.labSsoUnavailable',
   Configuration: 'login.configError',
   SessionRequired: 'login.sessionRequired',
 };
