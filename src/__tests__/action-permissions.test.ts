@@ -11,7 +11,7 @@
  * write did not happen and the reason was reported".
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { weekKey } from '../lib/week';
 
 const getServerSessionMock = vi.fn();
@@ -87,6 +87,20 @@ const { pushMeetingAction, pullMeetingAction } = await import('../app/(app)/cale
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
 const MONDAY = '2026-09-28';
+
+/**
+ * Pin "now" inside WEEK, for tests of a rule that depends on whether a week is
+ * over. Without it they would start failing the Monday after WEEK.
+ */
+function duringWeek() {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(`${MONDAY}T12:00:00+07:00`));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+}
 
 function signedInAs(id: string, role = 'student') {
   getServerSessionMock.mockResolvedValue({
@@ -1312,6 +1326,8 @@ describe('changing your own display name', () => {
 // It was professor-and-above only, which meant the one person actually running
 // the meeting had to ask somebody else to move a name.
 describe('arranging the running order', () => {
+  duringWeek();
+
   beforeEach(() => {
     tables['topics'] = [
       { id: 't1', title: 'A', owner_id: 'lead', week_key: WEEK, status: 'planned', row_version: 1 },
@@ -1417,6 +1433,8 @@ describe('arranging the running order', () => {
  * agenda is no longer something they can write to.
  */
 describe('what an advisor may do to a topic', () => {
+  duringWeek();
+
   beforeEach(() => {
     tables['topics'] = [
       { id: 't1', title: 'A', details: '', owner_id: 'stu', week_key: WEEK, status: 'planned', row_version: 1 },
@@ -1486,6 +1504,83 @@ describe('what an advisor may do to a topic', () => {
     const result = await updateTopic('t1', { title: 'Fixed' }, 1);
 
     expect(result.ok).toBe(true);
+  });
+});
+
+/**
+ * A week that is over is a record everybody reads and only admin corrects.
+ * Topics could otherwise be reworded or dropped long after they were
+ * presented, and the history would say something that never happened.
+ */
+describe('a week that is over', () => {
+  const PAST = '2026-W39';
+  duringWeek();
+
+  beforeEach(() => {
+    tables['week_leads'].push({ id: 'wl0', week_key: PAST, user_id: 'lead', row_version: 1 });
+    tables['topics'] = [
+      { id: 'old', title: 'Old', details: '', owner_id: 'stu', week_key: PAST, status: 'planned', row_version: 1 },
+      { id: 'old2', title: 'Old 2', details: '', owner_id: 'lead', week_key: PAST, status: 'planned', row_version: 1 },
+    ];
+  });
+
+  it('refuses the owner rewording their own topic', async () => {
+    signedInAs('stu');
+    const result = await updateTopic('old', { title: 'Rewritten' }, 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'topics.pastWeekLocked' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses the owner dropping their own topic', async () => {
+    signedInAs('stu');
+    const result = await deleteTopic('old', 1);
+
+    expect(result).toMatchObject({ ok: false, error: 'topics.pastWeekLocked' });
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('refuses adding a topic to it', async () => {
+    signedInAs('stu');
+    const result = await addTopic({ title: 'Late', week_key: PAST });
+
+    expect(result).toMatchObject({ ok: false, error: 'topics.pastWeekLocked' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses even the lead of that week rearranging it', async () => {
+    signedInAs('lead');
+    const order = [
+      { id: 'old2', row_version: 1 },
+      { id: 'old', row_version: 1 },
+    ];
+
+    await expect(setTopicOrder(order, PAST)).resolves.toMatchObject({
+      ok: false,
+      error: 'topics.pastWeekLocked',
+    });
+    await expect(clearTopicOrder(order, PAST)).resolves.toMatchObject({
+      ok: false,
+      error: 'topics.pastWeekLocked',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin correct it', async () => {
+    signedInAs('boss', 'admin');
+
+    await expect(updateTopic('old', { title: 'Fixed' }, 1)).resolves.toMatchObject({ ok: true });
+    await expect(
+      setTopicOrder([{ id: 'old2', row_version: 1 }, { id: 'old', row_version: 1 }], PAST),
+    ).resolves.toMatchObject({ ok: true });
+    await expect(deleteTopic('old', 1)).resolves.toMatchObject({ ok: true });
+  });
+
+  it('leaves the current week open to its owner', async () => {
+    tables['topics'].push({ id: 'now', title: 'Now', details: '', owner_id: 'stu', week_key: WEEK, status: 'planned', row_version: 1 });
+    signedInAs('stu');
+
+    await expect(updateTopic('now', { title: 'Still mine' }, 1)).resolves.toMatchObject({ ok: true });
   });
 });
 

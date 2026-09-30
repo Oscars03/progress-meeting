@@ -9,15 +9,30 @@ import {
   canEditAnyTopic,
   type SessionUser,
 } from '@/lib/auth-guard';
-import { actsAsWeekLead } from '@/lib/rotation';
-import type { WeekLeadRecord } from '@/lib/db/schema';
+import { activeWeekKey, actsAsWeekLead } from '@/lib/rotation';
+import type { MeetingRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { weekKey } from '@/lib/week';
 import type { TopicRecord } from '@/lib/db/schema';
 import { can } from '@/lib/permissions';
+import { isPastWeek } from '@/lib/meeting-history';
 
 const MAX_TITLE = 200;
+
+/**
+ * A week that is over is a record: everybody reads it on the history page,
+ * and only admin may still correct it. Before this, a topic could be reworded
+ * or dropped months later and the week's agenda would quietly change.
+ *
+ * "Over" is the same rollover the running order uses, so the week a meeting
+ * has just finished in stays open until its grace day has passed.
+ */
+async function assertWeekOpen(actor: SessionUser, key: string): Promise<void> {
+  if (actor.role === 'admin') return;
+  const meetings = await SheetRepo.find<MeetingRecord>('meetings');
+  if (isPastWeek(key, activeWeekKey(meetings))) throw new UserError('topics.pastWeekLocked');
+}
 
 function cleanWeek(value: string | undefined): string {
   const key = value?.trim() || weekKey();
@@ -43,13 +58,16 @@ export async function addTopic(data: {
     if (!title) throw new UserError('topics.titleRequired');
     if (title.length > MAX_TITLE) throw new UserError('topics.titleTooLong', { n: MAX_TITLE });
 
+    const week = cleanWeek(data.week_key);
+    await assertWeekOpen(actor, week);
+
     await SheetRepo.insert(
       'topics',
       {
         title,
         details: data.details?.trim() ?? '',
         owner_id: actor.id,
-        week_key: cleanWeek(data.week_key),
+        week_key: week,
         meeting_id: '',
         present_order: '',
         status: 'planned',
@@ -81,6 +99,7 @@ export async function updateTopic(
     if (topic.owner_id !== actor.id && !canEditAnyTopic(actor)) {
       throw new UserError('topics.notYours');
     }
+    await assertWeekOpen(actor, topic.week_key);
 
     const title = data.title?.trim();
     if (!title) throw new UserError('topics.titleRequired');
@@ -107,6 +126,7 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
     if (topic.owner_id !== actor.id && !canEditAnyTopic(actor)) {
       throw new UserError('topics.notYours');
     }
+    await assertWeekOpen(actor, topic.week_key);
 
     await SheetRepo.delete('topics', topicId, rowVersion, actor.id);
     revalidatePath('/presentations');
@@ -126,15 +146,17 @@ export async function deleteTopic(topicId: string, rowVersion: number): Promise<
  * can hand it to one person without promoting them -- the `arrangeOrder`
  * ability in lib/permissions.ts.
  *
- * Judged on the week being arranged, not on today: rearranging last week's
- * agenda answers to whoever led last week.
+ * Judged on the week being arranged, not on today: a coming week's agenda
+ * answers to whoever will lead it. A week that is over is admin's alone -- see
+ * assertWeekOpen.
  */
 async function assertMayArrange(weekKey: string): Promise<SessionUser> {
   const actor = await requireSession();
-  if (can(actor, 'arrangeOrder')) return actor;
-
-  const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
-  if (!actsAsWeekLead(actor, leads, weekKey)) throw new UserError('avail.leadOnly');
+  if (!can(actor, 'arrangeOrder')) {
+    const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+    if (!actsAsWeekLead(actor, leads, weekKey)) throw new UserError('avail.leadOnly');
+  }
+  await assertWeekOpen(actor, weekKey);
   return actor;
 }
 
