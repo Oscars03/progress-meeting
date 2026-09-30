@@ -11,13 +11,7 @@
  * used for that one request and then dropped: never stored, never logged.
  */
 
-export const LAB_ORIGINS = [
-  'https://irish-tech.com',
-  'https://www.irish-tech.com',
-  // The lab team's dev server, for their end-to-end test. Temporary: remove
-  // when they say testing is done.
-  'http://localhost:3000',
-];
+export const LAB_ORIGINS = ['https://irish-tech.com', 'https://www.irish-tech.com'];
 
 const WHOAMI_URL = 'https://irish-tech.com/api/users/me';
 const WHOAMI_TIMEOUT_MS = 6000;

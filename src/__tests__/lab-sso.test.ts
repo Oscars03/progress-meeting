@@ -69,6 +69,8 @@ describe('isLabOrigin', () => {
     expect(isLabOrigin(null)).toBe(false);
     expect(isLabOrigin('https://irish-tech.com.evil.example')).toBe(false);
     expect(isLabOrigin('http://irish-tech.com')).toBe(false);
+    // The lab team's dev server, allowed only while they tested.
+    expect(isLabOrigin('http://localhost:3000')).toBe(false);
   });
 });
 
