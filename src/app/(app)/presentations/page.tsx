@@ -4,8 +4,16 @@ import { requirePageSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-gua
 import { getT } from '@/lib/ui/server-i18n';
 import { effectiveTopicOrder, topicsForWeek, lastArrangedBy } from '@/lib/presentation-order';
 import OrderBoard from './order-board';
-import type { AuditRecord, MeetingRecord, TopicRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
-import { activeWeekKey, actsAsWeekLead } from '@/lib/rotation';
+import type {
+  AuditRecord,
+  MeetingRecord,
+  TermBreakRecord,
+  TopicRecord,
+  UserRecord,
+  WeekLeadRecord,
+} from '@/lib/db/schema';
+import { activeWeekKey, actsAsWeekLead, agendaWeekKey } from '@/lib/rotation';
+import { breakForWeek } from '@/lib/term-breaks';
 import { autoAssignWeekLead } from '../meetings/actions';
 import { can } from '@/lib/permissions';
 import { isPastWeek } from '@/lib/meeting-history';
@@ -14,16 +22,19 @@ export default async function PresentationsPage(props: {
   searchParams: Promise<{ week?: string }>;
 }) {
   const { week } = await props.searchParams;
-  const [actor, users, meetings, allTopics, initialLeads, t] = await Promise.all([
+  const [actor, users, meetings, allTopics, initialLeads, breaks, t] = await Promise.all([
     requirePageSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
     SheetRepo.find<TopicRecord>('topics'),
     SheetRepo.find<WeekLeadRecord>('week_leads'),
+    SheetRepo.find<TermBreakRecord>('term_breaks').catch(() => []),
     getT(),
   ]);
 
-  const rolledWeek = activeWeekKey(meetings);
+  // In a term break this is the week the lab comes back to -- see agendaWeekKey.
+  const rolledWeek = agendaWeekKey(meetings, breaks);
+  const currentBreak = week ? null : breakForWeek(breaks, activeWeekKey(meetings));
   const assignedAutomatically = await autoAssignWeekLead(rolledWeek);
   const leads = assignedAutomatically ? await SheetRepo.find<WeekLeadRecord>('week_leads') : initialLeads;
 
@@ -56,6 +67,11 @@ export default async function PresentationsPage(props: {
           </div>
         </div>
         {locked && <p className="text-sm text-gray-500">{t('presentations.pastWeek')}</p>}
+        {currentBreak && (
+          <p className="text-sm text-gray-500">
+            {t('presentations.afterBreak', { name: currentBreak.name })}
+          </p>
+        )}
       </div>
 
       <OrderBoard

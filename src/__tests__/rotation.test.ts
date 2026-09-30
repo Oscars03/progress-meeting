@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   activeWeekKey,
+  agendaWeekKey,
   actsAsWeekLead,
   rotationMembers,
   suggestNextHost,
@@ -292,6 +293,31 @@ describe('activeWeekKey', () => {
     const nextLabDay = new Date('2026-09-17T02:00:00.000Z');
     expect(activeWeekKey([old, recent], nextLabDay)).toBe('2026-W39');
     expect(activeWeekKey([recent, old], nextLabDay)).toBe('2026-W39');
+  });
+});
+
+// The lab's own break, 1-18 Oct 2026: Thursday of W40 to Sunday of W42.
+describe('agendaWeekKey', () => {
+  const breaks = [{ id: 'b', name: '1/2569', start_date: '2026-10-01', end_date: '2026-10-18' } as TermBreakRecord];
+
+  it('is the active week when that week is a working one', () => {
+    // Tue 29 Sep: the break starts on Thursday, so W40 is still a working week.
+    expect(agendaWeekKey([], breaks, new Date('2026-09-29T03:00:00.000Z'))).toBe('2026-W40');
+  });
+
+  it('skips every break week to the first week back', () => {
+    expect(agendaWeekKey([], breaks, new Date('2026-10-06T03:00:00.000Z'))).toBe('2026-W43');
+    expect(agendaWeekKey([], breaks, new Date('2026-10-14T03:00:00.000Z'))).toBe('2026-W43');
+  });
+
+  it('skips the break when a meeting rolls the week into it', () => {
+    // Meeting Wed 30 Sep; the next lab day rolls W40 over into the break.
+    const meetings = [meeting('wed', '2026-09-30T03:00:00.000Z')];
+    expect(agendaWeekKey(meetings, breaks, new Date('2026-10-01T03:00:00.000Z'))).toBe('2026-W43');
+  });
+
+  it('is the active week when there are no breaks', () => {
+    expect(agendaWeekKey([], [], new Date('2026-10-06T03:00:00.000Z'))).toBe('2026-W41');
   });
 });
 

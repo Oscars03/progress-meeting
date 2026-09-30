@@ -1576,6 +1576,32 @@ describe('a week that is over', () => {
     await expect(deleteTopic('old', 1)).resolves.toMatchObject({ ok: true });
   });
 
+  // Nobody presents in a term break, so the running order moves past it and
+  // a break week is closed like a finished one.
+  describe('during a term break', () => {
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-10-06T12:00:00+07:00')); // W41
+      tables['term_breaks'] = [
+        { id: 'b', name: '1/2569', start_date: '2026-10-01', end_date: '2026-10-18', row_version: 1 },
+      ];
+    });
+
+    it('refuses adding a topic to a break week', async () => {
+      signedInAs('stu');
+      const result = await addTopic({ title: 'In the break', week_key: '2026-W41' });
+
+      expect(result).toMatchObject({ ok: false, error: 'topics.pastWeekLocked' });
+      expect(insert).not.toHaveBeenCalled();
+    });
+
+    it('lets a topic be added to the first week back', async () => {
+      signedInAs('stu');
+      const result = await addTopic({ title: 'After the break', week_key: '2026-W43' });
+
+      expect(result.ok).toBe(true);
+    });
+  });
+
   it('leaves the current week open to its owner', async () => {
     tables['topics'].push({ id: 'now', title: 'Now', details: '', owner_id: 'stu', week_key: WEEK, status: 'planned', row_version: 1 });
     signedInAs('stu');
