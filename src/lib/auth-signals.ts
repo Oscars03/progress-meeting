@@ -30,3 +30,13 @@ export function isPendingApproval(error: string | null | undefined): boolean {
  * that is true and useful instead: press the button again.
  */
 export const TEMPORARY_ERROR = 'TemporaryError';
+
+/**
+ * Sign-in from the lab website (app/auth/firebase) was refused: the token was
+ * missing, invalid or expired, or its owner is not a lab admin. The lab's own
+ * answer is not repeated to the person -- they get one message either way.
+ */
+export const LAB_SSO_DENIED = 'LabSsoDenied';
+
+/** The lab website did not answer when asked who the token belongs to. */
+export const LAB_SSO_UNAVAILABLE = 'LabSsoUnavailable';
