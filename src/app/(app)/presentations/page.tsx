@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
@@ -7,6 +8,7 @@ import type { AuditRecord, MeetingRecord, TopicRecord, UserRecord, WeekLeadRecor
 import { activeWeekKey, actsAsWeekLead } from '@/lib/rotation';
 import { autoAssignWeekLead } from '../meetings/actions';
 import { can } from '@/lib/permissions';
+import { isPastWeek } from '@/lib/meeting-history';
 
 export default async function PresentationsPage(props: {
   searchParams: Promise<{ week?: string }>;
@@ -27,6 +29,9 @@ export default async function PresentationsPage(props: {
 
   const activeWeek = /^\d{4}-W\d{2}$/.test(week ?? '') ? (week as string) : rolledWeek;
   const { ordered, custom } = effectiveTopicOrder(topicsForWeek(allTopics, activeWeek));
+  // Opened from the history page, or by an old link. Everybody may read it;
+  // only admin may still change it -- the actions refuse the rest regardless.
+  const locked = isPastWeek(activeWeek, rolledWeek) && actor.role !== 'admin';
   const nameOf = (id: string) => users.find((user) => user.id === id)?.name ?? t('common.deletedUser');
 
   // Only when the week was actually arranged. A suggested order has nobody to
@@ -41,18 +46,25 @@ export default async function PresentationsPage(props: {
       <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-gray-900">{t('presentations.title')}</h2>
-          <span className="text-sm text-gray-500 tabular-nums">
-            {t('presentations.week', { week: activeWeek })}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500 tabular-nums">
+              {t('presentations.week', { week: activeWeek })}
+            </span>
+            <Link href="/presentations/history" className="text-sm text-blue-600 hover:underline">
+              {t('history.link')}
+            </Link>
+          </div>
         </div>
+        {locked && <p className="text-sm text-gray-500">{t('presentations.pastWeek')}</p>}
       </div>
 
       <OrderBoard
         weekKey={activeWeek}
         custom={custom}
-        canArrange={can(actor, 'arrangeOrder') || actsAsWeekLead(actor, leads, activeWeek)}
-        canAdd={canAddTopic(actor)}
-        canEditAny={canEditAnyTopic(actor)}
+        canArrange={!locked && (can(actor, 'arrangeOrder') || actsAsWeekLead(actor, leads, activeWeek))}
+        canAdd={!locked && canAddTopic(actor)}
+        canEditAny={!locked && canEditAnyTopic(actor)}
+        readOnly={locked}
         arrangedBy={arrangedById ? nameOf(arrangedById) : null}
         currentUserId={actor.id}
         topics={ordered.map((topic) => ({

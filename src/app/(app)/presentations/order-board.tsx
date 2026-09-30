@@ -65,6 +65,7 @@ export default function OrderBoard({
   canEditAny,
   arrangedBy,
   currentUserId,
+  readOnly = false,
 }: {
   weekKey: string;
   topics: BoardTopic[];
@@ -77,6 +78,8 @@ export default function OrderBoard({
   /** Who arranged the stored order, already resolved to a name. */
   arrangedBy: string | null;
   currentUserId: string;
+  /** A week that is over: even your own topics stay as they were presented. */
+  readOnly?: boolean;
 }) {
   const { t } = usePrefs();
   const router = useRouter();
@@ -408,7 +411,7 @@ export default function OrderBoard({
                           {topic.title}
                         </span>
 
-                        {(mine || canEditAny) && (
+                        {!readOnly && (mine || canEditAny) && (
                           <span className="flex items-center gap-2">
                             <button
                               type="button"
