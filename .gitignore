@@ -51,10 +51,12 @@ next-env.d.ts
 # Kept last so it overrides the logo folder rules above for README.md too.
 #
 # The exceptions are the documents somebody cloning the repo needs in order to
-# work on it -- how to run it, and how to ship it.
+# work on it -- how to run it, and how to ship it -- plus the shared list of
+# UI references to design against.
 *.md
 !README.md
 !DEPLOY.md
+!docs/ui-references.md
 
 # Claude Code personal settings (not shared)
 .claude/settings.local.json
