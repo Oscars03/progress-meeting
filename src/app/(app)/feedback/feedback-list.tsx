@@ -108,7 +108,7 @@ export default function FeedbackList({
               viewer's cookies. */}
           {row.images.length > 0 && (
             <ul className="mt-3 flex flex-wrap gap-2">
-              {row.images.map((image) => (
+              {row.images.map((image, index) => (
                 <li key={image.id}>
                   <a
                     href={`/api/attachments/${image.id}`}
@@ -119,7 +119,9 @@ export default function FeedbackList({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/attachments/${image.id}`}
-                      alt={image.name}
+                      // Named for what it is to the reader, not by its file
+                      // name: "IMG_1089.jpg" says nothing to a screen reader.
+                      alt={t('feedback.imageAlt', { n: index + 1, name: row.authorName })}
                       loading="lazy"
                       className="h-28 w-28 rounded-lg border border-gray-200 object-cover transition hover:brightness-95"
                     />
