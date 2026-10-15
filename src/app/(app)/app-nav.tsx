@@ -172,7 +172,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
       {/* Mobile Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
+          className="motion-scrim fixed inset-0 bg-gray-900/50 z-40 md:hidden"
           onClick={closeMobileMenu}
           aria-hidden="true"
         />
@@ -181,7 +181,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
       {/* md:w-max: the expanded rail is exactly as wide as its widest content --
           today the header -- with no fixed width to leave slack beside short
           menu labels. Collapsed overrides it with a fixed 64px rail. */}
-      <nav className={`fixed inset-y-0 left-0 z-50 w-72 h-dvh md:h-auto overflow-hidden bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-300 motion-reduce:transition-none md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <nav className={`fixed inset-y-0 left-0 z-50 w-72 h-dvh md:h-auto overflow-hidden bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-(--motion-base) ease-(--motion-ease-out) md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Mobile close button */}
         <div className="md:hidden absolute top-4 right-4">
           <button
@@ -407,7 +407,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
 
       {whatsNewOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label={t('nav.whatsNew')}
@@ -415,7 +415,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
             if (e.target === e.currentTarget) setWhatsNewOpen(false);
           }}
         >
-          <div className="flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl">
+          <div className="motion-dialog flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4">
               <div>
                 <h3 className="font-semibold text-gray-900">{t('nav.whatsNew')}</h3>
@@ -473,12 +473,12 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
 
       {signOutOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="signout-title"
         >
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5 sm:p-6 space-y-4">
+          <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm p-5 sm:p-6 space-y-4">
             <h2 id="signout-title" className="text-lg font-semibold text-gray-900">
               {t('signout.title')}
             </h2>

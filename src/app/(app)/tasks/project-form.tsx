@@ -146,12 +146,12 @@ export default function ProjectForm({
   return (
     // No close on a click outside: a stray click would throw away a form
     // somebody has half filled in. Cancel, the cross and Escape all close it.
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+    <div className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="trk-form-title"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-5 sm:p-6 overflow-y-auto max-h-[92dvh]"
+        className="motion-dialog bg-white rounded-2xl shadow-xl w-full max-w-xl p-5 sm:p-6 overflow-y-auto max-h-[92dvh]"
       >
         <div className="flex items-start justify-between gap-3">
           <h3 id="trk-form-title" className="text-lg font-semibold text-gray-900">

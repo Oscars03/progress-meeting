@@ -462,7 +462,7 @@ export default function WeekAvailabilityGrid({
           belongs over the block, where the question was asked. */}
       {selected && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label={whenLabel(selected)}
@@ -471,7 +471,7 @@ export default function WeekAvailabilityGrid({
             if (e.target === e.currentTarget) setSelected(null);
           }}
         >
-          <div className="max-h-[85vh] w-full space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-2xl sm:p-5">
+          <div className="motion-dialog max-h-[85vh] w-full space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-2xl sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold text-gray-900">{whenLabel(selected)}</p>
             <div className="flex items-center gap-2">

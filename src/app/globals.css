@@ -25,6 +25,37 @@ body {
 }
 
 /* ==========================================================================
+   Motion
+   --------------------------------------------------------------------------
+   Every transition in the app takes its duration and easing from here, so a
+   modal, the drawer and a reordered list move like one thing. Curves follow
+   docs/ui-references.md (Takayu Studio's motion reference); its durations are
+   long enough to watch a demo by, so these run at roughly half.
+
+   Things arriving decelerate (--motion-ease-out); things leaving accelerate
+   (--motion-ease-in). Under reduced motion every duration collapses to zero rather
+   than each component remembering to opt out.
+   ========================================================================== */
+:root {
+  --motion-fast: 150ms;   /* press, hover, small state changes */
+  --motion-base: 220ms;   /* dialogs, drawer, menus */
+  --motion-slow: 320ms;   /* rows moving to a new place */
+  --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);   /* easeOutCubic */
+  --motion-ease-in: cubic-bezier(0.32, 0, 0.67, 0);    /* easeInCubic */
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion-fast: 0ms; --motion-base: 0ms; --motion-slow: 0ms; }
+}
+
+/* Entrances only: these dialogs unmount on close, so there is nothing left on
+   screen to animate out. Scrim fades; the panel fades and rises a few pixels
+   ("fade + slide" in the reference). */
+.motion-scrim { animation: motion-fade var(--motion-base) var(--motion-ease-out) both; }
+.motion-dialog { animation: motion-rise var(--motion-base) var(--motion-ease-out) both; }
+@keyframes motion-fade { from { opacity: 0; } }
+@keyframes motion-rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* ==========================================================================
    Calendar
    --------------------------------------------------------------------------
    FullCalendar ships a spreadsheet: every cell boxed, every column ruled, the
@@ -1016,7 +1047,7 @@ body {
 @media (max-width: 640px) { .trk-table .trk-proj { min-width: 190px; max-width: 200px; } }
 
 /* Drawer and dialogs */
-.trk-scrim { position: fixed; inset: 0; z-index: 40; background: rgba(17, 24, 39, 0.45); }
+.trk-scrim { position: fixed; inset: 0; z-index: 40; background: rgba(17, 24, 39, 0.45); animation: motion-fade var(--motion-base) var(--motion-ease-out) both; }
 .trk-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: min(440px, 100%); overflow-y: auto; background: var(--trk-surface); border-left: 1px solid var(--trk-border); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18); padding: 20px 22px calc(28px + env(safe-area-inset-bottom, 0px)); color: var(--trk-ink); }
 .trk-sec { border-top: 1px solid var(--trk-line); padding-top: 14px; margin-top: 14px; }
 .trk-sec-title { font-size: 12.5px; font-weight: 600; color: var(--trk-ink-2); margin-bottom: 8px; }
@@ -1025,5 +1056,5 @@ body {
 .trk-pick { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--trk-border); border-radius: 999px; padding: 3px 12px 3px 4px; background: var(--trk-surface); cursor: pointer; font-size: 13.5px; color: var(--trk-ink); }
 .trk-pick[aria-pressed='true'] { border-color: var(--trk-accent); background: var(--trk-accent-soft); color: var(--trk-accent-ink); font-weight: 500; }
 .trk-pick[data-locked] { cursor: default; }
-@media (prefers-reduced-motion: no-preference) { .trk-drawer { animation: trk-slide 0.2s ease-out; } }
+.trk-drawer { animation: trk-slide var(--motion-base) var(--motion-ease-out) both; }
 @keyframes trk-slide { from { transform: translateX(24px); opacity: 0; } }

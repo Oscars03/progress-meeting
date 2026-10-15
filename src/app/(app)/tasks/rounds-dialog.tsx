@@ -101,12 +101,12 @@ export default function RoundsDialog({
   const field = 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+    <div className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="trk-rounds-title"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-5 sm:p-6 overflow-y-auto max-h-[92dvh]"
+        className="motion-dialog bg-white rounded-2xl shadow-xl w-full max-w-xl p-5 sm:p-6 overflow-y-auto max-h-[92dvh]"
       >
         <div className="flex items-start justify-between gap-3">
           <div>

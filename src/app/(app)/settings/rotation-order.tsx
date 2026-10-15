@@ -140,8 +140,9 @@ export default function RotationOrder({ students }: { students: RotationStudent[
               /* The dragged row lifts off the list -- raised, slightly larger
                  and tilted -- so it reads as a card in your hand while the
                  others slide under it. motion-reduce drops the movement for
-                 anyone who asked the system for less of it. */
-              className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-lg border bg-white transition-all duration-200 ease-out motion-reduce:transition-none ${
+                 anyone who asked the system for less of it; the motion
+                 tokens already take the duration to zero for them. */
+              className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-lg border bg-white transition-all duration-(--motion-base) ease-(--motion-ease-out) ${
                 dragIndex === index
                   ? 'border-blue-400 bg-blue-50 shadow-lg scale-105 -rotate-1 z-10 relative motion-reduce:scale-100 motion-reduce:rotate-0'
                   : 'border-gray-200 shadow-none'
