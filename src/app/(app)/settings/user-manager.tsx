@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { Presence } from '@/lib/ui/presence';
 import { byRoleThenName, roleStyle } from '@/lib/role-display';
 import {
   updateUserPasswordAction,
@@ -79,20 +80,20 @@ export default function UserManager({
     });
   };
 
+  // Deleting is permanent, so it asks first -- but by showing who is about to
+  // go and making the admin tick that they understand, not by making them
+  // retype an address the dialog is already showing them. Cancel holds the
+  // focus, so a stray Enter keeps the account.
+  const [deleting, setDeleting] = useState<SafeUser | null>(null);
+  const [understood, setUnderstood] = useState(false);
+
   const handleDeleteUser = (user: SafeUser) => {
-    const warning = [
-      `ลบ ${user.email} ถาวร กู้คืนไม่ได้`,
-      'หากต้องการเพียงระงับการเข้าใช้ ให้กด "ปิดใช้งาน" แทน ซึ่งย้อนกลับได้',
-      'พิมพ์อีเมลของผู้ใช้เพื่อยืนยัน:',
-    ].join('\n\n');
+    setUnderstood(false);
+    setDeleting(user);
+  };
 
-    const typed = prompt(warning);
-    if (typed === null) return;
-    if (typed.trim().toLowerCase() !== user.email.trim().toLowerCase()) {
-      setMessage({ type: 'error', text: 'อีเมลที่พิมพ์ไม่ตรง ยกเลิกการลบแล้ว' });
-      return;
-    }
-
+  const confirmDelete = (user: SafeUser) => {
+    setDeleting(null);
     run(async () => {
       const res = await deleteUserAction(user.id, user.row_version);
       setMessage({ type: 'success', text: `ลบบัญชี ${res.email} แล้ว` });
@@ -468,6 +469,84 @@ export default function UserManager({
           </table>
         </div>
       </div>
+
+      <Presence value={deleting}>
+        {(user) => (
+          <div
+            className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-user-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setDeleting(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setDeleting(null);
+            }}
+          >
+            <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 space-y-4">
+              <h3 id="delete-user-title" className="text-lg font-semibold text-gray-900">
+                ลบผู้ใช้ถาวร
+              </h3>
+
+              <div className="p-3 rounded-lg border border-gray-200 bg-gray-50">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-gray-900">{user.name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleStyle(user.role).badge}`}>
+                    {ROLES.find((r) => r.value === user.role)?.label ?? user.role}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 break-all">{user.email}</p>
+              </div>
+
+              <p className="text-sm text-gray-700">
+                บัญชีนี้จะถูกลบและกู้คืนไม่ได้ หากต้องการเพียงระงับการเข้าใช้ ให้กด &quot;ปิดใช้งานแทน&quot; ซึ่งย้อนกลับได้
+              </p>
+
+              <label className="flex items-start gap-2.5 text-sm text-gray-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={understood}
+                  onChange={(e) => setUnderstood(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-red-600"
+                />
+                เข้าใจแล้วว่าลบแล้วกู้คืนไม่ได้
+              </label>
+
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setDeleting(null)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition"
+                >
+                  ยกเลิก
+                </button>
+                {user.active && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleting(null);
+                      handleToggleActive(user);
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium transition"
+                  >
+                    ปิดใช้งานแทน
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => confirmDelete(user)}
+                  disabled={!understood || isPending}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ลบถาวร
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Presence>
     </div>
   );
 }
