@@ -25,6 +25,15 @@ const csp = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  // `next dev` logs every Server Action call with its arguments, and some of
+  // ours take a password -- registerAction, addUserAction,
+  // updateUserPasswordAction -- so it went into the terminal in plain text.
+  // There is no per-argument redaction, only this switch; the request line
+  // (POST /login 200 in ...) still prints. Dev only: production never logs
+  // these.
+  logging: {
+    serverFunctions: false,
+  },
   // The Android widget image reads these at runtime (lib/widget-png.ts), by a
   // path the tracer cannot follow -- so they are named, or the deployed
   // function would start without its renderer or its Thai font.
