@@ -334,7 +334,7 @@ function LoginForm({
         <>
         <div className="relative flex py-1 items-center">
           <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink mx-3 text-gray-400 text-xs">{t('login.or')}</span>
+          <span className="flex-shrink mx-3 text-gray-500 text-xs">{t('login.or')}</span>
           <div className="flex-grow border-t border-gray-200"></div>
         </div>
 
@@ -405,7 +405,7 @@ function LoginForm({
             <p>• {t('login.devManager')}: <code className="text-blue-600 font-mono">prof1@test.com</code></p>
             <p>• {t('login.devStudent')}: <code className="text-blue-600 font-mono">student1@test.com</code></p>
           </div>
-          <p className="text-gray-400">{t('login.devInitMoved')}</p>
+          <p className="text-gray-500">{t('login.devInitMoved')}</p>
         </div>
       )}
 

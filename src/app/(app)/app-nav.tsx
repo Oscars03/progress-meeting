@@ -404,7 +404,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
             setWhatsNewOpen(true);
           }}
           title={t('nav.whatsNew')}
-          className="shrink-0 flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+          className="shrink-0 flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-600 transition"
         >
           <Icon
             className="h-4 w-4"
@@ -433,7 +433,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
               closeMobileMenu();
               setSignOutOpen(true);
             }}
-            className="flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-sm text-red-500 hover:bg-gray-100"
+            className="flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-sm text-red-600 hover:bg-gray-100"
           >
             <Icon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
             <span className="whitespace-nowrap md:collapsed:sr-only">{t('nav.signOut')}</span>
@@ -480,7 +480,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
                   >
                     <summary className="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-gray-50">
                       <span className="tabular-nums text-gray-700">{day.date}</span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-500">
                         {t('nav.changeCount', { count: String(day.entries.length) })}
                       </span>
                     </summary>

@@ -180,7 +180,7 @@ export default function PollGrid({
       )}
 
       {conflicts && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-500">
           {(() => {
             const checked = [...conflicts.values()][0]?.checked ?? 0;
             return checked === 0
@@ -312,7 +312,7 @@ export default function PollGrid({
       </ul>
 
       {slots.length === 0 && (
-        <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-400">
+        <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-500">
           {t('polls.noSlots')}
         </p>
       )}

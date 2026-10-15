@@ -375,7 +375,7 @@ export default function WeekAvailabilityGrid({
               {hourMarks.map((mark, index) => (
                 <div
                   key={mark.start}
-                  className="absolute left-0 right-1 text-right text-[0.7rem] tabular-nums text-gray-400"
+                  className="absolute left-0 right-1 text-right text-[0.7rem] tabular-nums text-gray-500"
                   style={{ top: index * CELL_PX * 2 - 6 }}
                 >
                   {clock(mark.start)}
@@ -421,7 +421,7 @@ export default function WeekAvailabilityGrid({
                         aria-pressed={isSelected}
                         aria-label={label}
                         title={label}
-                        className={`flex h-full w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border px-1 leading-tight transition hover:brightness-95 ${
+                        className={`tap-exempt flex h-full w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border px-1 leading-tight transition hover:brightness-95 ${
                           RUN_TONE[run.state]
                         } ${isSelected ? 'ring-2 ring-blue-600' : ''}`}
                       >

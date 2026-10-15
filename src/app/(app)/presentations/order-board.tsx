@@ -326,7 +326,7 @@ export default function OrderBoard({
         <div className="p-6 text-center bg-gray-50 rounded-xl border border-gray-100">
           <p className="text-gray-500">{t('presentations.empty')}</p>
           {/* Not advice for an advisor, who has no topic to add. */}
-          {canAdd && <p className="text-sm text-gray-400 mt-1">{t('presentations.emptyHint')}</p>}
+          {canAdd && <p className="text-sm text-gray-500 mt-1">{t('presentations.emptyHint')}</p>}
         </div>
       ) : (
         <ol ref={listRef} className="space-y-2">
@@ -353,7 +353,7 @@ export default function OrderBoard({
                       onPointerUp={onHandleUp}
                       onPointerCancel={onHandleUp}
                       title={t('presentations.dragHint')}
-                      className="touch-none cursor-grab active:cursor-grabbing px-1.5 py-1 -ml-1 text-gray-400 hover:text-gray-600 select-none"
+                      className="touch-none cursor-grab active:cursor-grabbing px-1.5 py-1 -ml-1 text-gray-500 hover:text-gray-700 select-none"
                     >
                       ⠿
                     </span>

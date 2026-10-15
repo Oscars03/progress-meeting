@@ -132,9 +132,12 @@ export default async function MeetingsPage() {
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {/* "Google" stays at every width, as it does when connected: the
+                cross and "connect" alone read as a close button. */}
+            <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
+            <span className="lg:hidden">Google</span>
             <span className="hidden lg:inline">Google Calendar: {t('calcard.notConnected')}</span>
             <ConnectGoogleButton />
           </span>

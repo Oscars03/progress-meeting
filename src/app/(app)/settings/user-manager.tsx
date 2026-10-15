@@ -393,7 +393,7 @@ export default function UserManager({
                   <td className="py-3 px-3">
                     <span
                       className={`text-xs font-medium ${
-                        u.active ? 'text-green-700' : 'text-gray-400'
+                        u.active ? 'text-green-700' : 'text-gray-500'
                       }`}
                     >
                       {u.active ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}
@@ -459,7 +459,7 @@ export default function UserManager({
               ))}
               {initialUsers.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-gray-400">
+                  <td colSpan={5} className="py-6 text-center text-gray-500">
                     {loadError
                       ? 'ยังอ่านข้อมูลผู้ใช้ไม่ได้ กรุณากดปุ่ม "⚡ รัน db:init ผ่านหน้าเว็บ" ที่หน้า การตั้งค่า → ระบบ'
                       : 'ยังไม่มีข้อมูลผู้ใช้'}
