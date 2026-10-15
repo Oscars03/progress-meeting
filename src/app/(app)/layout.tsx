@@ -5,6 +5,7 @@ import AppNav from './app-nav';
 import PreviewBanner from './preview-banner';
 import { requireSession } from '@/lib/auth-guard';
 import { NavDepth } from '@/lib/ui/back-link';
+import { ToastProvider } from '@/lib/ui/toast';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { UserRecord } from '@/lib/db/schema';
 
@@ -38,22 +39,24 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // sign out -- sits underneath the toolbar and cannot be reached. dvh shrinks
   // with it.
   return (
-    <div className="h-dvh flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
-      <NavDepth />
-      {/* The role being looked through, not realRole: an admin previewing a
-          professor sees a professor's menu, with no admin pages in it. The
-          way back is the banner's own button, so Users is not needed for it. */}
-      <AppNav userName={userName} isAdmin={actor?.role === 'admin'} />
+    <ToastProvider>
+      <div className="h-dvh flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
+        <NavDepth />
+        {/* The role being looked through, not realRole: an admin previewing a
+            professor sees a professor's menu, with no admin pages in it. The
+            way back is the banner's own button, so Users is not needed for it. */}
+        <AppNav userName={userName} isAdmin={actor?.role === 'admin'} />
 
-      {/* Inside the scrolling column, above the page: the banner belongs to
-          what is being looked at, and pinning it over the nav would cover the
-          one thing that still works normally. */}
-      <main className="flex-1 overflow-y-auto">
-        {actor?.previewing && (
-          <PreviewBanner role={actor.previewingLead ? 'lead' : actor.role} />
-        )}
-        <div className="p-4 sm:p-6 lg:p-8">{children}</div>
-      </main>
-    </div>
+        {/* Inside the scrolling column, above the page: the banner belongs to
+            what is being looked at, and pinning it over the nav would cover the
+            one thing that still works normally. */}
+        <main className="flex-1 overflow-y-auto">
+          {actor?.previewing && (
+            <PreviewBanner role={actor.previewingLead ? 'lead' : actor.role} />
+          )}
+          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }

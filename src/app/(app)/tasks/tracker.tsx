@@ -1,8 +1,10 @@
 'use client';
 
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePrefs } from '@/lib/ui/prefs';
+import { Presence } from '@/lib/ui/presence';
+import { useToast } from '@/lib/ui/toast';
 import {
   HEALTHS,
   STALE_AFTER_DAYS,
@@ -59,19 +61,12 @@ export default function Tracker({
   const [openId, setOpenId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(null);
   const [roundsOpen, setRoundsOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showNotice = useToast();
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p] as const)), [people]);
   const person = (id: string): TrackerPerson =>
     byId.get(id) ?? { id, name: t('common.deletedUser'), role: '', tone: 5 };
   const names = (ids: string[]) => ids.map((id) => person(id).name).join(', ');
-
-  const showNotice = (text: string) => {
-    setNotice(text);
-    if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => setNotice(null), 3500);
-  };
 
   const q = query.trim().toLowerCase();
   const matches = (r: TrackerRow) => {
@@ -558,61 +553,59 @@ export default function Tracker({
 
       {view === 'subtasks' ? subtasks() : table()}
 
-      {open && (
-        <ProjectDrawer
-          key={open.id}
-          row={open}
-          rounds={rounds}
-          person={person}
-          today={today}
-          onClose={() => setOpenId(null)}
-          onEdit={() => setForm({ mode: 'edit', id: open.id })}
-          onDeleted={(title) => {
-            setOpenId(null);
-            showNotice(t('tracker.deleted', { title }));
-          }}
-        />
-      )}
+      <Presence value={open}>
+        {(open) => (
+          <ProjectDrawer
+            key={open.id}
+            row={open}
+            rounds={rounds}
+            person={person}
+            today={today}
+            onClose={() => setOpenId(null)}
+            onEdit={() => setForm({ mode: 'edit', id: open.id })}
+            onDeleted={(title) => {
+              setOpenId(null);
+              showNotice(t('tracker.deleted', { title }));
+            }}
+          />
+        )}
+      </Presence>
 
-      {form && (form.mode === 'new' || editing) && (
-        <ProjectForm
-          row={editing}
-          rounds={rounds}
-          nextRound={nextRound ?? null}
-          people={people}
-          assignable={assignable}
-          professors={professors}
-          me={me}
-          today={today}
-          canAssign={canAssign}
-          onClose={() => setForm(null)}
-          onSaved={(text) => {
-            setForm(null);
-            showNotice(text);
-          }}
-        />
-      )}
+      <Presence value={form && (form.mode === 'new' || editing) ? { editing } : null}>
+        {({ editing }) => (
+          <ProjectForm
+            row={editing}
+            rounds={rounds}
+            nextRound={nextRound ?? null}
+            people={people}
+            assignable={assignable}
+            professors={professors}
+            me={me}
+            today={today}
+            canAssign={canAssign}
+            onClose={() => setForm(null)}
+            onSaved={(text) => {
+              setForm(null);
+              showNotice(text);
+            }}
+          />
+        )}
+      </Presence>
 
-      {roundsOpen && (
-        <RoundsDialog
-          rounds={rounds}
-          countIn={(id) => rows.filter((r) => r.roundId === id).length}
-          onClose={() => setRoundsOpen(false)}
-          onSaved={(text) => {
-            setRoundsOpen(false);
-            showNotice(text);
-          }}
-        />
-      )}
+      <Presence value={roundsOpen}>
+        {() => (
+          <RoundsDialog
+            rounds={rounds}
+            countIn={(id) => rows.filter((r) => r.roundId === id).length}
+            onClose={() => setRoundsOpen(false)}
+            onSaved={(text) => {
+              setRoundsOpen(false);
+              showNotice(text);
+            }}
+          />
+        )}
+      </Presence>
 
-      {notice && (
-        <div
-          role="status"
-          className="fixed left-1/2 -translate-x-1/2 bottom-5 z-[70] max-w-[calc(100%-2rem)] px-4 py-2.5 rounded-xl text-sm bg-gray-900 text-white shadow-lg"
-        >
-          {notice}
-        </div>
-      )}
     </div>
   );
 }

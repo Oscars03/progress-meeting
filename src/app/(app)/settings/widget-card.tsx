@@ -326,8 +326,15 @@ export default function WidgetCard({
         </div>
       )}
 
-      {/* Which phone. */}
-      <div role="tablist" aria-label={t('widget.pickPhone')} className="inline-flex p-1 rounded-lg bg-gray-100 gap-1">
+      {/* Which phone. One white pill slides between two equal tabs rather
+          than each tab painting its own, so the choice is seen to move. */}
+      <div role="tablist" aria-label={t('widget.pickPhone')} className="relative inline-grid grid-cols-2 p-1 rounded-lg bg-gray-100 gap-1">
+        <span
+          aria-hidden="true"
+          className={`absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-md bg-white shadow-sm transition-transform duration-(--motion-base) ease-(--motion-ease-out) ${
+            os === 'android' ? 'translate-x-[calc(100%+0.25rem)]' : ''
+          }`}
+        />
         {(['ios', 'android'] as const).map((value) => (
           <button
             key={value}
@@ -335,8 +342,8 @@ export default function WidgetCard({
             role="tab"
             aria-selected={os === value}
             onClick={() => setOs(value)}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
-              os === value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            className={`relative px-4 py-1.5 rounded-md text-sm font-medium transition ${
+              os === value ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             {value === 'ios' ? 'iPhone' : 'Android'}

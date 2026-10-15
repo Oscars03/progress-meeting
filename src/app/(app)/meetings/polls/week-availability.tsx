@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { Presence } from '@/lib/ui/presence';
 import { addDays, type CellMeeting } from '@/lib/availability-grid';
 import {
   mergeRuns,
@@ -460,234 +461,236 @@ export default function WeekAvailabilityGrid({
           meant pressing a block, losing sight of it, scrolling down to read
           who was free and scrolling back. The answer to "what is this block"
           belongs over the block, where the question was asked. */}
-      {selected && (
-        <div
-          className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={whenLabel(selected)}
-          onClick={(e) => {
-            // The backdrop closes it; a press inside must not.
-            if (e.target === e.currentTarget) setSelected(null);
-          }}
-        >
-          <div className="motion-dialog max-h-[85vh] w-full space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-2xl sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-semibold text-gray-900">{whenLabel(selected)}</p>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${RUN_TONE[selected.state]}`}>
-                {t(RUN_LABEL[selected.state])}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                aria-label={t('avail.close')}
-                className="h-7 w-7 rounded-lg text-gray-500 hover:bg-gray-100"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          {/* A booked slot answers a different question from a free one: not
-              "who could make it" but "what is already here". Who was free
-              before it was booked stays below, because moving it is one of the
-              things you came here to do. */}
-          {selected.meeting && (
-            <div className="rounded-lg border border-gray-200 bg-gray-100 p-3 space-y-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-medium text-gray-900">{selected.meeting.title}</p>
-                <p className="text-xs text-gray-500 tabular-nums">
-                  {meetingSpan(selected.meeting)}
-                </p>
-              </div>
-
-              {canAsk(selected) ? (
-                editing ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      save(selected.meeting!);
-                    }}
-                    className="space-y-3"
-                  >
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      <label className="text-xs text-gray-600">
-                        {t('avail.editDate')}
-                        <input
-                          type="date"
-                          required
-                          value={editDate}
-                          onChange={(e) => setEditDate(e.target.value)}
-                          className="mt-1 w-full min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
-                        />
-                      </label>
-                      {(
-                        [
-                          ['avail.editStart', editStart, setEditStart],
-                          ['avail.editEnd', editEnd, setEditEnd],
-                        ] as const
-                      ).map(([key, value, set]) => (
-                        <label key={key} className="text-xs text-gray-600">
-                          {t(key)}
-                          <select
-                            required
-                            value={value}
-                            onChange={(e) => set(e.target.value)}
-                            className="mt-1 w-full min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
-                          >
-                            {HALF_HOURS.map((time) => (
-                              <option key={time} value={time}>
-                                {time}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ))}
-                    </div>
-                    {/* Asked here rather than assumed: the same move is worth
-                        an email on Monday and not worth one at eleven at
-                        night, and only the person making it knows which. */}
-                    <label className="flex items-start gap-2 text-xs text-gray-600">
-                      <input
-                        type="checkbox"
-                        checked={editNotify}
-                        onChange={(e) => setEditNotify(e.target.checked)}
-                        className="mt-0.5 rounded text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>
-                        <span className="font-medium text-gray-700">{t('avail.editNotify')}</span>
-                        <span className="block text-gray-500">{t('avail.editNotifyHint')}</span>
-                      </span>
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="submit"
-                        disabled={isPending}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-                      >
-                        {t('avail.editSave')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditing(false)}
-                        className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        {t('avail.editCancel')}
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => startEditing(selected.meeting!)}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {t('avail.editTime')}
-                  </button>
-                )
-              ) : (
-                <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
-              )}
-            </div>
-          )}
-
-          {/* Two lists, not three. An empty calendar is a free hour now, so
-              there is nobody left to file under "we do not know". */}
-          <dl className="grid gap-2 text-sm sm:grid-cols-2">
-            {(
-              [
-                ['avail.free', selected.free, 'text-green-700'],
-                ['avail.busy', selected.busy, 'text-red-700'],
-              ] as const
-            ).map(([key, names, tone]) => (
-              <div key={key}>
-                <dt className={`font-medium ${tone}`}>
-                  {t(key)} <span className="tabular-nums">({names.length})</span>
-                </dt>
-                <dd className="text-gray-700">{names.length > 0 ? names.join(', ') : t('avail.nobody')}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {/* Nothing to ask about: this hour is already settled, and the way
-              to change it is the control above, not a second poll. */}
-          {selected.meeting ? null : selectedIsPast ? (
-            <p className="text-xs text-gray-500">{t('avail.past')}</p>
-          ) : canAsk(selected) ? (
-            <div className="space-y-3">
-              {/* The hours inside the block, ready to press.
-
-                  Choosing when to meet used to be two dropdowns of 48 times
-                  each, which asked the reader to work out for themselves which
-                  of those 48 were inside the block they had just pressed. The
-                  block already knows. */}
-              <div>
-                <p className="text-sm font-medium text-gray-900">{t('avail.askRange')}</p>
-                <p className="text-xs text-gray-500">{t('avail.askRangeHint')}</p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-gray-500">{t('avail.askLength')}</span>
-                {LENGTHS.map(({ minutes, key }) => (
-                  <button
-                    key={minutes}
-                    type="button"
-                    onClick={() => setAskLength(minutes)}
-                    aria-pressed={askLength === minutes}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                      askLength === minutes
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {t(key)}
-                  </button>
-                ))}
-              </div>
-
-              {slots.length === 0 ? (
-                <p className="text-xs text-gray-500">{t('avail.askNoRoom')}</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {slots.map((slot) => {
-                    const isChosen = slot.start === askStart;
-                    return (
-                      <button
-                        key={slot.start}
-                        type="button"
-                        onClick={() => setAskStart(slot.start)}
-                        aria-pressed={isChosen}
-                        className={`rounded-lg border px-3 py-1.5 text-sm tabular-nums transition ${
-                          isChosen
-                            ? 'border-blue-600 bg-blue-50 font-semibold text-blue-700'
-                            : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        {slot.start}–{slot.end}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {chosen && (
+      <Presence value={selected}>
+        {(selected) => (
+          <div
+            className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={whenLabel(selected)}
+            onClick={(e) => {
+              // The backdrop closes it; a press inside must not.
+              if (e.target === e.currentTarget) setSelected(null);
+            }}
+          >
+            <div className="motion-dialog max-h-[85vh] w-full space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-2xl sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold text-gray-900">{whenLabel(selected)}</p>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${RUN_TONE[selected.state]}`}>
+                  {t(RUN_LABEL[selected.state])}
+                </span>
                 <button
                   type="button"
-                  onClick={() => ask(selected, chosen)}
-                  disabled={isPending}
-                  className="w-full sm:w-auto min-h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-base font-semibold shadow-sm transition disabled:opacity-50"
+                  onClick={() => setSelected(null)}
+                  aria-label={t('avail.close')}
+                  className="h-7 w-7 rounded-lg text-gray-500 hover:bg-gray-100"
                 >
-                  {asking ? t('avail.asking') : t('avail.ask')}
+                  ✕
                 </button>
-              )}
+              </div>
             </div>
-          ) : (
-            <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
-          )}
+
+            {/* A booked slot answers a different question from a free one: not
+                "who could make it" but "what is already here". Who was free
+                before it was booked stays below, because moving it is one of the
+                things you came here to do. */}
+            {selected.meeting && (
+              <div className="rounded-lg border border-gray-200 bg-gray-100 p-3 space-y-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="font-medium text-gray-900">{selected.meeting.title}</p>
+                  <p className="text-xs text-gray-500 tabular-nums">
+                    {meetingSpan(selected.meeting)}
+                  </p>
+                </div>
+
+                {canAsk(selected) ? (
+                  editing ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        save(selected.meeting!);
+                      }}
+                      className="space-y-3"
+                    >
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <label className="text-xs text-gray-600">
+                          {t('avail.editDate')}
+                          <input
+                            type="date"
+                            required
+                            value={editDate}
+                            onChange={(e) => setEditDate(e.target.value)}
+                            className="mt-1 w-full min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
+                          />
+                        </label>
+                        {(
+                          [
+                            ['avail.editStart', editStart, setEditStart],
+                            ['avail.editEnd', editEnd, setEditEnd],
+                          ] as const
+                        ).map(([key, value, set]) => (
+                          <label key={key} className="text-xs text-gray-600">
+                            {t(key)}
+                            <select
+                              required
+                              value={value}
+                              onChange={(e) => set(e.target.value)}
+                              className="mt-1 w-full min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900"
+                            >
+                              {HALF_HOURS.map((time) => (
+                                <option key={time} value={time}>
+                                  {time}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ))}
+                      </div>
+                      {/* Asked here rather than assumed: the same move is worth
+                          an email on Monday and not worth one at eleven at
+                          night, and only the person making it knows which. */}
+                      <label className="flex items-start gap-2 text-xs text-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={editNotify}
+                          onChange={(e) => setEditNotify(e.target.checked)}
+                          className="mt-0.5 rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>
+                          <span className="font-medium text-gray-700">{t('avail.editNotify')}</span>
+                          <span className="block text-gray-500">{t('avail.editNotifyHint')}</span>
+                        </span>
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="submit"
+                          disabled={isPending}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                        >
+                          {t('avail.editSave')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(false)}
+                          className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          {t('avail.editCancel')}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => startEditing(selected.meeting!)}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      {t('avail.editTime')}
+                    </button>
+                  )
+                ) : (
+                  <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
+                )}
+              </div>
+            )}
+
+            {/* Two lists, not three. An empty calendar is a free hour now, so
+                there is nobody left to file under "we do not know". */}
+            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+              {(
+                [
+                  ['avail.free', selected.free, 'text-green-700'],
+                  ['avail.busy', selected.busy, 'text-red-700'],
+                ] as const
+              ).map(([key, names, tone]) => (
+                <div key={key}>
+                  <dt className={`font-medium ${tone}`}>
+                    {t(key)} <span className="tabular-nums">({names.length})</span>
+                  </dt>
+                  <dd className="text-gray-700">{names.length > 0 ? names.join(', ') : t('avail.nobody')}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {/* Nothing to ask about: this hour is already settled, and the way
+                to change it is the control above, not a second poll. */}
+            {selected.meeting ? null : selectedIsPast ? (
+              <p className="text-xs text-gray-500">{t('avail.past')}</p>
+            ) : canAsk(selected) ? (
+              <div className="space-y-3">
+                {/* The hours inside the block, ready to press.
+
+                    Choosing when to meet used to be two dropdowns of 48 times
+                    each, which asked the reader to work out for themselves which
+                    of those 48 were inside the block they had just pressed. The
+                    block already knows. */}
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{t('avail.askRange')}</p>
+                  <p className="text-xs text-gray-500">{t('avail.askRangeHint')}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-gray-500">{t('avail.askLength')}</span>
+                  {LENGTHS.map(({ minutes, key }) => (
+                    <button
+                      key={minutes}
+                      type="button"
+                      onClick={() => setAskLength(minutes)}
+                      aria-pressed={askLength === minutes}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                        askLength === minutes
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {t(key)}
+                    </button>
+                  ))}
+                </div>
+
+                {slots.length === 0 ? (
+                  <p className="text-xs text-gray-500">{t('avail.askNoRoom')}</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {slots.map((slot) => {
+                      const isChosen = slot.start === askStart;
+                      return (
+                        <button
+                          key={slot.start}
+                          type="button"
+                          onClick={() => setAskStart(slot.start)}
+                          aria-pressed={isChosen}
+                          className={`rounded-lg border px-3 py-1.5 text-sm tabular-nums transition ${
+                            isChosen
+                              ? 'border-blue-600 bg-blue-50 font-semibold text-blue-700'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {slot.start}–{slot.end}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {chosen && (
+                  <button
+                    type="button"
+                    onClick={() => ask(selected, chosen)}
+                    disabled={isPending}
+                    className="w-full sm:w-auto min-h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-base font-semibold shadow-sm transition disabled:opacity-50"
+                  >
+                    {asking ? t('avail.asking') : t('avail.ask')}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">{t('avail.leadOnly')}</p>
+            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Presence>
     </section>
   );
 }

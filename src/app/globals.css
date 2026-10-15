@@ -47,13 +47,43 @@ body {
   :root { --motion-fast: 0ms; --motion-base: 0ms; --motion-slow: 0ms; }
 }
 
-/* Entrances only: these dialogs unmount on close, so there is nothing left on
-   screen to animate out. Scrim fades; the panel fades and rises a few pixels
-   ("fade + slide" in the reference). */
+/* Dialogs: the scrim fades and the panel rises a few pixels on the way in
+   ("fade + slide" in the reference); on the way out, inside <Presence>'s
+   data-closing wrapper, both leave faster than they came and the panel shrinks
+   slightly ("soft shrink"). Presence unmounts on the scrim's motion-exit, so
+   every dialog using it needs a .motion-scrim or .trk-scrim. A closing dialog
+   ignores the pointer: a second click must not land on something leaving. */
 .motion-scrim { animation: motion-fade var(--motion-base) var(--motion-ease-out) both; }
 .motion-dialog { animation: motion-rise var(--motion-base) var(--motion-ease-out) both; }
 @keyframes motion-fade { from { opacity: 0; } }
 @keyframes motion-rise { from { opacity: 0; transform: translateY(8px); } }
+
+[data-closing] .motion-scrim,
+[data-closing] .trk-scrim { animation: motion-exit var(--motion-fast) var(--motion-ease-in) both; pointer-events: none; }
+[data-closing] .motion-dialog,
+.motion-dialog[data-closing] { animation: motion-shrink var(--motion-fast) var(--motion-ease-in) both; pointer-events: none; }
+[data-closing] .trk-drawer { animation: trk-slide-out var(--motion-fast) var(--motion-ease-in) both; pointer-events: none; }
+@keyframes motion-exit { to { opacity: 0; } }
+
+/* Press feedback: a solid button sinks slightly while held ("press feedback"
+   in the reference). Matched by fill colour, the way the dark theme remaps
+   utilities, so a new primary button gets it without anyone remembering to.
+   `scale` rather than `transform`, which some of these already use; the
+   buttons' own `transition` utility already animates it. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(button, a):is(.bg-blue-600, .bg-red-600, .bg-green-600, .bg-indigo-600):not(:disabled):active { scale: 0.97; }
+}
+
+/* Accordion: the row track animates between 0fr and 1fr, so the panel folds
+   to its real height without anyone measuring it. In the components layer
+   because it sets display, and an unlayered rule would beat utilities such as
+   md:collapsed:hidden on the same element. */
+@layer components {
+  .motion-collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--motion-base) var(--motion-ease-out); }
+  .motion-collapse[data-open] { grid-template-rows: 1fr; }
+  .motion-collapse > * { min-height: 0; overflow: hidden; }
+}
+@keyframes motion-shrink { to { opacity: 0; transform: scale(0.96); } }
 
 /* ==========================================================================
    Calendar
@@ -825,6 +855,10 @@ body {
    dark mode inverts the black file instead of swapping to the white one. */
 :root[data-theme='dark'] .brand-logo { filter: invert(1); }
 
+/* The toast is a dark pill, which on a dark page is no pill at all: lift it a
+   few steps and give it an edge instead. */
+:root[data-theme='dark'] .toast-pill { background-color: #3f3f46; color: #f4f4f5; box-shadow: 0 0 0 1px #52525b, 0 10px 24px rgba(0, 0, 0, 0.45); }
+
 /* Sidebar collapse. The attribute lives on <html> and is set by the inline
    bootstrap script before first paint, so the rail never renders wide and then
    snaps narrow. Use as `md:collapsed:w-16`. */
@@ -1058,3 +1092,4 @@ body {
 .trk-pick[data-locked] { cursor: default; }
 .trk-drawer { animation: trk-slide var(--motion-base) var(--motion-ease-out) both; }
 @keyframes trk-slide { from { transform: translateX(24px); opacity: 0; } }
+@keyframes trk-slide-out { to { transform: translateX(24px); opacity: 0; } }

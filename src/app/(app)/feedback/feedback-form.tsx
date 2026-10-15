@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 import Spinner from '@/lib/ui/spinner';
 import { submitFeedbackAction } from './actions';
 import { FEEDBACK_CATEGORIES, FEEDBACK_MAX_LENGTH } from './categories';
@@ -60,7 +61,8 @@ export default function FeedbackForm() {
   const [isPending, startTransition] = useTransition();
   const [body, setBody] = useState('');
   const [category, setCategory] = useState<string>('problem');
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const toast = useToast();
+  const [error, setError] = useState<string | null>(null);
   // The file and its preview together, because they are made and thrown away
   // at the same moment. An effect watching the file to produce the URL would
   // be a setState inside an effect, which renders twice and fails lint --
@@ -86,7 +88,7 @@ export default function FeedbackForm() {
   };
 
   const pick = async (file: File | null) => {
-    setMessage(null);
+    setError(null);
     if (!file) {
       clearPicked();
       return;
@@ -95,7 +97,7 @@ export default function FeedbackForm() {
     const smaller = await shrink(file);
     const problem = checkImage(smaller);
     if (problem) {
-      setMessage({ kind: 'error', text: t(problem) });
+      setError(t(problem));
       clearPicked();
       return;
     }
@@ -109,7 +111,7 @@ export default function FeedbackForm() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       // FormData rather than an object: this carries a file, and a server
       // action takes one natively only this way.
@@ -120,12 +122,12 @@ export default function FeedbackForm() {
 
       const res = await submitFeedbackAction(form);
       if (!res.ok) {
-        setMessage({ kind: 'error', text: t(res.error, res.vars) });
+        setError(t(res.error, res.vars));
         return;
       }
       setBody('');
       clearPicked();
-      setMessage({ kind: 'ok', text: t('feedback.thanks') });
+      toast(t('feedback.thanks'));
       router.refresh();
     });
   };
@@ -137,16 +139,9 @@ export default function FeedbackForm() {
     >
       <h3 className="text-lg font-semibold text-gray-900">{t('feedback.writeTitle')}</h3>
 
-      {message && (
-        <p
-          className={`p-3 rounded-lg text-sm border ${
-            message.kind === 'ok'
-              ? 'bg-green-50 text-green-800 border-green-200'
-              : 'bg-red-50 text-red-800 border-red-200'
-          }`}
-          role="status"
-        >
-          {message.text}
+      {error && (
+        <p className="p-3 rounded-lg text-sm border bg-red-50 text-red-800 border-red-200" role="alert">
+          {error}
         </p>
       )}
 
