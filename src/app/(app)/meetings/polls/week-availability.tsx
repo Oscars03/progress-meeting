@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { Presence } from '@/lib/ui/presence';
+import { ModalScope } from '@/lib/ui/modal';
 import { addDays, type CellMeeting } from '@/lib/availability-grid';
 import {
   mergeRuns,
@@ -127,16 +128,6 @@ export default function WeekAvailabilityGrid({
    */
   const [editNotify, setEditNotify] = useState(false);
 
-  // Escape closes the dialog. A modal that can only be dismissed by aiming at
-  // a small ✕ is worse on a phone than the panel it replaced.
-  useEffect(() => {
-    if (!selected) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSelected(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [selected]);
 
   const intl = locale === 'th' ? 'th-TH' : 'en-GB';
 
@@ -463,6 +454,9 @@ export default function WeekAvailabilityGrid({
           belongs over the block, where the question was asked. */}
       <Presence value={selected}>
         {(selected) => (
+          // Escape closes it: a modal that can only be dismissed by aiming at a
+          // small ✕ is worse on a phone than the panel it replaced.
+          <ModalScope onClose={() => setSelected(null)}>
           <div
             className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
             role="dialog"
@@ -689,6 +683,7 @@ export default function WeekAvailabilityGrid({
             )}
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
     </section>

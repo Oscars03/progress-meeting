@@ -10,6 +10,7 @@ import thLocale from '@fullcalendar/core/locales/th';
 import enGbLocale from '@fullcalendar/core/locales/en-gb';
 import { usePrefs } from '@/lib/ui/prefs';
 import { Presence } from '@/lib/ui/presence';
+import { ModalScope } from '@/lib/ui/modal';
 import {
   createPersonalEventAction,
   deletePersonalEventAction,
@@ -684,18 +685,31 @@ export default function CalendarView({
           the modal is still fading out after a save cleared it. */}
       <Presence value={createModalOpen && { editingEvent }}>
         {({ editingEvent }) => (
-          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <ModalScope
+            onClose={() => {
+              setCreateModalOpen(false);
+              setEditingEvent(null);
+            }}
+          >
+          <div
+            className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pe-dialog-title"
+          >
             <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90dvh]">
               <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                <h3 className="font-semibold text-gray-900">
+                <h3 id="pe-dialog-title" className="font-semibold text-gray-900">
                   {editingEvent ? t('events.editTitle') : t('settings.addBusyBlock')}
                 </h3>
-                <button 
+                <button
+                  type="button"
                   onClick={() => {
                     setCreateModalOpen(false);
                     setEditingEvent(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  aria-label={t('avail.close')}
+                  className="-mr-2 inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                 >
                   ✕
                 </button>
@@ -726,10 +740,10 @@ export default function CalendarView({
                 {/* Kind first, colour second: picking a kind already colours the
                     block, so most people never touch the swatches. */}
                 <div>
-                  <label className="block text-gray-700 font-medium mb-1">
+                  <p id="pe-category" className="block text-gray-700 font-medium mb-1">
                     {t('events.category')}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
+                  </p>
+                  <div role="group" aria-labelledby="pe-category" className="flex flex-wrap gap-1.5">
                     {EVENT_CATEGORIES.map((value) => (
                       <button
                         key={value}
@@ -749,16 +763,16 @@ export default function CalendarView({
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-medium mb-1">
+                  <p id="pe-colour" className="block text-gray-700 font-medium mb-1">
                     {t('events.color')}
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2">
+                  </p>
+                  <div role="group" aria-labelledby="pe-colour" className="flex flex-wrap items-center gap-2">
                     {EVENT_COLORS.map((value) => (
                       <button
                         key={value}
                         type="button"
                         onClick={() => setCreateColor(createColor === value ? '' : value)}
-                        aria-label={value}
+                        aria-label={t(`events.colour.${value}` as 'events.colour.rose')}
                         aria-pressed={createColor === value}
                         className={`cal-c-${value} w-7 h-7 rounded-full border-2 transition ${
                           createColor === value
@@ -781,11 +795,12 @@ export default function CalendarView({
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1">
+                    <label className="block text-gray-700 font-medium mb-1" htmlFor="pe-start-date">
                       {t('meetings.start')}
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
+                        id="pe-start-date"
                         type="date"
                         required
                         value={createStartDate}
@@ -793,6 +808,7 @@ export default function CalendarView({
                         className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                       />
                       <select
+                        aria-label={`${t('meetings.start')} · ${t('avail.time')}`}
                         required
                         value={createStartTime}
                         onChange={(e) => setCreateStartTime(e.target.value)}
@@ -807,11 +823,12 @@ export default function CalendarView({
                     </div>
                   </div>
                   <div>
-                    <label className="block text-gray-700 font-medium mb-1">
+                    <label className="block text-gray-700 font-medium mb-1" htmlFor="pe-end-date">
                       {t('meetings.end')}
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
+                        id="pe-end-date"
                         type="date"
                         required
                         value={createEndDate}
@@ -819,6 +836,7 @@ export default function CalendarView({
                         className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                       />
                       <select
+                        aria-label={`${t('meetings.end')} · ${t('avail.time')}`}
                         required
                         value={createEndTime}
                         onChange={(e) => setCreateEndTime(e.target.value)}
@@ -853,16 +871,23 @@ export default function CalendarView({
               </form>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
 
       {/* Delete Modal */}
       <Presence value={deleteModalOpen}>
         {() => (
-          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <ModalScope onClose={() => setDeleteModalOpen(false)}>
+          <div
+            className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pe-delete-title"
+          >
             <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">ลบเวลาไม่ว่าง</h3>
+                <h3 id="pe-delete-title" className="text-lg font-semibold text-gray-900 mb-2">ลบเวลาไม่ว่าง</h3>
                 <p className="text-sm text-gray-600 mb-6">
                   คุณต้องการลบ <strong>{selectedEventTitle}</strong> ใช่หรือไม่?
                 </p>
@@ -891,16 +916,23 @@ export default function CalendarView({
               </div>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
 
       {/* Detail Modal */}
       <Presence value={detailModalOpen && selectedEventInfo}>
         {(selectedEventInfo) => (
-          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <ModalScope onClose={() => setDetailModalOpen(false)}>
+          <div
+            className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pe-detail-title"
+          >
             <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">รายละเอียดกิจกรรม</h3>
+                <h3 id="pe-detail-title" className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">รายละเอียดกิจกรรม</h3>
               
                 <div className="space-y-3 mb-6">
                   <div>
@@ -928,7 +960,7 @@ export default function CalendarView({
                   </div>
                 </div>
               
-                <div className="flex justify-end gap-2 mt-4">
+                <div className="flex flex-wrap justify-end gap-2 mt-4">
                   <button
                     onClick={() => setDetailModalOpen(false)}
                     className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition cursor-pointer"
@@ -1015,6 +1047,7 @@ export default function CalendarView({
               </div>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
     </div>

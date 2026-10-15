@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { Presence } from '@/lib/ui/presence';
+import { ModalScope } from '@/lib/ui/modal';
 import { useToast } from '@/lib/ui/toast';
 import { ABILITIES, effectiveAbilities, roleDefault, type Ability } from '@/lib/permissions';
 import type { Role } from '@/lib/auth-guard';
@@ -67,7 +68,20 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
     setGrid(fresh);
     setOriginal(fresh);
     setError('');
+    setDiscardArmed(false);
     setOpen(true);
+  };
+
+  // The cross and Escape used to throw away unsaved ticks without a word,
+  // while the backdrop was careful not to. With changes pending, the first
+  // press asks; the second discards.
+  const [discardArmed, setDiscardArmed] = useState(false);
+  const requestClose = () => {
+    if (changes.length > 0 && !discardArmed) {
+      setDiscardArmed(true);
+      return;
+    }
+    setOpen(false);
   };
 
   const toggle = (userId: string, ability: Ability) =>
@@ -118,6 +132,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
 
       <Presence value={open}>
         {() => (
+          <ModalScope onClose={requestClose}>
           <div
             className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
             role="dialog"
@@ -135,7 +150,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={requestClose}
                   aria-label={t('avail.close')}
                   className="h-8 w-8 shrink-0 rounded-lg text-gray-500 hover:bg-gray-100"
                 >
@@ -197,7 +212,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
                                     admin can tell a deliberate exception from a
                                     default they are about to freeze in. */}
                                 {!isDefault && (
-                                  <span className="text-[0.6rem] leading-none text-amber-600">●</span>
+                                  <span className="text-[0.6rem] leading-none text-amber-700" aria-hidden="true">●</span>
                                 )}
                               </label>
                             </td>
@@ -207,12 +222,21 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
                     ))}
                   </tbody>
                 </table>
+                <p className="mt-3 text-xs text-gray-500">
+                  <span className="text-amber-700" aria-hidden="true">●</span> {t('perm.legendDot')}
+                </p>
               </div>
 
               <div className="space-y-3 border-t border-gray-100 p-4 sm:p-5">
                 {error && (
-                  <p role="status" className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-800">
+                  <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-800">
                     {error}
+                  </p>
+                )}
+
+                {discardArmed && changes.length > 0 && (
+                  <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-sm text-amber-900">
+                    {t('perm.discardWarning')}
                   </p>
                 )}
 
@@ -254,6 +278,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
               </div>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
     </div>

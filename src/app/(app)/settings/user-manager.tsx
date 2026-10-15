@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { Presence } from '@/lib/ui/presence';
+import { ModalScope } from '@/lib/ui/modal';
 import { byRoleThenName, roleStyle } from '@/lib/role-display';
 import {
   updateUserPasswordAction,
@@ -472,6 +473,7 @@ export default function UserManager({
 
       <Presence value={deleting}>
         {(user) => (
+          <ModalScope onClose={() => setDeleting(null)}>
           <div
             className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
             role="dialog"
@@ -479,9 +481,6 @@ export default function UserManager({
             aria-labelledby="delete-user-title"
             onClick={(e) => {
               if (e.target === e.currentTarget) setDeleting(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setDeleting(null);
             }}
           >
             <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md p-5 sm:p-6 space-y-4">
@@ -545,6 +544,7 @@ export default function UserManager({
               </div>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
     </div>

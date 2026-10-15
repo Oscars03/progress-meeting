@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useModal } from '@/lib/ui/modal';
 import { TASK_TAGS, formatDay } from '@/lib/tracker';
 import { createTask, updateTaskDetails } from './actions';
 import type { TrackerPerson, TrackerRound, TrackerRow } from './tracker-model';
@@ -63,13 +64,10 @@ export default function ProjectForm({
     titleRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Escape, Tab and giving focus back, shared with every dialog. Opened from
+  // the drawer, this sits on top of it, and Escape used to close both.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModal(dialogRef, true, onClose);
 
   const byId = new Map(people.map((p) => [p.id, p] as const));
   // Anyone already on the work stays pickable, so they can be taken off it.
@@ -148,6 +146,7 @@ export default function ProjectForm({
     // somebody has half filled in. Cancel, the cross and Escape all close it.
     <div className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trk-form-title"

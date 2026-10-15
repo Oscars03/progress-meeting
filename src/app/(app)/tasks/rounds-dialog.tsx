@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useModal } from '@/lib/ui/modal';
 import { MAX_ROUND_NAME } from '@/lib/tracker';
 import { saveRounds } from './round-actions';
 import type { TrackerRound } from './tracker-model';
@@ -40,13 +41,8 @@ export default function RoundsDialog({
   const focusLast = useRef(false);
   const made = useRef(0);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModal(dialogRef, true, onClose);
 
   // After "add", put the cursor in the new round's name.
   useEffect(() => {
@@ -103,6 +99,7 @@ export default function RoundsDialog({
   return (
     <div className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trk-rounds-title"

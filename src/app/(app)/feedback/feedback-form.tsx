@@ -137,7 +137,7 @@ export default function FeedbackForm() {
       onSubmit={submit}
       className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4"
     >
-      <h3 className="text-lg font-semibold text-gray-900">{t('feedback.writeTitle')}</h3>
+      <h3 id="feedback-write-title" className="text-lg font-semibold text-gray-900">{t('feedback.writeTitle')}</h3>
 
       {error && (
         <p className="p-3 rounded-lg text-sm border bg-red-50 text-red-800 border-red-200" role="alert">
@@ -150,9 +150,11 @@ export default function FeedbackForm() {
       <fieldset className="flex flex-wrap gap-2">
         <legend className="sr-only">{t('feedback.category')}</legend>
         {FEEDBACK_CATEGORIES.map((value) => (
+          // The radio inside is hidden, so the pill carries its focus ring --
+          // tabbing to a category used to show nothing at all.
           <label
             key={value}
-            className={`px-3 py-1.5 rounded-full border text-sm cursor-pointer transition ${
+            className={`px-3 py-1.5 rounded-full border text-sm cursor-pointer transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-600 ${
               category === value
                 ? 'bg-blue-600 border-blue-600 text-white font-medium'
                 : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -173,6 +175,7 @@ export default function FeedbackForm() {
 
       <div>
         <textarea
+          aria-labelledby="feedback-write-title"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={5}
@@ -196,7 +199,11 @@ export default function FeedbackForm() {
           type="file"
           accept={IMAGE_TYPES.join(',')}
           onChange={(e) => pick(e.target.files?.[0] ?? null)}
-          className="sr-only"
+          // Hidden, so the label after it shows its focus (peer-focus-visible).
+          // Out of the tab order once a picture is chosen: there is no label
+          // left on screen then for focus to show on.
+          tabIndex={picked ? -1 : 0}
+          className="peer sr-only"
         />
 
         {picked ? (
@@ -224,7 +231,7 @@ export default function FeedbackForm() {
         ) : (
           <label
             htmlFor="feedback-image"
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600"
           >
             {t('feedback.addImage')}
           </label>
