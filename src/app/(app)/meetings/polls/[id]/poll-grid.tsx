@@ -247,21 +247,31 @@ export default function PollGrid({
                   <span
                     key={r.name + r.choice}
                     title={t(ANSWER_LABELS[r.choice] as Parameters<typeof t>[0])}
-                    className={`text-xs px-2 py-0.5 rounded-full ${
+                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
                       r.choice === 'yes'
                         ? 'bg-green-50 text-green-700'
                         : 'bg-red-50 text-red-700'
                     }`}
                   >
+                    {/* The answer is in the mark as well as the colour, for
+                        anyone who cannot tell the two greens and reds apart. */}
+                    <span aria-hidden="true">{r.choice === 'yes' ? '✓' : '✕'}</span>
                     {r.name}
+                    <span className="sr-only">
+                      {' '}({t(ANSWER_LABELS[r.choice] as Parameters<typeof t>[0])})
+                    </span>
                   </span>
                 ))}
               </div>
             )}
 
-            {!closed && canVote && (
+            {/* Answering and confirming are separate rights. An admin runs
+                polls without being asked them, so tying the confirm button to
+                the vote buttons left admin with close and delete and no way to
+                settle the time. */}
+            {!closed && (canVote || (canManage && !alreadyConfirmed)) && (
               <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
-                {(['yes', 'no'] as Choice[]).map((choice) => {
+                {canVote && (['yes', 'no'] as Choice[]).map((choice) => {
                   const active = slot.myChoice === choice;
                   const style = CHOICE_STYLE[choice];
                   return (
