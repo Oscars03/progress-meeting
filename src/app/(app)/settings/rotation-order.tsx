@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 import { slideOffset, useFlip } from '@/lib/ui/flip';
 import { setRotationOrderAction } from './actions';
 
@@ -18,8 +19,9 @@ export type RotationStudent = { id: string; name: string };
 export default function RotationOrder({ students }: { students: RotationStudent[] }) {
   const { t } = usePrefs();
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState(students);
 
   // Re-sync when the server sends a different list -- someone added, renamed or
@@ -108,17 +110,14 @@ export default function RotationOrder({ students }: { students: RotationStudent[
   const onHandleUp = () => setDragIndex(null);
 
   const save = () => {
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       try {
         await setRotationOrderAction(order.map((student) => student.id));
         router.refresh();
-        setMessage({ kind: 'ok', text: t('common.saved') });
+        toast(t('common.saved'));
       } catch (err) {
-        setMessage({
-          kind: 'error',
-          text: err instanceof Error && err.message ? err.message : t('error.generic'),
-        });
+        setError(err instanceof Error && err.message ? err.message : t('error.generic'));
       }
     });
   };
@@ -130,16 +129,9 @@ export default function RotationOrder({ students }: { students: RotationStudent[
         <p className="text-sm text-gray-500 mt-1">{t('rotationOrder.desc')}</p>
       </div>
 
-      {message && (
-        <p
-          className={`p-3 rounded-lg text-sm border ${
-            message.kind === 'ok'
-              ? 'bg-green-50 text-green-800 border-green-200'
-              : 'bg-red-50 text-red-800 border-red-200'
-          }`}
-          role="status"
-        >
-          {message.text}
+      {error && (
+        <p className="p-3 rounded-lg text-sm border bg-red-50 text-red-800 border-red-200" role="alert">
+          {error}
         </p>
       )}
 
