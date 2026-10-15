@@ -49,7 +49,10 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
   // rather than merely uncounted, or a yes would be added to a tally whose
   // denominator leaves that voter out.
   const voters = memberIds(users);
-  const iMayVote = voters.has(actor.id);
+  // An admin previewing a student sees a student's buttons, the same rule the
+  // dashboard follows. Pressing one is still refused by voteAction, which
+  // reads the real account -- the preview shows the page, it grants nothing.
+  const iMayVote = actor.previewing ? actor.role === 'student' : voters.has(actor.id);
 
   const mySlots = slots
     .filter((s) => s.poll_id === id)

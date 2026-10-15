@@ -806,6 +806,8 @@ body {
 :root[data-theme='dark'] .border-purple-400 { border-color: #6d4a9e !important; }
 :root[data-theme='dark'] .border-amber-400 { border-color: #8a6420 !important; }
 :root[data-theme='dark'] .ring-blue-200 { --tw-ring-color: #2a4a75 !important; }
+/* The recommended slot in a poll: left alone, its pale green ring glowed. */
+:root[data-theme='dark'] .ring-green-200 { --tw-ring-color: #1c3d2a !important; }
 
 /* Hover states that assumed a light ground */
 :root[data-theme='dark'] .hover\:bg-gray-50:hover { background-color: #26262a !important; }
