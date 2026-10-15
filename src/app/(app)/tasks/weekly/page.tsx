@@ -34,6 +34,13 @@ export default async function WeeklyPage() {
 
   const open = tasks.filter((t) => t.status !== 'done');
 
+  // Whose work a task is: the people it is assigned to, or whoever added it
+  // when nobody is. This is what the per-person filter picks from.
+  const workersOf = (task: TaskRecord) => {
+    const assigned = assigneeIds(task);
+    return assigned.length > 0 ? assigned : task.owner_id ? [task.owner_id] : [];
+  };
+
   const rows: TaskRow[] = open.map((task) => {
     const mine = updates.filter((u) => u.task_id === task.id);
     const current = mine.find((u) => u.week_key === thisWeek) ?? null;
@@ -55,6 +62,7 @@ export default async function WeeklyPage() {
       progressPct: Math.round(Number(task.progress_pct) || 0),
       ownerName: nameById.get(task.owner_id) ?? '—',
       isMine: task.owner_id === actor.id || assigneeIds(task).includes(actor.id),
+      workerIds: workersOf(task),
       editable: canRecordProgress(actor, task, thisWeek, leads),
       current: current
         ? {
@@ -74,6 +82,20 @@ export default async function WeeklyPage() {
     };
   });
 
+  /**
+   * How the list is narrowed, by who is reading it.
+   *
+   * A student reports on their own work, so "only mine" is the useful cut. A
+   * professor or admin has no work of their own here -- "only mine" showed them
+   * an empty page that said there was nothing to report -- so they pick a
+   * person instead, and start from everybody.
+   */
+  const filterBy: 'mine' | 'person' = actor.role === 'student' ? 'mine' : 'person';
+  const workerIds = [...new Set(rows.flatMap((row) => row.workerIds))];
+  const people = workerIds
+    .map((id) => ({ id, name: nameById.get(id) ?? t('common.deletedUser') }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'th'));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -91,7 +113,13 @@ export default async function WeeklyPage() {
         </Link>
       </div>
 
-      <WeeklyBoard rows={rows} weekKey={thisWeek} historyKeys={history} />
+      <WeeklyBoard
+        rows={rows}
+        weekKey={thisWeek}
+        historyKeys={history}
+        filterBy={filterBy}
+        people={people}
+      />
     </div>
   );
 }
