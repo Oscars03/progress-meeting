@@ -259,7 +259,7 @@ export default async function DashboardPage() {
           {upcoming.location && <p className="text-sm text-gray-500">{upcoming.location}</p>}
           <Link
             href={`/meetings/${upcoming.id}`}
-            className="inline-block text-sm text-blue-600 hover:underline"
+            className="tap text-sm text-blue-600 hover:underline"
           >
             {t('dashboard.openMeeting')}
           </Link>
@@ -282,7 +282,7 @@ export default async function DashboardPage() {
           {canSchedule && (
             <Link
               href="/meetings"
-              className="inline-block text-sm text-blue-600 hover:underline"
+              className="tap text-sm text-blue-600 hover:underline"
             >
               {t('dashboard.scheduleNow')}
             </Link>
@@ -296,7 +296,7 @@ export default async function DashboardPage() {
         <div className="pt-3 border-t border-gray-100 space-y-2">
           {students.length === 0 ? (
             <p className="text-sm text-gray-500">
-              <span className="text-gray-400">{t('rotation.title')}: </span>
+              <span className="text-gray-500">{t('rotation.title')}: </span>
               {t('rotation.noStudents')}
             </p>
           ) : (
@@ -319,7 +319,7 @@ export default async function DashboardPage() {
                 <div className="pt-2">
                   <Link
                     href="/tasks/weekly"
-                    className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition tap"
                   >
                     {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
                   </Link>

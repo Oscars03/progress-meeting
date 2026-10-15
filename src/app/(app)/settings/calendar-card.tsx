@@ -142,7 +142,7 @@ export default function CalendarCard({
       )}
 
       <div className="pt-3 border-t border-gray-100">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-500">
           ระบบอ่านเฉพาะช่วงเวลาที่ไม่ว่าง ไม่เห็นหัวข้อหรือรายละเอียดนัดของคุณ
           และคนที่ยังไม่เชื่อมจะยังได้รับคำเชิญทางอีเมลตามปกติ
         </p>

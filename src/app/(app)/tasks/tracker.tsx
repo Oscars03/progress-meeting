@@ -304,7 +304,7 @@ export default function Tracker({
                         <div className="font-medium leading-snug">
                           <button
                             type="button"
-                            className="text-left hover:underline focus-visible:underline"
+                            className="tap-exempt text-left hover:underline focus-visible:underline"
                             onClick={() => setOpenId(r.id)}
                           >
                             {r.title}

@@ -1,8 +1,10 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
+import type { ActionResult } from '@/lib/action-result';
 import { deleteFeedbackAction, setFeedbackStatusAction } from './actions';
 import { formatLabTime } from '@/lib/lab-time';
 
@@ -40,11 +42,25 @@ export default function FeedbackList({
 }) {
   const { t, locale } = usePrefs();
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
+  // Delete takes two presses. It used to go on one, from a 17px link sitting
+  // a finger-width from "reopen", with nothing to undo it.
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ id: string; text: string } | null>(null);
 
-  const act = (work: () => Promise<{ ok: boolean }>) => {
+  // A refusal used to be awaited and dropped: the page refreshed, nothing
+  // changed, and nobody was told why. It now stays beside the item.
+  const act = (id: string, work: () => Promise<ActionResult>, done?: string) => {
+    setFailure(null);
     startTransition(async () => {
-      await work();
+      const res = await work();
+      if (!res.ok) {
+        setFailure({ id, text: t(res.error, res.vars) });
+        return;
+      }
+      setArmedId(null);
+      if (done) toast(done);
       router.refresh();
     });
   };
@@ -76,7 +92,7 @@ export default function FeedbackList({
             )}
 
             <span className="text-xs text-gray-500">{row.authorName}</span>
-            <span className="text-xs text-gray-400 tabular-nums">
+            <span className="text-xs text-gray-500 tabular-nums">
               {formatLabTime(row.createdAt, locale)}
             </span>
           </div>
@@ -114,13 +130,13 @@ export default function FeedbackList({
           )}
 
           {(canResolve || row.canRemove) && (
-            <div className="flex flex-wrap gap-3 mt-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3 mt-3 text-sm">
               {canResolve && (
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={() =>
-                    act(() =>
+                    act(row.id, () =>
                       setFeedbackStatusAction(
                         row.id,
                         row.status === 'done' ? 'open' : 'done',
@@ -134,17 +150,46 @@ export default function FeedbackList({
                 </button>
               )}
 
-              {row.canRemove && (
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => act(() => deleteFeedbackAction(row.id, row.rowVersion))}
-                  className="text-red-600 hover:underline disabled:opacity-50"
-                >
-                  {t('common.delete')}
-                </button>
-              )}
+              {/* At the far end, away from the button pressed most often. */}
+              {row.canRemove &&
+                (armedId === row.id ? (
+                  <span className="ml-auto flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() =>
+                        act(row.id, () => deleteFeedbackAction(row.id, row.rowVersion), t('feedback.deleted'))
+                      }
+                      className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {t('meeting.deleteYes')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => setArmedId(null)}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setArmedId(row.id)}
+                    className="ml-auto text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {t('common.delete')}
+                  </button>
+                ))}
             </div>
+          )}
+
+          {failure?.id === row.id && (
+            <p role="alert" className="mt-2 p-2.5 text-sm rounded-lg border bg-red-50 text-red-800 border-red-200">
+              {failure.text}
+            </p>
           )}
         </li>
       ))}

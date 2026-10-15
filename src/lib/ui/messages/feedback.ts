@@ -43,6 +43,7 @@ export const feedback = defineMessages({
     'feedback.done': 'จัดการแล้ว',
     'feedback.markDone': 'ทำเครื่องหมายว่าจัดการแล้ว',
     'feedback.reopen': 'เอากลับมาที่ค้างอยู่',
+    'feedback.deleted': 'ลบข้อเสนอแนะแล้ว',
 
     'feedback.error.empty': 'กรุณาเขียนข้อความก่อนส่ง',
     'feedback.error.tooLong': 'ข้อความยาวเกินไป (ไม่เกิน {max} ตัวอักษร)',
@@ -97,6 +98,7 @@ export const feedback = defineMessages({
     'feedback.done': 'Done',
     'feedback.markDone': 'Mark as dealt with',
     'feedback.reopen': 'Move back to outstanding',
+    'feedback.deleted': 'Feedback deleted',
 
     'feedback.error.empty': 'Write something first.',
     'feedback.error.tooLong': 'That is too long ({max} characters at most).',

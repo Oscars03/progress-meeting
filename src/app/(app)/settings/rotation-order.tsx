@@ -165,7 +165,7 @@ export default function RotationOrder({ students }: { students: RotationStudent[
                 onPointerCancel={onHandleUp}
                 aria-label={t('rotationOrder.drag')}
                 title={t('rotationOrder.drag')}
-                className="touch-none cursor-grab active:cursor-grabbing px-1.5 py-1 -ml-1 text-gray-400 hover:text-gray-600 select-none"
+                className="touch-none cursor-grab active:cursor-grabbing px-1.5 py-1 -ml-1 text-gray-500 hover:text-gray-700 select-none"
               >
                 ⠿
               </button>

@@ -398,7 +398,7 @@ export default function WeeklyBoard({
         </ul>
       )}
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         {t('weekly.legend', { from: historyKeys[historyKeys.length - 1], to: historyKeys[0] })}
       </p>
     </div>

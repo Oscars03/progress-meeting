@@ -88,13 +88,13 @@ export function Checklist({ row }: { row: TrackerRow }) {
                 }
                 aria-label={t('tracker.subtaskDone', { title: s.title })}
               />
-              <span className={`flex-1 min-w-0 ${s.done ? 'line-through text-gray-400' : ''}`}>{s.title}</span>
+              <span className={`flex-1 min-w-0 ${s.done ? 'line-through text-gray-500' : ''}`}>{s.title}</span>
               {row.can.work && (
                 <button
                   type="button"
                   disabled={pending}
                   onClick={() => save(row.subtasks.filter((x) => x.id !== s.id))}
-                  className="shrink-0 p-1 rounded text-gray-400 hover:text-gray-800 hover:bg-gray-100 disabled:opacity-50"
+                  className="shrink-0 p-1 rounded text-gray-500 hover:text-gray-800 hover:bg-gray-100 disabled:opacity-50"
                   aria-label={t('tracker.removeSubtask', { title: s.title })}
                 >
                   <CloseIcon />
@@ -318,7 +318,7 @@ export default function ProjectDrawer({
             <ul className="flex flex-col gap-2">
               {row.log.map((l) => (
                 <li key={l.week} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 text-sm">
-                  <span className="trk-mono text-xs text-gray-400 pt-0.5">
+                  <span className="trk-mono text-xs text-gray-500 pt-0.5">
                     {l.week.replace(/^\d{4}-/, '')} · {l.pct}%
                   </span>
                   <span>{l.summary}</span>

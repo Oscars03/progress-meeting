@@ -155,7 +155,7 @@ export default async function PollsPage() {
                       {poll.meeting_id ? t('polls.statusConfirmed') : t('polls.statusClosed')}
                     </span>
                     <span className="font-medium text-gray-700 flex-1 min-w-48">{poll.title}</span>
-                    <span className="text-xs text-gray-400 tabular-nums">
+                    <span className="text-xs text-gray-500 tabular-nums">
                       {t('polls.stats', { slots: slotCount, responders: responderCount })}
                     </span>
                   </div>

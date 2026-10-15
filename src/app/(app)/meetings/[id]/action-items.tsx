@@ -179,7 +179,7 @@ export default function ActionItems({
           })}
         </ul>
       ) : (
-        <p className="text-sm text-gray-400">{t('items.empty')}</p>
+        <p className="text-sm text-gray-500">{t('items.empty')}</p>
       )}
 
       <div className="pt-3 border-t border-gray-100 grid gap-3 sm:grid-cols-2">

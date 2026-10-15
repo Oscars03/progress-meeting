@@ -125,7 +125,7 @@ export default function CalendarSync({
         )}
 
         {syncedAt && (
-          <span className="text-xs text-gray-400 tabular-nums">
+          <span className="text-xs text-gray-500 tabular-nums">
             {t('sync.lastSynced', { at: syncedAt.slice(0, 16).replace('T', ' ') })}
           </span>
         )}
@@ -133,7 +133,7 @@ export default function CalendarSync({
 
       {/* The note is about pressing a button, so it is for the people who
           have one. */}
-      {canSync && <p className="text-xs text-gray-400">{t('sync.manualNote')}</p>}
+      {canSync && <p className="text-xs text-gray-500">{t('sync.manualNote')}</p>}
     </section>
   );
 }

@@ -64,7 +64,8 @@ export default function BackLink({
   return (
     <Link
       href={href}
-      className={className}
+      // .tap: a full-size target on a touch screen; see globals.css.
+      className={`tap ${className ?? ''}`}
       onClick={(event) => {
         // A modified click is the reader asking for a new tab or window; going
         // back in this one would be the opposite of what they pressed.

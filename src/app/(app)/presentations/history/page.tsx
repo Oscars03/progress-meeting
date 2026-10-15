@@ -80,9 +80,9 @@ export default async function MeetingHistoryPage() {
               <div className="space-y-2">
                 <h4 className="text-sm font-medium text-gray-500">{t('history.topics')}</h4>
                 {week.topics.length === 0 ? (
-                  <p className="text-sm text-gray-400">{t('history.noTopics')}</p>
+                  <p className="text-sm text-gray-500">{t('history.noTopics')}</p>
                 ) : (
-                  <ol className="space-y-1.5 list-decimal pl-5 marker:text-gray-400">
+                  <ol className="space-y-1.5 list-decimal pl-5 marker:text-gray-500">
                     {week.topics.map((topic) => (
                       <li key={topic.id} className="text-sm">
                         <span className="font-medium text-gray-900 break-words">{topic.title}</span>
@@ -99,7 +99,7 @@ export default async function MeetingHistoryPage() {
               </div>
 
               {week.meetings.length === 0 ? (
-                <p className="text-sm text-gray-400">{t('history.noMeeting')}</p>
+                <p className="text-sm text-gray-500">{t('history.noMeeting')}</p>
               ) : (
                 week.meetings.map(({ meeting, minutes: record }) => (
                   <div key={meeting.id} className="pt-3 border-t border-gray-100 space-y-2">
@@ -122,7 +122,7 @@ export default async function MeetingHistoryPage() {
                           {record.content}
                         </p>
                       ) : (
-                        <p className="mt-1 text-sm text-gray-400">{t('minutes.noneYet')}</p>
+                        <p className="mt-1 text-sm text-gray-500">{t('minutes.noneYet')}</p>
                       )}
                     </div>
                   </div>
