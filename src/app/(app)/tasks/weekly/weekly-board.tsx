@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteWeeklyUpdateAction, saveWeeklyUpdateAction } from '../update-actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 import type { TranslationKey, TranslationVars } from '@/lib/ui/i18n';
 
 export type TaskRow = {
@@ -15,6 +16,8 @@ export type TaskRow = {
   progressPct: number;
   ownerName: string;
   isMine: boolean;
+  /** Whose work it is -- assignees, or the owner when nobody is assigned. */
+  workerIds: string[];
   editable: boolean;
   current: {
     /** The stored report, so it can be taken back as well as rewritten. */
@@ -43,24 +46,43 @@ export default function WeeklyBoard({
   rows,
   weekKey,
   historyKeys,
+  filterBy,
+  people,
 }: {
   rows: TaskRow[];
   weekKey: string;
   historyKeys: string[];
+  /** "mine" for a student; "person" for whoever reads everybody's reports. */
+  filterBy: 'mine' | 'person';
+  people: { id: string; name: string }[];
 }) {
   const { t } = usePrefs();
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [onlyMine, setOnlyMine] = useState(true);
+  // On by default only for somebody who has work of their own to report.
+  // Switched on for a student with nothing assigned, it hid every task behind
+  // a page that said there was nothing to report.
+  const [onlyMine, setOnlyMine] = useState(() => filterBy === 'mine' && rows.some((r) => r.isMine));
+  const [personId, setPersonId] = useState('');
 
-  const visible = onlyMine ? rows.filter((r) => r.isMine) : rows;
+  const visible =
+    filterBy === 'mine'
+      ? onlyMine
+        ? rows.filter((r) => r.isMine)
+        : rows
+      : personId
+        ? rows.filter((r) => r.workerIds.includes(personId))
+        : rows;
+  const hidden = rows.length - visible.length;
+  const personName = people.find((p) => p.id === personId)?.name ?? '';
   const pending = visible.filter((r) => !r.current).length;
 
   const startEdit = (row: TaskRow) => {
-    setMessage(null);
+    setError(null);
     setOpenId(row.id);
     setDraft({
       progressPct: row.current?.progressPct ?? row.progressPct,
@@ -73,17 +95,18 @@ export default function WeeklyBoard({
   const removeReport = (row: TaskRow) => {
     if (!row.current) return;
     if (!confirm(t('weekly.confirmDeleteReport'))) return;
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       try {
         const res = await deleteWeeklyUpdateAction(row.current!.id, row.current!.rowVersion);
         if (!res.ok) {
-          setMessage({ type: 'error', text: t(res.error, res.vars) });
+          setError(t(res.error, res.vars));
           return;
         }
+        toast(t('weekly.reportDeleted', { title: row.title }));
         router.refresh();
       } catch {
-        setMessage({ type: 'error', text: t('error.generic') });
+        setError(t('error.generic'));
       }
     });
   };
@@ -91,10 +114,10 @@ export default function WeeklyBoard({
   const save = (row: TaskRow) => {
     if (!draft) return;
     if (!draft.summary.trim()) {
-      setMessage({ type: 'error', text: t('weekly.summaryRequired') });
+      setError(t('weekly.summaryRequired'));
       return;
     }
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       try {
         const res = await saveWeeklyUpdateAction({
@@ -106,15 +129,15 @@ export default function WeeklyBoard({
           weekKey,
         });
         if (!res.ok) {
-          setMessage({ type: 'error', text: t(res.error, res.vars) });
+          setError(t(res.error, res.vars));
           return;
         }
         setOpenId(null);
         setDraft(null);
-        setMessage({ type: 'ok', text: t('weekly.savedFor', { title: row.title }) });
+        toast(t('weekly.savedFor', { title: row.title }));
         router.refresh();
       } catch {
-        setMessage({ type: 'error', text: t('error.generic') });
+        setError(t('error.generic'));
       }
     });
   };
@@ -125,8 +148,11 @@ export default function WeeklyBoard({
         <div className="text-sm text-gray-600">
           {visible.length === 0 ? (
             // "All reported" over an empty list reads as an achievement when in
-            // fact there was nothing to report.
-            <span className="text-gray-400">{t('weekly.emptyView')}</span>
+            // fact there was nothing to report -- and "nothing to report" is
+            // wrong too when the filter is what emptied it.
+            <span className="text-gray-500">
+              {hidden > 0 ? t('weekly.hiddenByFilter', { n: hidden }) : t('weekly.emptyView')}
+            </span>
           ) : pending === 0 ? (
             <span className="text-green-700 font-medium">{t('weekly.allReported')}</span>
           ) : (
@@ -137,33 +163,48 @@ export default function WeeklyBoard({
             </>
           )}
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input
-            type="checkbox"
-            checked={onlyMine}
-            onChange={(e) => setOnlyMine(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          {t('weekly.onlyMine')}
-        </label>
+        {filterBy === 'mine' ? (
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={onlyMine}
+              onChange={(e) => setOnlyMine(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            {t('weekly.onlyMine')}
+          </label>
+        ) : (
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            {t('weekly.filterPerson')}
+            <select
+              value={personId}
+              onChange={(e) => setPersonId(e.target.value)}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
+            >
+              <option value="">{t('weekly.everyone')}</option>
+              {people.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
-      {message && (
-        <div
-          role="status"
-          className={`p-3 text-sm rounded-lg border ${
-            message.type === 'ok'
-              ? 'text-green-800 bg-green-50 border-green-200'
-              : 'text-red-800 bg-red-50 border-red-200'
-          }`}
-        >
-          {message.text}
+      {error && (
+        <div role="alert" className="p-3 text-sm rounded-lg border text-red-800 bg-red-50 border-red-200">
+          {error}
         </div>
       )}
 
       {visible.length === 0 ? (
-        <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-400">
-          {onlyMine ? t('weekly.noneMine') : t('weekly.noneOpen')}
+        <p className="p-6 bg-white rounded-xl border border-gray-100 text-sm text-gray-500">
+          {hidden === 0
+            ? t('weekly.noneOpen')
+            : filterBy === 'mine'
+              ? t('weekly.noneMine')
+              : t('weekly.nonePerson', { name: personName })}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -213,8 +254,11 @@ export default function WeeklyBoard({
                   </span>
                   <div className="flex items-center gap-1" title={t('weekly.historyTitle')}>
                     {row.history.map((h) => (
+                      // role="img": a screen reader ignores aria-label on a
+                      // bare span, so the six weeks used to be read as nothing.
                       <span
                         key={h.key}
+                        role="img"
                         aria-label={t(h.reported ? 'weekly.historyReported' : 'weekly.historyMissing', {
                           week: h.key,
                         })}
