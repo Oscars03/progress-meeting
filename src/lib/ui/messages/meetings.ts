@@ -33,6 +33,7 @@ export const meetings = defineMessages({
     'meeting.delete': 'ลบการประชุมนี้',
     'meeting.deleteConfirm': 'ลบถาวร กู้คืนไม่ได้',
     'meeting.deleteYes': 'ยืนยันลบ',
+    'meeting.deleted': 'ลบการประชุมแล้ว',
     'meeting.eventCreator': 'ผู้สร้างอีเวนต์',
 
     'agenda.attend.invited': 'เชิญแล้ว',
@@ -149,6 +150,7 @@ export const meetings = defineMessages({
     'meeting.delete': 'Delete this meeting',
     'meeting.deleteConfirm': 'Deleted for good, with no way back',
     'meeting.deleteYes': 'Yes, delete',
+    'meeting.deleted': 'Meeting deleted',
     'meeting.eventCreator': 'the event creator',
 
     'agenda.attend.invited': 'Invited',

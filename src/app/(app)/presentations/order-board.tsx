@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 import { slideOffset, useFlip } from '@/lib/ui/flip';
 import { addTopic, deleteTopic, setTopicOrder, clearTopicOrder, updateTopic } from './actions';
 import type { ActionResult } from '@/lib/action-result';
@@ -83,6 +84,7 @@ export default function OrderBoard({
   readOnly?: boolean;
 }) {
   const { t } = usePrefs();
+  const toast = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
@@ -109,13 +111,17 @@ export default function OrderBoard({
   const flat = order.flatMap((block) => block.topics);
   const dirty = flat.some((topic, i) => topics[i]?.id !== topic.id);
 
-  const run = (work: () => Promise<ActionResult>) => {
+  // `done` is the toast for a success, as on every other page that saves;
+  // this one used to change nothing on screen but the order itself.
+  const run = (work: () => Promise<ActionResult>, done?: string) => {
     setError('');
     startTransition(async () => {
       try {
         const res = await work();
-        if (res.ok) router.refresh();
-        else setError(t(res.error, res.vars));
+        if (res.ok) {
+          if (done) toast(done);
+          router.refresh();
+        } else setError(t(res.error, res.vars));
       } catch {
         setError(t('error.generic'));
       }
@@ -203,7 +209,7 @@ export default function OrderBoard({
           setAdding(false);
         }
         return res;
-      });
+      }, t('common.saved'));
       return;
     }
 
@@ -215,7 +221,7 @@ export default function OrderBoard({
         setAdding(false);
       }
       return res;
-    });
+    }, t('topics.added'));
   };
 
   const startEdit = (topic: BoardTopic) => {
@@ -442,7 +448,7 @@ export default function OrderBoard({
                               type="button"
                               onClick={() => {
                                 if (!confirm(t('topics.confirmDelete'))) return;
-                                run(() => deleteTopic(topic.id, topic.row_version));
+                                run(() => deleteTopic(topic.id, topic.row_version), t('topics.deleted'));
                               }}
                               disabled={isPending}
                               className="text-xs text-red-500 hover:underline"
@@ -478,6 +484,7 @@ export default function OrderBoard({
                   flat.map((topic) => ({ id: topic.id, row_version: topic.row_version })),
                   weekKey,
                 ),
+                t('presentations.orderSaved'),
               )
             }
             disabled={isPending || !dirty}
@@ -495,6 +502,7 @@ export default function OrderBoard({
                     topics.map((topic) => ({ id: topic.id, row_version: topic.row_version })),
                     weekKey,
                   ),
+                  t('presentations.orderReset'),
                 )
               }
               disabled={isPending}

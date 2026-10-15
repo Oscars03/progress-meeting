@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteMeeting } from '../actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 import Spinner from '@/lib/ui/spinner';
 
 /**
@@ -25,6 +26,7 @@ export default function DeleteMeeting({
   rowVersion: number;
 }) {
   const { t } = usePrefs();
+  const toast = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [armed, setArmed] = useState(false);
@@ -39,6 +41,8 @@ export default function DeleteMeeting({
         setArmed(false);
         return;
       }
+      // The toast outlives the page: its provider sits in the app layout.
+      toast(t('meeting.deleted'));
       router.push('/meetings');
       router.refresh();
     });

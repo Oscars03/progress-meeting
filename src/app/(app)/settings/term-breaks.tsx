@@ -5,42 +5,45 @@ import { usePrefs } from '@/lib/ui/prefs';
 import { addTermBreakAction, deleteTermBreakAction } from './actions';
 import type { TermBreakRecord } from '@/lib/db/schema';
 import Spinner from '@/lib/ui/spinner';
+import { useToast } from '@/lib/ui/toast';
 
 export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
   const { t } = usePrefs();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
-  
+  // Errors only; a success is a toast. A delete used to report "saved".
+  const [error, setError] = useState<string | null>(null);
+
   const [name, setName] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
 
   const addBreak = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       const res = await addTermBreakAction(name, start, end);
       if (!res.ok) {
-        setMessage({ kind: 'error', text: t(res.error, res.vars) });
+        setError(t(res.error, res.vars));
         return;
       }
+      toast(t('termBreaks.added', { name }));
       setName('');
       setStart('');
       setEnd('');
-      setMessage({ kind: 'ok', text: t('common.saved') });
     });
   };
 
-  const removeBreak = (id: string, rowVersion: number) => {
+  const removeBreak = (id: string, breakName: string, rowVersion: number) => {
     if (!confirm(t('common.confirmDelete'))) return;
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       const res = await deleteTermBreakAction(id, rowVersion);
-      setMessage(
-        res.ok
-          ? { kind: 'ok', text: t('common.saved') }
-          : { kind: 'error', text: t(res.error, res.vars) }
-      );
+      if (!res.ok) {
+        setError(t(res.error, res.vars));
+        return;
+      }
+      toast(t('termBreaks.deleted', { name: breakName }));
     });
   };
 
@@ -53,16 +56,9 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
         <p className="text-sm text-gray-500 mt-1">{t('termBreaks.desc')}</p>
       </div>
 
-      {message && (
-        <p
-          className={`p-3 rounded-lg text-sm border ${
-            message.kind === 'ok'
-              ? 'bg-green-50 text-green-800 border-green-200'
-              : 'bg-red-50 text-red-800 border-red-200'
-          }`}
-          role="status"
-        >
-          {message.text}
+      {error && (
+        <p className="p-3 rounded-lg text-sm border bg-red-50 text-red-800 border-red-200" role="alert">
+          {error}
         </p>
       )}
 
@@ -78,7 +74,7 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
               </div>
               <button
                 type="button"
-                onClick={() => removeBreak(b.id, b.row_version)}
+                onClick={() => removeBreak(b.id, b.name, b.row_version)}
                 disabled={isPending}
                 className="text-red-600 hover:text-red-800 p-2 rounded-md hover:bg-red-50 transition text-sm disabled:opacity-50"
                 aria-label={t('common.delete')}
@@ -93,10 +89,11 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
 
       <form onSubmit={addBreak} className="pt-4 border-t border-gray-100 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="break-name">
             {t('termBreaks.name')}
           </label>
           <input
+            id="break-name"
             type="text"
             required
             value={name}
@@ -105,10 +102,11 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
           />
         </div>
         <div className="w-[140px]">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="break-start">
             {t('termBreaks.start')}
           </label>
           <input
+            id="break-start"
             type="date"
             required
             value={start}
@@ -117,10 +115,11 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
           />
         </div>
         <div className="w-[140px]">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="break-end">
             {t('termBreaks.end')}
           </label>
           <input
+            id="break-end"
             type="date"
             required
             value={end}
