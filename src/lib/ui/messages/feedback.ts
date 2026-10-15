@@ -18,6 +18,7 @@ export const feedback = defineMessages({
     'feedback.send': 'ส่งข้อเสนอแนะ',
     'feedback.thanks': 'ส่งแล้ว ขอบคุณครับ',
     'feedback.addImage': '+ แนบรูปภาพ',
+    'feedback.imageAlt': 'รูปที่แนบ {n} จาก {name}',
     'feedback.removeImage': 'เอารูปออก',
 
     'uploads.error.type': 'แนบได้เฉพาะไฟล์รูปภาพ (PNG, JPEG, WebP, GIF)',
@@ -69,6 +70,7 @@ export const feedback = defineMessages({
     'feedback.send': 'Send',
     'feedback.thanks': 'Sent — thank you.',
     'feedback.addImage': '+ Attach a picture',
+    'feedback.imageAlt': 'Attached picture {n} from {name}',
     'feedback.removeImage': 'Remove picture',
 
     'uploads.error.type': 'Only images can be attached (PNG, JPEG, WebP, GIF)',

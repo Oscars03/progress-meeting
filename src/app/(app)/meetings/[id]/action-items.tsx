@@ -218,7 +218,7 @@ export default function ActionItems({
 
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="ai-due">
-            {t('meetings.end')}
+            {t('items.due')}
           </label>
           <input
             id="ai-due"

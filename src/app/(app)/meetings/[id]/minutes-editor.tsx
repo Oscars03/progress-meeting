@@ -54,7 +54,7 @@ export default function MinutesEditor({
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold text-gray-900">{t('minutes.title')}</h3>
+        <h3 id="minutes-title" className="text-lg font-semibold text-gray-900">{t('minutes.title')}</h3>
         {dirty && !isPending && (
           <span className="text-xs text-amber-700">{t('minutes.unsaved')}</span>
         )}
@@ -69,6 +69,7 @@ export default function MinutesEditor({
       {canEdit ? (
         <>
           <textarea
+            aria-labelledby="minutes-title"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={10}
