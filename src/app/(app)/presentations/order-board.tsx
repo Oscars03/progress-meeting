@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { slideOffset, useFlip } from '@/lib/ui/flip';
 import { addTopic, deleteTopic, setTopicOrder, clearTopicOrder, updateTopic } from './actions';
 import type { ActionResult } from '@/lib/action-result';
 
@@ -148,6 +149,14 @@ export default function OrderBoard({
    */
   const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Rows of different heights would otherwise bounce: once a short row passes a
+  // tall one, the finger can sit over the tall one again and pull them back. A
+  // row only moves the way the finger is travelling.
+  const lastY = useRef(0);
+
+  // Rows slide to their new place rather than jump, so who moved is visible.
+  const listRef = useRef<HTMLOListElement>(null);
+  useFlip(listRef);
 
   const onHandleDown = (index: number) => (e: React.PointerEvent) => {
     try {
@@ -155,6 +164,7 @@ export default function OrderBoard({
     } catch {
       // Carry on uncaptured; the handler still receives moves over the card.
     }
+    lastY.current = e.clientY;
     setDragIndex(index);
   };
 
@@ -162,10 +172,16 @@ export default function OrderBoard({
     if (dragIndex === null) return;
     const over = rowRefs.current.findIndex((row) => {
       if (!row) return false;
+      // Where layout put the row, not where a slide is drawing it.
       const box = row.getBoundingClientRect();
-      return e.clientY >= box.top && e.clientY <= box.bottom;
+      const top = box.top - slideOffset(row);
+      return e.clientY >= top && e.clientY <= top + box.height;
     });
-    if (over !== -1 && over !== dragIndex) {
+    const down = e.clientY > lastY.current;
+    const up = e.clientY < lastY.current;
+    lastY.current = e.clientY;
+
+    if (over !== -1 && ((over > dragIndex && down) || (over < dragIndex && up))) {
       moveTo(dragIndex, over);
       setDragIndex(over);
     }
@@ -313,12 +329,13 @@ export default function OrderBoard({
           {canAdd && <p className="text-sm text-gray-400 mt-1">{t('presentations.emptyHint')}</p>}
         </div>
       ) : (
-        <ol className="space-y-2">
+        <ol ref={listRef} className="space-y-2">
           {order.map((block, index) => {
             const mine = block.ownerId === currentUserId;
             return (
               <li
                 key={block.ownerId}
+                data-flip-key={block.ownerId}
                 ref={(el) => {
                   rowRefs.current[index] = el;
                 }}
