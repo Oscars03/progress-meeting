@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useModal } from '@/lib/ui/modal';
 import type { ActionResult } from '@/lib/action-result';
 import { daysBetween, elapsedPct, formatDay } from '@/lib/tracker';
 import { deleteTask, saveSubtasks, setTaskProgress, updateTaskStatus } from './actions';
@@ -155,13 +156,8 @@ export default function ProjectDrawer({
     closeRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const drawerRef = useRef<HTMLElement>(null);
+  useModal(drawerRef, true, onClose);
 
   const round = rounds.find((r) => r.id === row.roundId);
   const started = daysBetween(today, row.start) <= 0;
@@ -182,7 +178,7 @@ export default function ProjectDrawer({
   return (
     <>
       <div className="trk-scrim" onClick={onClose} aria-hidden="true" />
-      <aside className="trk-drawer" role="dialog" aria-modal="true" aria-labelledby="trk-drawer-title">
+      <aside ref={drawerRef} className="trk-drawer" role="dialog" aria-modal="true" aria-labelledby="trk-drawer-title">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Tag tag={row.tag} />

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { APP_VERSION, changesByDay } from '@/lib/changelog';
 import { usePrefs } from '@/lib/ui/prefs';
 import { Presence } from '@/lib/ui/presence';
+import { ModalScope, useModal } from '@/lib/ui/modal';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import { settingsMenuOpen, type MenuToggle } from '@/lib/ui/settings-menu';
@@ -116,6 +117,15 @@ function splitName(name: string): [string, string | null] {
   return cut === -1 ? [name, null] : [name.slice(0, cut), name.slice(cut + 1)];
 }
 
+/** Below `md` the nav is a drawer that slides away; above it, a rail that stays. */
+const DRAWER_QUERY = '(max-width: 767.98px)';
+const subscribeDrawer = (onChange: () => void) => {
+  const query = window.matchMedia(DRAWER_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+const isDrawer = () => window.matchMedia(DRAWER_QUERY).matches;
+
 /**
  * Collapse is driven by `data-sidebar` on <html>, not by React state, so the
  * width is right on the very first paint: the inline bootstrap script sets the
@@ -139,6 +149,13 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  // The phone drawer is a dialog while it is open and out of reach while it
+  // is shut. Slid off screen it was still in the tab order, so a keyboard
+  // walked through nineteen invisible links before reaching the page.
+  const drawer = useSyncExternalStore(subscribeDrawer, isDrawer, () => false);
+  const navRef = useRef<HTMLElement>(null);
+  useModal(navRef, drawer && mobileMenuOpen, closeMobileMenu);
 
   return (
     <>
@@ -164,7 +181,8 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
           type="button"
           onClick={() => setMobileMenuOpen(true)}
           className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-md"
-          aria-label={t('nav.expand')}
+          aria-label={t('nav.openMenu')}
+          aria-expanded={mobileMenuOpen}
         >
           <Icon d="M4 6h16M4 12h16M4 18h16" />
         </button>
@@ -184,14 +202,18 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
       {/* md:w-max: the expanded rail is exactly as wide as its widest content --
           today the header -- with no fixed width to leave slack beside short
           menu labels. Collapsed overrides it with a fixed 64px rail. */}
-      <nav className={`fixed inset-y-0 left-0 z-50 w-72 h-dvh md:h-auto overflow-hidden bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-(--motion-base) ease-(--motion-ease-out) md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <nav
+        ref={navRef}
+        inert={drawer && !mobileMenuOpen}
+        aria-label={t('nav.menu')}
+        className={`fixed inset-y-0 left-0 z-50 w-72 h-dvh md:h-auto overflow-hidden bg-white border-r border-gray-200 p-4 flex flex-col gap-4 shadow-sm transition-transform duration-(--motion-base) ease-(--motion-ease-out) md:relative md:translate-x-0 md:w-max md:shrink-0 md:collapsed:w-16 md:collapsed:px-3 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Mobile close button */}
         <div className="md:hidden absolute top-4 right-4">
           <button
             type="button"
             onClick={closeMobileMenu}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-md"
-            aria-label={t('nav.collapse')}
+            aria-label={t('avail.close')}
           >
             <Icon d="M6 18L18 6M6 6l12 12" />
           </button>
@@ -421,6 +443,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
 
       <Presence value={whatsNewOpen}>
         {() => (
+          <ModalScope onClose={() => setWhatsNewOpen(false)}>
           <div
             className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
             role="dialog"
@@ -484,11 +507,13 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
               </div>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
 
       <Presence value={signOutOpen}>
         {() => (
+          <ModalScope onClose={() => !signingOut && setSignOutOpen(false)}>
           <div
             className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
             role="dialog"
@@ -502,8 +527,11 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
               <p className="text-sm text-gray-600">{t('signout.body')}</p>
 
               <div className="flex flex-wrap justify-end gap-2">
+                {/* Focus starts on Cancel: Enter on an open sign-out dialog
+                    used to sign you out. */}
                 <button
                   type="button"
+                  autoFocus
                   onClick={() => setSignOutOpen(false)}
                   disabled={signingOut}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium disabled:opacity-50"
@@ -512,7 +540,6 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
                 </button>
                 <button
                   type="button"
-                  autoFocus
                   onClick={() => {
                     setSigningOut(true);
                     signOut({ callbackUrl: '/' });
@@ -525,6 +552,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
               </div>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
     </>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createMeeting } from './actions';
 import { usePrefs } from '@/lib/ui/prefs';
 import { Presence } from '@/lib/ui/presence';
+import { ModalScope } from '@/lib/ui/modal';
 
 export default function NewMeetingButton() {
   const { t } = usePrefs();
@@ -65,9 +66,17 @@ export default function NewMeetingButton() {
 
       <Presence value={open}>
         {() => (
-          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          // Escape keeps what was typed, the way Cancel does not: a key pressed
+          // by accident should not cost a half-written meeting.
+          <ModalScope onClose={() => setOpen(false)}>
+          <div
+            className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-meeting-title"
+          >
             <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[90dvh]">
-              <h3 className="text-lg font-semibold text-gray-900">{t('meetings.newTitle')}</h3>
+              <h3 id="new-meeting-title" className="text-lg font-semibold text-gray-900">{t('meetings.newTitle')}</h3>
 
               {error && (
                 <div
@@ -173,6 +182,7 @@ export default function NewMeetingButton() {
               </form>
             </div>
           </div>
+          </ModalScope>
         )}
       </Presence>
     </>

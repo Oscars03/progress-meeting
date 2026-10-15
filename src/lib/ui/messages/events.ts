@@ -11,6 +11,12 @@ export const events = defineMessages({
 
     'events.color': 'สี',
     'events.colorAuto': 'ใช้สีตามประเภท',
+    'events.colour.rose': 'แดง',
+    'events.colour.amber': 'เหลือง',
+    'events.colour.emerald': 'เขียว',
+    'events.colour.sky': 'ฟ้า',
+    'events.colour.violet': 'ม่วง',
+    'events.colour.slate': 'เทา',
 
     'events.editTitle': 'แก้ไขช่วงเวลาที่ไม่ว่าง',
   },
@@ -23,6 +29,12 @@ export const events = defineMessages({
 
     'events.color': 'Colour',
     'events.colorAuto': 'Use the kind’s colour',
+    'events.colour.rose': 'Red',
+    'events.colour.amber': 'Yellow',
+    'events.colour.emerald': 'Green',
+    'events.colour.sky': 'Blue',
+    'events.colour.violet': 'Purple',
+    'events.colour.slate': 'Grey',
 
     'events.editTitle': 'Edit these hours',
   },
