@@ -117,7 +117,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+          className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label={t('perm.title')}
@@ -125,7 +125,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
             if (e.target === e.currentTarget && changes.length === 0) setOpen(false);
           }}
         >
-          <div className="flex max-h-[90vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-4xl sm:rounded-2xl">
+          <div className="motion-dialog flex max-h-[90vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-4xl sm:rounded-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4 sm:p-5">
               <div>
                 <h4 className="font-semibold text-gray-900">{t('perm.title')}</h4>
