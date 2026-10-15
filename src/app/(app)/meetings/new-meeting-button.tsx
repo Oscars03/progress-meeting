@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createMeeting } from './actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { Presence } from '@/lib/ui/presence';
 
 export default function NewMeetingButton() {
   const { t } = usePrefs();
@@ -62,116 +63,118 @@ export default function NewMeetingButton() {
         {t('meetings.new')}
       </button>
 
-      {open && (
-        <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[90dvh]">
-            <h3 className="text-lg font-semibold text-gray-900">{t('meetings.newTitle')}</h3>
+      <Presence value={open}>
+        {() => (
+          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[90dvh]">
+              <h3 className="text-lg font-semibold text-gray-900">{t('meetings.newTitle')}</h3>
 
-            {error && (
-              <div
-                className="p-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-200"
-                role="alert"
-              >
-                {error}
-              </div>
-            )}
+              {error && (
+                <div
+                  className="p-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-200"
+                  role="alert"
+                >
+                  {error}
+                </div>
+              )}
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-sm">
-              <div>
-                <label className="block text-gray-600 mb-1" htmlFor="m-title">
-                  {t('meetings.topic')}
-                </label>
-                <input
-                  id="m-title"
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 border rounded-md"
-                  placeholder={t('meetings.topicPlaceholder')}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <form onSubmit={handleSubmit} className="space-y-3 text-sm">
                 <div>
-                  <label className="block text-gray-600 mb-1" htmlFor="m-start">
-                    {t('meetings.start')}
+                  <label className="block text-gray-600 mb-1" htmlFor="m-title">
+                    {t('meetings.topic')}
                   </label>
                   <input
-                    id="m-start"
-                    type="datetime-local"
+                    id="m-title"
+                    type="text"
                     required
-                    value={startAt}
-                    onChange={(e) => setStartAt(e.target.value)}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                     className="w-full min-w-0 px-3 py-2 border rounded-md"
+                    placeholder={t('meetings.topicPlaceholder')}
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-gray-600 mb-1" htmlFor="m-start">
+                      {t('meetings.start')}
+                    </label>
+                    <input
+                      id="m-start"
+                      type="datetime-local"
+                      required
+                      value={startAt}
+                      onChange={(e) => setStartAt(e.target.value)}
+                      className="w-full min-w-0 px-3 py-2 border rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-600 mb-1" htmlFor="m-end">
+                      {t('meetings.end')}
+                    </label>
+                    <input
+                      id="m-end"
+                      type="datetime-local"
+                      required
+                      value={endAt}
+                      onChange={(e) => setEndAt(e.target.value)}
+                      className="w-full min-w-0 px-3 py-2 border rounded-md"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-gray-600 mb-1" htmlFor="m-end">
-                    {t('meetings.end')}
+                  <label className="block text-gray-600 mb-1" htmlFor="m-location">
+                    {t('meetings.location')}
                   </label>
                   <input
-                    id="m-end"
-                    type="datetime-local"
-                    required
-                    value={endAt}
-                    onChange={(e) => setEndAt(e.target.value)}
+                    id="m-location"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
                     className="w-full min-w-0 px-3 py-2 border rounded-md"
+                    placeholder={t('meetings.locationPlaceholder')}
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-gray-600 mb-1" htmlFor="m-location">
-                  {t('meetings.location')}
-                </label>
-                <input
-                  id="m-location"
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 border rounded-md"
-                  placeholder={t('meetings.locationPlaceholder')}
-                />
-              </div>
+                <div>
+                  <label className="block text-gray-600 mb-1" htmlFor="m-link">
+                    {t('meetings.link')}
+                  </label>
+                  <input
+                    id="m-link"
+                    type="url"
+                    value={meetLink}
+                    onChange={(e) => setMeetLink(e.target.value)}
+                    className="w-full min-w-0 px-3 py-2 border rounded-md"
+                    placeholder="https://meet.google.com/..."
+                  />
+                </div>
 
-              <div>
-                <label className="block text-gray-600 mb-1" htmlFor="m-link">
-                  {t('meetings.link')}
-                </label>
-                <input
-                  id="m-link"
-                  type="url"
-                  value={meetLink}
-                  onChange={(e) => setMeetLink(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 border rounded-md"
-                  placeholder="https://meet.google.com/..."
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    reset();
-                    setOpen(false);
-                  }}
-                  className="px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
-                >
-                  {isPending ? t('common.saving') : t('meetings.save')}
-                </button>
-              </div>
-            </form>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      reset();
+                      setOpen(false);
+                    }}
+                    className="px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                  >
+                    {isPending ? t('common.saving') : t('meetings.save')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Presence>
     </>
   );
 }

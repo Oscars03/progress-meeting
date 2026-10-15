@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateMyNameAction } from './actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 import Spinner from '@/lib/ui/spinner';
 
 /**
@@ -17,22 +18,23 @@ import Spinner from '@/lib/ui/spinner';
 export default function MyName({ name, email }: { name: string; email: string }) {
   const { t } = usePrefs();
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [draft, setDraft] = useState(name);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const unchanged = draft.trim() === name.trim();
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       const res = await updateMyNameAction(draft);
       if (!res.ok) {
-        setMessage({ kind: 'error', text: t(res.error, res.vars) });
+        setError(t(res.error, res.vars));
         return;
       }
-      setMessage({ kind: 'ok', text: t('common.saved') });
+      toast(t('common.saved'));
       router.refresh();
     });
   };
@@ -41,16 +43,9 @@ export default function MyName({ name, email }: { name: string; email: string })
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
       <h3 className="text-lg font-semibold text-gray-900">{t('myName.title')}</h3>
 
-      {message && (
-        <p
-          className={`p-3 rounded-lg text-sm border ${
-            message.kind === 'ok'
-              ? 'bg-green-50 text-green-800 border-green-200'
-              : 'bg-red-50 text-red-800 border-red-200'
-          }`}
-          role="status"
-        >
-          {message.text}
+      {error && (
+        <p className="p-3 rounded-lg text-sm border bg-red-50 text-red-800 border-red-200" role="alert">
+          {error}
         </p>
       )}
 

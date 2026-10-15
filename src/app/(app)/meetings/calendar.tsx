@@ -9,6 +9,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import thLocale from '@fullcalendar/core/locales/th';
 import enGbLocale from '@fullcalendar/core/locales/en-gb';
 import { usePrefs } from '@/lib/ui/prefs';
+import { Presence } from '@/lib/ui/presence';
 import {
   createPersonalEventAction,
   deletePersonalEventAction,
@@ -679,335 +680,343 @@ export default function CalendarView({
       </div>
 
       {/* Create Modal */}
-      {createModalOpen && (
-        <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90dvh]">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-semibold text-gray-900">
-                {editingEvent ? t('events.editTitle') : t('settings.addBusyBlock')}
-              </h3>
-              <button 
-                onClick={() => {
-                  setCreateModalOpen(false);
-                  setEditingEvent(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
+      {/* editingEvent rides along so the title does not flip to "add" while
+          the modal is still fading out after a save cleared it. */}
+      <Presence value={createModalOpen && { editingEvent }}>
+        {({ editingEvent }) => (
+          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-md overflow-y-auto max-h-[90dvh]">
+              <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 className="font-semibold text-gray-900">
+                  {editingEvent ? t('events.editTitle') : t('settings.addBusyBlock')}
+                </h3>
+                <button 
+                  onClick={() => {
+                    setCreateModalOpen(false);
+                    setEditingEvent(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
             
-            <form onSubmit={handleCreateSubmit} className="p-6 space-y-4 text-sm">
-              {error && (
-                <div className="p-3 text-red-800 bg-red-50 rounded-lg border border-red-200">
-                  {error}
-                </div>
-              )}
+              <form onSubmit={handleCreateSubmit} className="p-6 space-y-4 text-sm">
+                {error && (
+                  <div className="p-3 text-red-800 bg-red-50 rounded-lg border border-red-200">
+                    {error}
+                  </div>
+                )}
               
-              <div>
-                <label className="block text-gray-700 font-medium mb-1" htmlFor="pe-title">
-                  {t('settings.eventTitle')}
-                </label>
-                <input
-                  id="pe-title"
-                  type="text"
-                  required
-                  value={createTitle}
-                  onChange={(e) => setCreateTitle(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                  autoFocus
-                />
-              </div>
-
-              {/* Kind first, colour second: picking a kind already colours the
-                  block, so most people never touch the swatches. */}
-              <div>
-                <label className="block text-gray-700 font-medium mb-1">
-                  {t('events.category')}
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {EVENT_CATEGORIES.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setCreateCategory(createCategory === value ? '' : value)}
-                      aria-pressed={createCategory === value}
-                      className={`px-2.5 py-1 rounded-full border text-xs transition ${
-                        createCategory === value
-                          ? 'bg-blue-600 border-blue-600 text-white font-medium'
-                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {t(`events.category.${value}` as 'events.category.teaching')}
-                    </button>
-                  ))}
+                <div>
+                  <label className="block text-gray-700 font-medium mb-1" htmlFor="pe-title">
+                    {t('settings.eventTitle')}
+                  </label>
+                  <input
+                    id="pe-title"
+                    type="text"
+                    required
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                    autoFocus
+                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-gray-700 font-medium mb-1">
-                  {t('events.color')}
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  {EVENT_COLORS.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setCreateColor(createColor === value ? '' : value)}
-                      aria-label={value}
-                      aria-pressed={createColor === value}
-                      className={`cal-c-${value} w-7 h-7 rounded-full border-2 transition ${
-                        createColor === value
-                          ? 'ring-2 ring-offset-1 ring-blue-500 border-white'
-                          : 'border-white'
-                      }`}
-                      style={{ backgroundColor: 'var(--ev-edge)' }}
-                    />
-                  ))}
-                  {createColor && (
-                    <button
-                      type="button"
-                      onClick={() => setCreateColor('')}
-                      className="text-xs text-gray-500 hover:underline"
-                    >
-                      {t('events.colorAuto')}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-4">
+                {/* Kind first, colour second: picking a kind already colours the
+                    block, so most people never touch the swatches. */}
                 <div>
                   <label className="block text-gray-700 font-medium mb-1">
-                    {t('meetings.start')}
+                    {t('events.category')}
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                      type="date"
-                      required
-                      value={createStartDate}
-                      onChange={(e) => setCreateStartDate(e.target.value)}
-                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                    />
-                    <select
-                      required
-                      value={createStartTime}
-                      onChange={(e) => setCreateStartTime(e.target.value)}
-                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                    >
-                      {timeOptions.map((time) => (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex flex-wrap gap-1.5">
+                    {EVENT_CATEGORIES.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setCreateCategory(createCategory === value ? '' : value)}
+                        aria-pressed={createCategory === value}
+                        className={`px-2.5 py-1 rounded-full border text-xs transition ${
+                          createCategory === value
+                            ? 'bg-blue-600 border-blue-600 text-white font-medium'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {t(`events.category.${value}` as 'events.category.teaching')}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
                 <div>
                   <label className="block text-gray-700 font-medium mb-1">
-                    {t('meetings.end')}
+                    {t('events.color')}
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                      type="date"
-                      required
-                      value={createEndDate}
-                      onChange={(e) => setCreateEndDate(e.target.value)}
-                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                    />
-                    <select
-                      required
-                      value={createEndTime}
-                      onChange={(e) => setCreateEndTime(e.target.value)}
-                      className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                    >
-                      {timeOptions.map((time) => (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {EVENT_COLORS.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setCreateColor(createColor === value ? '' : value)}
+                        aria-label={value}
+                        aria-pressed={createColor === value}
+                        className={`cal-c-${value} w-7 h-7 rounded-full border-2 transition ${
+                          createColor === value
+                            ? 'ring-2 ring-offset-1 ring-blue-500 border-white'
+                            : 'border-white'
+                        }`}
+                        style={{ backgroundColor: 'var(--ev-edge)' }}
+                      />
+                    ))}
+                    {createColor && (
+                      <button
+                        type="button"
+                        onClick={() => setCreateColor('')}
+                        className="text-xs text-gray-500 hover:underline"
+                      >
+                        {t('events.colorAuto')}
+                      </button>
+                    )}
                   </div>
                 </div>
-              </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-1">
+                      {t('meetings.start')}
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        required
+                        value={createStartDate}
+                        onChange={(e) => setCreateStartDate(e.target.value)}
+                        className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      />
+                      <select
+                        required
+                        value={createStartTime}
+                        onChange={(e) => setCreateStartTime(e.target.value)}
+                        className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      >
+                        {timeOptions.map((time) => (
+                          <option key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-1">
+                      {t('meetings.end')}
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        required
+                        value={createEndDate}
+                        onChange={(e) => setCreateEndDate(e.target.value)}
+                        className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      />
+                      <select
+                        required
+                        value={createEndTime}
+                        onChange={(e) => setCreateEndTime(e.target.value)}
+                        className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                      >
+                        {timeOptions.map((time) => (
+                          <option key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
               
-              <div className="flex justify-end gap-2 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition disabled:opacity-50"
-                >
-                  {isPending ? t('settings.saving') : t('common.save')}
-                </button>
-              </div>
-            </form>
+                <div className="flex justify-end gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setCreateModalOpen(false)}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition disabled:opacity-50"
+                  >
+                    {isPending ? t('settings.saving') : t('common.save')}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Presence>
 
       {/* Delete Modal */}
-      {deleteModalOpen && (
-        <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">ลบเวลาไม่ว่าง</h3>
-              <p className="text-sm text-gray-600 mb-6">
-                คุณต้องการลบ <strong>{selectedEventTitle}</strong> ใช่หรือไม่?
-              </p>
+      <Presence value={deleteModalOpen}>
+        {() => (
+          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">ลบเวลาไม่ว่าง</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  คุณต้องการลบ <strong>{selectedEventTitle}</strong> ใช่หรือไม่?
+                </p>
               
-              {error && (
-                <div className="p-3 mb-4 text-sm text-red-800 bg-red-50 rounded-lg border border-red-200">
-                  {error}
+                {error && (
+                  <div className="p-3 mb-4 text-sm text-red-800 bg-red-50 rounded-lg border border-red-200">
+                    {error}
+                  </div>
+                )}
+              
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setDeleteModalOpen(false)}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition cursor-pointer"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    onClick={handleDeleteSubmit}
+                    disabled={isPending}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {isPending ? t('settings.deleting') : t('common.delete')}
+                  </button>
                 </div>
-              )}
-              
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setDeleteModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition cursor-pointer"
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={handleDeleteSubmit}
-                  disabled={isPending}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition disabled:opacity-50 cursor-pointer"
-                >
-                  {isPending ? t('settings.deleting') : t('common.delete')}
-                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Presence>
 
       {/* Detail Modal */}
-      {detailModalOpen && selectedEventInfo && (
-        <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">รายละเอียดกิจกรรม</h3>
+      <Presence value={detailModalOpen && selectedEventInfo}>
+        {(selectedEventInfo) => (
+          <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm overflow-y-auto max-h-[90dvh]">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">รายละเอียดกิจกรรม</h3>
               
-              <div className="space-y-3 mb-6">
-                <div>
-                  <div className="text-xs text-gray-500 uppercase font-semibold">หัวข้อ</div>
-                  <div className="text-sm font-medium text-gray-900">{selectedEventInfo.title}</div>
-                </div>
-                {selectedEventInfo.start && (
+                <div className="space-y-3 mb-6">
                   <div>
-                    <div className="text-xs text-gray-500 uppercase font-semibold">เวลาเริ่ม</div>
-                    <div className="text-sm text-gray-900">{selectedEventInfo.start.toLocaleString(locale === 'th' ? 'th-TH' : 'en-GB')}</div>
+                    <div className="text-xs text-gray-500 uppercase font-semibold">หัวข้อ</div>
+                    <div className="text-sm font-medium text-gray-900">{selectedEventInfo.title}</div>
                   </div>
-                )}
-                {selectedEventInfo.end && (
+                  {selectedEventInfo.start && (
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase font-semibold">เวลาเริ่ม</div>
+                      <div className="text-sm text-gray-900">{selectedEventInfo.start.toLocaleString(locale === 'th' ? 'th-TH' : 'en-GB')}</div>
+                    </div>
+                  )}
+                  {selectedEventInfo.end && (
+                    <div>
+                      <div className="text-xs text-gray-500 uppercase font-semibold">เวลาสิ้นสุด</div>
+                      <div className="text-sm text-gray-900">{selectedEventInfo.end.toLocaleString(locale === 'th' ? 'th-TH' : 'en-GB')}</div>
+                    </div>
+                  )}
                   <div>
-                    <div className="text-xs text-gray-500 uppercase font-semibold">เวลาสิ้นสุด</div>
-                    <div className="text-sm text-gray-900">{selectedEventInfo.end.toLocaleString(locale === 'th' ? 'th-TH' : 'en-GB')}</div>
-                  </div>
-                )}
-                <div>
-                  <div className="text-xs text-gray-500 uppercase font-semibold">ประเภท</div>
-                  <div className="text-sm text-gray-900">
-                    {selectedEventInfo.type === 'meeting' ? 'การประชุม (Lab Meeting)' : 
-                     selectedEventInfo.type === 'personal' ? 'เวลาไม่ว่างส่วนตัว' : 'กิจกรรมจาก Google Calendar'}
+                    <div className="text-xs text-gray-500 uppercase font-semibold">ประเภท</div>
+                    <div className="text-sm text-gray-900">
+                      {selectedEventInfo.type === 'meeting' ? 'การประชุม (Lab Meeting)' : 
+                       selectedEventInfo.type === 'personal' ? 'เวลาไม่ว่างส่วนตัว' : 'กิจกรรมจาก Google Calendar'}
+                    </div>
                   </div>
                 </div>
-              </div>
               
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  onClick={() => setDetailModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition cursor-pointer"
-                >
-                  ปิด
-                </button>
-                
-                {/* The Meet link had nowhere to go. It was set on the event so
-                    that clicking one would follow it, but the click handler
-                    cancels the default in order to open this dialog -- so the
-                    link was carried all the way to the browser and then never
-                    used. Here it is something you can actually press. */}
-                {selectedEventInfo.type === 'meeting' && selectedEventInfo.meetLink && (
-                  <a
-                    href={selectedEventInfo.meetLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition"
-                  >
-                    {t('meetings.join')}
-                  </a>
-                )}
-
-                {selectedEventInfo.type === 'meeting' && (
+                <div className="flex justify-end gap-2 mt-4">
                   <button
-                    onClick={() => {
-                      setDetailModalOpen(false);
-                      router.push(`/meetings/${selectedEventInfo.id}`);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition cursor-pointer"
+                    onClick={() => setDetailModalOpen(false)}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition cursor-pointer"
                   >
-                    ดูรายละเอียด
+                    ปิด
                   </button>
-                )}
                 
-                {selectedEventInfo.type === 'personal' && selectedEventInfo.isMine && (
-                  <>
+                  {/* The Meet link had nowhere to go. It was set on the event so
+                      that clicking one would follow it, but the click handler
+                      cancels the default in order to open this dialog -- so the
+                      link was carried all the way to the browser and then never
+                      used. Here it is something you can actually press. */}
+                  {selectedEventInfo.type === 'meeting' && selectedEventInfo.meetLink && (
+                    <a
+                      href={selectedEventInfo.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition"
+                    >
+                      {t('meetings.join')}
+                    </a>
+                  )}
+
+                  {selectedEventInfo.type === 'meeting' && (
                     <button
                       onClick={() => {
-                        const source = personalEvents.find((pe) => pe.id === selectedEventInfo.id);
-                        const pad = (n: number) => String(n).padStart(2, '0');
-                        const toDate = (d: Date) =>
-                          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-                        const toTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-                        setError('');
-                        setCreateTitle(source?.title ?? selectedEventInfo.title);
-                        setCreateColor(source?.color ?? '');
-                        setCreateCategory(source?.category ?? '');
-                        if (selectedEventInfo.start) {
-                          setCreateStartDate(toDate(selectedEventInfo.start));
-                          setCreateStartTime(toTime(selectedEventInfo.start));
-                        }
-                        if (selectedEventInfo.end) {
-                          setCreateEndDate(toDate(selectedEventInfo.end));
-                          setCreateEndTime(toTime(selectedEventInfo.end));
-                        }
-                        setEditingEvent({
-                          id: selectedEventInfo.id,
-                          rowVersion: selectedEventInfo.rowVersion || 0,
-                        });
                         setDetailModalOpen(false);
-                        setCreateModalOpen(true);
+                        router.push(`/meetings/${selectedEventInfo.id}`);
                       }}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition cursor-pointer"
                     >
-                      {t('topics.edit')}
+                      ดูรายละเอียด
                     </button>
-                    <button
-                      onClick={() => {
-                        setDetailModalOpen(false);
-                        setSelectedEventId(selectedEventInfo.id);
-                        setSelectedEventTitle(selectedEventInfo.title);
-                        setSelectedEventRowVer(selectedEventInfo.rowVersion || 0);
-                        setDeleteModalOpen(true);
-                      }}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition cursor-pointer"
-                    >
-                      ลบเวลาไม่ว่าง
-                    </button>
-                  </>
-                )}
+                  )}
+                
+                  {selectedEventInfo.type === 'personal' && selectedEventInfo.isMine && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const source = personalEvents.find((pe) => pe.id === selectedEventInfo.id);
+                          const pad = (n: number) => String(n).padStart(2, '0');
+                          const toDate = (d: Date) =>
+                            `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                          const toTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+                          setError('');
+                          setCreateTitle(source?.title ?? selectedEventInfo.title);
+                          setCreateColor(source?.color ?? '');
+                          setCreateCategory(source?.category ?? '');
+                          if (selectedEventInfo.start) {
+                            setCreateStartDate(toDate(selectedEventInfo.start));
+                            setCreateStartTime(toTime(selectedEventInfo.start));
+                          }
+                          if (selectedEventInfo.end) {
+                            setCreateEndDate(toDate(selectedEventInfo.end));
+                            setCreateEndTime(toTime(selectedEventInfo.end));
+                          }
+                          setEditingEvent({
+                            id: selectedEventInfo.id,
+                            rowVersion: selectedEventInfo.rowVersion || 0,
+                          });
+                          setDetailModalOpen(false);
+                          setCreateModalOpen(true);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition cursor-pointer"
+                      >
+                        {t('topics.edit')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDetailModalOpen(false);
+                          setSelectedEventId(selectedEventInfo.id);
+                          setSelectedEventTitle(selectedEventInfo.title);
+                          setSelectedEventRowVer(selectedEventInfo.rowVersion || 0);
+                          setDeleteModalOpen(true);
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition cursor-pointer"
+                      >
+                        ลบเวลาไม่ว่าง
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Presence>
     </div>
   );
 }

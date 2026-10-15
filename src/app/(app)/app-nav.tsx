@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { APP_VERSION, changesByDay } from '@/lib/changelog';
 import { usePrefs } from '@/lib/ui/prefs';
+import { Presence } from '@/lib/ui/presence';
 import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import { settingsMenuOpen, type MenuToggle } from '@/lib/ui/settings-menu';
@@ -170,13 +171,15 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
       </div>
 
       {/* Mobile Overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="motion-scrim fixed inset-0 bg-gray-900/50 z-40 md:hidden"
-          onClick={closeMobileMenu}
-          aria-hidden="true"
-        />
-      )}
+      <Presence value={mobileMenuOpen}>
+        {() => (
+          <div
+            className="motion-scrim fixed inset-0 bg-gray-900/50 z-40 md:hidden"
+            onClick={closeMobileMenu}
+            aria-hidden="true"
+          />
+        )}
+      </Presence>
 
       {/* md:w-max: the expanded rail is exactly as wide as its widest content --
           today the header -- with no fixed width to leave slack beside short
@@ -304,7 +307,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
             // the link always opens them. Collapsed to icons there is no room,
             // so the icon just goes to Settings' first page.
             return (
-              <div key={href} className="flex flex-col gap-0.5">
+              <div key={href} className="flex flex-col">
                 <div className={`flex items-center rounded-md transition ${tone}`}>
                   <Link
                     href={href}
@@ -327,29 +330,40 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
                     title={t('nav.settings.toggle')}
                     className="md:collapsed:hidden mr-1 h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-md opacity-70 hover:opacity-100 transition"
                   >
-                    <Icon d="M6 9l6 6 6-6" className={`h-4 w-4 transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
+                    <Icon d="M6 9l6 6 6-6" className={`h-4 w-4 transition-transform duration-(--motion-base) ease-(--motion-ease-out) ${settingsOpen ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
-                {settingsOpen && (
-                  <div id="settings-pages" className="md:collapsed:hidden ml-5 pl-3 border-l border-gray-200 flex flex-col gap-0.5">
-                    {settingsPages.map((page) => {
-                      const here = pathname === page.href || pathname.startsWith(page.href + '/');
-                      return (
-                        <Link
-                          key={page.href}
-                          href={page.href}
-                          aria-current={here ? 'page' : undefined}
-                          onClick={closeMobileMenu}
-                          className={`px-3 py-1.5 rounded-md text-sm transition ${
-                            here ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100'
-                          }`}
-                        >
-                          {t(page.key)}
-                        </Link>
-                      );
-                    })}
+                {/* Always rendered so it can fold rather than vanish; inert while
+                    folded keeps its links out of the tab order. */}
+                <div
+                  id="settings-pages"
+                  className="motion-collapse md:collapsed:hidden"
+                  data-open={settingsOpen || undefined}
+                  inert={!settingsOpen}
+                >
+                  {/* The grid item folds to 0; the padding lives one level in,
+                      or it would hold the fold open by 2px. */}
+                  <div>
+                    <div className="ml-5 pl-3 pt-0.5 border-l border-gray-200 flex flex-col gap-0.5">
+                      {settingsPages.map((page) => {
+                        const here = pathname === page.href || pathname.startsWith(page.href + '/');
+                        return (
+                          <Link
+                            key={page.href}
+                            href={page.href}
+                            aria-current={here ? 'page' : undefined}
+                            onClick={closeMobileMenu}
+                            className={`px-3 py-1.5 rounded-md text-sm transition ${
+                              here ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            {t(page.key)}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
@@ -405,110 +419,114 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
         </div>
       </nav>
 
-      {whatsNewOpen && (
-        <div
-          className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('nav.whatsNew')}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setWhatsNewOpen(false);
-          }}
-        >
-          <div className="motion-dialog flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4">
-              <div>
-                <h3 className="font-semibold text-gray-900">{t('nav.whatsNew')}</h3>
-                <p className="text-xs text-gray-500">
-                  {t('nav.version', { version: APP_VERSION })} · {t('nav.whatsNewHint')}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setWhatsNewOpen(false)}
-                aria-label={t('avail.close')}
-                className="h-8 w-8 shrink-0 rounded-lg text-gray-500 hover:bg-gray-100"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-2 overflow-y-auto p-4 text-sm">
-              {changesByDay().map((day, dayIndex) => (
-                <details
-                  key={day.date}
-                  open={dayIndex === 0}
-                  className="rounded-lg border border-gray-100"
+      <Presence value={whatsNewOpen}>
+        {() => (
+          <div
+            className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('nav.whatsNew')}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setWhatsNewOpen(false);
+            }}
+          >
+            <div className="motion-dialog flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-md sm:rounded-2xl">
+              <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{t('nav.whatsNew')}</h3>
+                  <p className="text-xs text-gray-500">
+                    {t('nav.version', { version: APP_VERSION })} · {t('nav.whatsNewHint')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWhatsNewOpen(false)}
+                  aria-label={t('avail.close')}
+                  className="h-8 w-8 shrink-0 rounded-lg text-gray-500 hover:bg-gray-100"
                 >
-                  <summary className="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-gray-50">
-                    <span className="tabular-nums text-gray-700">{day.date}</span>
-                    <span className="text-xs text-gray-400">
-                      {t('nav.changeCount', { count: String(day.entries.length) })}
-                    </span>
-                  </summary>
-                  <ul className="space-y-3 px-3 pb-3 pt-1">
-                    {day.entries.map((entry, index) => (
-                      <li key={`${entry.date}-${index}`} className="flex items-start gap-2.5">
-                        <span
-                          className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-medium ${
-                            entry.kind === 'new'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {t(entry.kind === 'new' ? 'nav.changeNew' : 'nav.changeFix')}
-                        </span>
-                        <span className="min-w-0 text-gray-800">
-                          {locale === 'en' ? entry.en : entry.th}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              ))}
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-2 overflow-y-auto p-4 text-sm">
+                {changesByDay().map((day, dayIndex) => (
+                  <details
+                    key={day.date}
+                    open={dayIndex === 0}
+                    className="rounded-lg border border-gray-100"
+                  >
+                    <summary className="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-gray-50">
+                      <span className="tabular-nums text-gray-700">{day.date}</span>
+                      <span className="text-xs text-gray-400">
+                        {t('nav.changeCount', { count: String(day.entries.length) })}
+                      </span>
+                    </summary>
+                    <ul className="space-y-3 px-3 pb-3 pt-1">
+                      {day.entries.map((entry, index) => (
+                        <li key={`${entry.date}-${index}`} className="flex items-start gap-2.5">
+                          <span
+                            className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-medium ${
+                              entry.kind === 'new'
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {t(entry.kind === 'new' ? 'nav.changeNew' : 'nav.changeFix')}
+                          </span>
+                          <span className="min-w-0 text-gray-800">
+                            {locale === 'en' ? entry.en : entry.th}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Presence>
 
-      {signOutOpen && (
-        <div
-          className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="signout-title"
-        >
-          <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm p-5 sm:p-6 space-y-4">
-            <h2 id="signout-title" className="text-lg font-semibold text-gray-900">
-              {t('signout.title')}
-            </h2>
-            <p className="text-sm text-gray-600">{t('signout.body')}</p>
+      <Presence value={signOutOpen}>
+        {() => (
+          <div
+            className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="signout-title"
+          >
+            <div className="motion-dialog bg-white rounded-xl shadow-xl w-full max-w-sm p-5 sm:p-6 space-y-4">
+              <h2 id="signout-title" className="text-lg font-semibold text-gray-900">
+                {t('signout.title')}
+              </h2>
+              <p className="text-sm text-gray-600">{t('signout.body')}</p>
 
-            <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setSignOutOpen(false)}
-                disabled={signingOut}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium disabled:opacity-50"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                autoFocus
-                onClick={() => {
-                  setSigningOut(true);
-                  signOut({ callbackUrl: '/' });
-                }}
-                disabled={signingOut}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-              >
-                {signingOut ? t('signout.working') : t('nav.signOut')}
-              </button>
+              <div className="flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSignOutOpen(false)}
+                  disabled={signingOut}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => {
+                    setSigningOut(true);
+                    signOut({ callbackUrl: '/' });
+                  }}
+                  disabled={signingOut}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {signingOut ? t('signout.working') : t('nav.signOut')}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Presence>
     </>
   );
 }

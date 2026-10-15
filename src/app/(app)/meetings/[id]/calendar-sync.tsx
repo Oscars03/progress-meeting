@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { pullMeetingAction, pushMeetingAction } from '../../calendar-actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import type { SyncField } from '@/lib/google/meeting-sync';
 
@@ -40,33 +41,32 @@ export default function CalendarSync({
 }) {
   const { t } = usePrefs();
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const run = (work: () => Promise<Outcome>) => {
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       try {
         const result = await work();
         if (!result.ok) {
-          setMessage({ type: 'error', text: t(result.error) });
+          setError(t(result.error));
           return;
         }
         const changed = result.changed;
-        setMessage({
-          type: 'ok',
-          text:
-            changed === undefined
-              ? t('sync.synced')
-              : changed.length === 0
-                ? t('sync.unchanged')
-                : t('sync.updatedFrom', {
-                    fields: changed.map((f) => t(`sync.field.${f}`)).join(', '),
-                  }),
-        });
+        toast(
+          changed === undefined
+            ? t('sync.synced')
+            : changed.length === 0
+              ? t('sync.unchanged')
+              : t('sync.updatedFrom', {
+                  fields: changed.map((f) => t(`sync.field.${f}`)).join(', '),
+                }),
+        );
         router.refresh();
       } catch {
-        setMessage({ type: 'error', text: t('sync.failed') });
+        setError(t('sync.failed'));
       }
     });
   };
@@ -93,16 +93,9 @@ export default function CalendarSync({
         )}
       </div>
 
-      {message && (
-        <div
-          role="status"
-          className={`p-2.5 text-sm rounded-lg border ${
-            message.type === 'ok'
-              ? 'text-green-800 bg-green-50 border-green-200'
-              : 'text-red-800 bg-red-50 border-red-200'
-          }`}
-        >
-          {message.text}
+      {error && (
+        <div role="alert" className="p-2.5 text-sm rounded-lg border text-red-800 bg-red-50 border-red-200">
+          {error}
         </div>
       )}
 

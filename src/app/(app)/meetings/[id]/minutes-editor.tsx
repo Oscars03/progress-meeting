@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveMinutesAction } from './actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useToast } from '@/lib/ui/toast';
 
 export default function MinutesEditor({
   meetingId,
@@ -26,25 +27,26 @@ export default function MinutesEditor({
 }) {
   const { t } = usePrefs();
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [content, setContent] = useState(initialContent);
-  const [message, setMessage] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const dirty = content !== initialContent;
 
   const save = () => {
-    setMessage(null);
+    setError(null);
     startTransition(async () => {
       try {
         const res = await saveMinutesAction(meetingId, content, minutesId, rowVersion);
         if (!res.ok) {
-          setMessage({ type: 'error', text: t(res.error, res.vars) });
+          setError(t(res.error, res.vars));
           return;
         }
-        setMessage({ type: 'ok', text: t('common.saved') });
+        toast(t('common.saved'));
         router.refresh();
       } catch {
-        setMessage({ type: 'error', text: t('error.generic') });
+        setError(t('error.generic'));
       }
     });
   };
@@ -58,16 +60,9 @@ export default function MinutesEditor({
         )}
       </div>
 
-      {message && (
-        <div
-          role="status"
-          className={`p-2.5 text-sm rounded-lg border ${
-            message.type === 'ok'
-              ? 'text-green-800 bg-green-50 border-green-200'
-              : 'text-red-800 bg-red-50 border-red-200'
-          }`}
-        >
-          {message.text}
+      {error && (
+        <div role="alert" className="p-2.5 text-sm rounded-lg border text-red-800 bg-red-50 border-red-200">
+          {error}
         </div>
       )}
 
