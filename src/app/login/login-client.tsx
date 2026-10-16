@@ -211,30 +211,35 @@ function LoginForm({
 
       {mode === 'login' && (
       <form onSubmit={handleSubmit} className="space-y-3">
+        {/* No placeholders. "admin@test.com" read as an account to try, and a
+            row of dots in the password box looked as if it were already
+            filled in. The labels name the fields, so they are tied to them. */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="login-email">
             {t('login.email')}
           </label>
           <input
+            id="login-email"
             type="email"
             required
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@test.com"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="login-password">
             {t('login.password')}
           </label>
           <input
+            id="login-password"
             type="password"
             required
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
           />
         </div>
