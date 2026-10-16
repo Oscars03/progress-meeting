@@ -148,14 +148,19 @@ function LoginForm({
       } else if (res?.error) {
         setError(t('login.failed'));
       } else {
+        // Still "signing in" until the next page has replaced this one. The
+        // dashboard takes a few seconds to gather, and the button used to go
+        // back to normal the moment the password was accepted -- a form that
+        // looked idle and finished, sitting there while nothing seemed to
+        // happen. This component unmounts when the navigation lands.
         router.push(callbackUrl);
         router.refresh();
+        return;
       }
     } catch {
       setError(t('login.error'));
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   if (pending) {
