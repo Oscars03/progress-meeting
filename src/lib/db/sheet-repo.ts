@@ -32,6 +32,38 @@ const CACHE_TTL = 60 * 1000;
 const cache = new Map<string, { data: AnyRecord[]; timestamp: number }>();
 const sheetIdCache = new Map<string, number>();
 
+// Reads asked for in the same tick go out as ONE batchGet, and a tab already
+// on its way is waited for rather than read twice.
+//
+// The dashboard asks for a dozen tabs at once and the layout and session
+// around it ask for `users` again. Each used to be its own request: a dozen
+// round trips on a cold server, and a dozen of the 60 reads a minute the
+// service account is allowed -- across every page and every person.
+const inflight = new Map<TableName, Promise<AnyRecord[]>>();
+let queued: {
+  tabName: TableName;
+  generation: number;
+  resolve: (rows: AnyRecord[]) => void;
+  reject: (error: unknown) => void;
+}[] = [];
+let flushScheduled = false;
+
+// Moved on by every write to a tab. A read that left before the write and
+// lands after it still answers whoever asked, but must not refill the cache
+// with the rows it saw.
+const generation = new Map<TableName, number>();
+
+function invalidate(tabName: TableName): void {
+  cache.delete(tabName);
+  inflight.delete(tabName);
+  generation.set(tabName, (generation.get(tabName) ?? 0) + 1);
+}
+
+function isFresh(tabName: TableName): boolean {
+  const hit = cache.get(tabName);
+  return hit !== undefined && Date.now() - hit.timestamp < CACHE_TTL;
+}
+
 /** True when the stored version does not match what the caller expects. */
 function expectedVersionMismatch(current: number, expected: number): boolean {
   return Number.isNaN(current) || expected !== current;
@@ -120,6 +152,141 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
+/**
+ * Rows as written, header first, into records keyed by SCHEMAS.
+ *
+ * A column in SCHEMAS that the sheet does not have means code has been
+ * deployed ahead of the migration. Say so, loudly. Reading the tab as empty
+ * instead would show a page that has lost all its rows, with only a line in
+ * the server log to explain it -- and the rows are all still there.
+ */
+function parseTab(tabName: TableName, rawRows: RawRow[]): AnyRecord[] {
+  if (rawRows.length === 0) return [];
+
+  const headers = rawRows[0];
+  const expected = SCHEMAS[tabName] as readonly string[];
+  const absent = expected.filter((h) => !headers.includes(h));
+  if (absent.length > 0) {
+    throw new Error(
+      `Sheet is behind SCHEMAS: ${tabName} (no ${absent.join(', ')}). Run npm run db:migrate-schema.`
+    );
+  }
+
+  return rawRows.slice(1).map((row) => {
+    const obj: Record<string, CellValue> = {};
+    expected.forEach((h) => {
+      const idx = headers.indexOf(h);
+      obj[h] = idx === -1 ? null : fromCell(h, row[idx]);
+    });
+    return obj as AnyRecord;
+  });
+}
+
+function isBadRequest(error: unknown): boolean {
+  const e = error as { status?: unknown; code?: unknown };
+  return e?.status === 400 || e?.code === 400;
+}
+
+/** One answer per tab, in order: its rows as written, or why it could not be read. */
+async function fetchTabs(tabNames: TableName[]): Promise<PromiseSettledResult<RawRow[]>[]> {
+  const sheets = await getSheetsApi();
+  const spreadsheetId = getSpreadsheetId();
+
+  const batchGet = async (names: TableName[]): Promise<RawRow[][]> => {
+    const res = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges: names.map((t) => `${t}!A:ZZ`),
+    });
+    const valueRanges = res.data.valueRanges ?? [];
+    if (valueRanges.length !== names.length) {
+      throw new Error(`batchGet answered ${valueRanges.length} ranges for ${names.length}`);
+    }
+    return valueRanges.map((vr) => (vr.values ?? []) as RawRow[]);
+  };
+
+  try {
+    const all = await batchGet(tabNames);
+    return all.map((value) => ({ status: 'fulfilled', value }));
+  } catch (error) {
+    // One range Sheets cannot parse -- a tab this sheet does not have -- fails
+    // the whole batch. Ask again tab by tab, so only that read fails, as it did
+    // when every tab was its own request. Anything else (quota, network) would
+    // fail each of them the same way, so it is everyone's answer.
+    if (tabNames.length === 1 || !isBadRequest(error)) {
+      return tabNames.map(() => ({ status: 'rejected', reason: error }));
+    }
+    return Promise.all(
+      tabNames.map(async (name): Promise<PromiseSettledResult<RawRow[]>> => {
+        try {
+          return { status: 'fulfilled', value: (await batchGet([name]))[0] };
+        } catch (reason) {
+          return { status: 'rejected', reason };
+        }
+      })
+    );
+  }
+}
+
+async function flush(): Promise<void> {
+  flushScheduled = false;
+  const batch = queued;
+  queued = [];
+
+  let results: PromiseSettledResult<RawRow[]>[];
+  try {
+    results = await fetchTabs(batch.map((q) => q.tabName));
+  } catch (error) {
+    // No client at all (missing credentials). Every waiter must still hear,
+    // or the page awaiting it hangs instead of failing.
+    batch.forEach((q) => q.reject(error));
+    return;
+  }
+
+  batch.forEach((q, i) => {
+    const result = results[i];
+    if (result.status === 'rejected') {
+      q.reject(result.reason);
+      return;
+    }
+    try {
+      // A tab behind SCHEMAS throws here and is not cached: an empty entry
+      // would answer every read for the next minute with "there is nothing
+      // here", and a sheet repaired in the meantime would not be picked up.
+      const rows = parseTab(q.tabName, result.value);
+      if ((generation.get(q.tabName) ?? 0) === q.generation) {
+        cache.set(q.tabName, { data: rows, timestamp: Date.now() });
+      }
+      q.resolve(rows);
+    } catch (error) {
+      q.reject(error);
+    }
+  });
+}
+
+/** The tab's rows from the sheet, sharing a read already on its way or about to leave. */
+function load(tabName: TableName): Promise<AnyRecord[]> {
+  const pending = inflight.get(tabName);
+  if (pending) return pending;
+
+  const promise = new Promise<AnyRecord[]>((resolve, reject) => {
+    queued.push({ tabName, generation: generation.get(tabName) ?? 0, resolve, reject });
+  });
+  inflight.set(tabName, promise);
+  const forget = () => {
+    if (inflight.get(tabName) === promise) inflight.delete(tabName);
+  };
+  promise.then(forget, forget);
+
+  // A macrotask rather than a microtask, so reads started a few awaits apart
+  // -- a page's Promise.all and whatever its first await resolves into --
+  // still leave together. One that comes later joins the read in flight.
+  if (!flushScheduled) {
+    flushScheduled = true;
+    setTimeout(() => void flush(), 0);
+  }
+  return promise;
+}
+
 export class SheetRepo {
   static async getRawValues(tabName: TableName): Promise<RawRow[]> {
     const sheets = await getSheetsApi();
@@ -131,62 +298,15 @@ export class SheetRepo {
     return (res.data.values ?? []) as RawRow[];
   }
 
+  /**
+   * Fill the cache for several tabs in one request, for a page about to read
+   * them. `find` already batches reads started together, so this is only
+   * needed to read a tab ahead of the code that will ask for it.
+   */
   static async preloadCache(tabNames: TableName[]): Promise<void> {
-    const missing = tabNames.filter(
-      (t) => !cache.has(t) || Date.now() - cache.get(t)!.timestamp >= CACHE_TTL
-    );
-    if (missing.length === 0) return;
-
-    const sheets = await getSheetsApi();
-    const spreadsheetId = getSpreadsheetId();
-    const res = await sheets.spreadsheets.values.batchGet({
-      spreadsheetId,
-      ranges: missing.map((t) => `${t}!A:ZZ`),
-    });
-
-    const valueRanges = res.data.valueRanges ?? [];
-    const behind: string[] = [];
-
-    valueRanges.forEach((vr, i) => {
-      const tabName = missing[i];
-      const rawRows = (vr.values ?? []) as RawRow[];
-      if (rawRows.length === 0) {
-        cache.set(tabName, { data: [], timestamp: Date.now() });
-        return;
-      }
-
-      const headers = rawRows[0];
-      const expected = SCHEMAS[tabName] as readonly string[];
-      const absent = expected.filter((h) => !headers.includes(h));
-      if (absent.length > 0) {
-        // Nothing is cached for this tab: an empty entry would answer every
-        // read for the next minute with "there is nothing here", and a sheet
-        // repaired in the meantime would not be picked up.
-        behind.push(`${tabName} (no ${absent.join(', ')})`);
-        return;
-      }
-
-      const parsed = rawRows.slice(1).map((row) => {
-        const obj: Record<string, CellValue> = {};
-        expected.forEach((h) => {
-          const idx = headers.indexOf(h);
-          obj[h] = idx === -1 ? null : fromCell(h, row[idx]);
-        });
-        return obj as AnyRecord;
-      });
-
-      cache.set(tabName, { data: parsed, timestamp: Date.now() });
-    });
-
-    // A column in SCHEMAS that the sheet does not have means code has been
-    // deployed ahead of the migration. Say so, loudly. Reading the tab as
-    // empty instead would show a page that has lost all its rows, with only a
-    // line in the server log to explain it -- and the rows are all still there.
-    if (behind.length > 0) {
-      throw new Error(
-        `Sheet is behind SCHEMAS: ${behind.join('; ')}. Run npm run db:migrate-schema.`
-      );
-    }
+    const results = await Promise.allSettled(tabNames.filter((t) => !isFresh(t)).map(load));
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failed) throw failed.reason;
   }
 
   /**
@@ -196,7 +316,8 @@ export class SheetRepo {
    * a row that is not in the list. On a multi-instance deploy the process
    * serving a page may hold a list from before another process inserted the
    * row, so "missing" can mean "created seconds ago somewhere else" -- which
-   * only a fresh read can answer.
+   * only a fresh read can answer. That includes a read already in flight: it
+   * may have left before the row was written, so a fresh read sends its own.
    */
   static async find<T extends BaseRecord = AnyRecord>(
     tabName: TableName,
@@ -205,12 +326,12 @@ export class SheetRepo {
     assertHasCommonColumns(tabName);
 
     if (options?.fresh) {
-      cache.delete(tabName);
+      invalidate(tabName);
+    } else if (isFresh(tabName)) {
+      return clone(cache.get(tabName)!.data) as T[];
     }
-    
-    await this.preloadCache([tabName]);
-    const cached = cache.get(tabName);
-    return clone(cached?.data ?? []) as T[];
+
+    return clone(await load(tabName)) as T[];
   }
 
   static async findOne<T extends BaseRecord = AnyRecord>(
@@ -381,8 +502,8 @@ export class SheetRepo {
       });
     });
 
-    cache.delete(tabName);
-    cache.delete('audit_log');
+    invalidate(tabName);
+    invalidate('audit_log');
     return existingHit ?? toInsert;
   }
 
@@ -481,8 +602,8 @@ export class SheetRepo {
       return updated;
     });
 
-    cache.delete(tabName);
-    cache.delete('audit_log');
+    invalidate(tabName);
+    invalidate('audit_log');
     return result as unknown as T;
   }
 
@@ -567,8 +688,8 @@ export class SheetRepo {
       });
     });
 
-    cache.delete(tabName);
-    cache.delete('audit_log');
+    invalidate(tabName);
+    invalidate('audit_log');
   }
 
   /**
@@ -661,8 +782,8 @@ export class SheetRepo {
       await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
     });
 
-    cache.delete(tabName);
-    cache.delete('audit_log');
+    invalidate(tabName);
+    invalidate('audit_log');
   }
 
   /**
@@ -763,8 +884,8 @@ export class SheetRepo {
       return updatedRows;
     });
 
-    cache.delete(tabName);
-    cache.delete('audit_log');
+    invalidate(tabName);
+    invalidate('audit_log');
     return results as unknown as T[];
   }
 
@@ -772,5 +893,7 @@ export class SheetRepo {
   static clearCache(): void {
     cache.clear();
     sheetIdCache.clear();
+    inflight.clear();
+    generation.clear();
   }
 }

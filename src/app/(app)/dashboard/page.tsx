@@ -48,6 +48,11 @@ const PRIMARY_ACTION = `${ACTION} bg-blue-600 hover:bg-blue-700 text-white`;
 const SECONDARY_ACTION = `${ACTION} border-2 border-blue-300 bg-white text-blue-700 hover:bg-blue-100`;
 
 export default async function DashboardPage() {
+  // Started with everything else so it rides in the same batched read, rather
+  // than waiting for the role and then making a round trip of its own. Only an
+  // admin's page ever looks at the answer -- see brokenCalendars below.
+  const brokenCalendarsRead = brokenConnections().catch(() => []);
+
   const [
     actor,
     users,
@@ -118,7 +123,7 @@ export default async function DashboardPage() {
   // the person themselves can reconnect, but only an admin sees who has to.
   const brokenCalendars =
     actor.role === 'admin'
-      ? (await brokenConnections().catch(() => [])).map((row) => ({
+      ? (await brokenCalendarsRead).map((row) => ({
           ...row,
           name: nameOf(row.userId) || row.accountEmail,
         }))

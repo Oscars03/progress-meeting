@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
-import { handlers, batchUpdateCalls } from '../mocks/handlers';
+import { handlers, batchUpdateCalls, META_ROWS } from '../mocks/handlers';
 import { SheetRepo, ConflictError, NotFoundError } from '../lib/db/sheet-repo';
 
 const server = setupServer(...handlers);
@@ -31,7 +31,10 @@ vi.mock('googleapis', async (importOriginal) => {
               method: opts.method || 'GET',
               body: opts.data ? JSON.stringify(opts.data) : undefined,
             });
-            return { data: await res.json(), status: res.status, headers: res.headers };
+            const data = await res.json();
+            // As gaxios does: a refused request throws, carrying its status.
+            if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status, code: res.status });
+            return { data, status: res.status, headers: res.headers };
           }
         },
       },
@@ -90,6 +93,78 @@ describe('SheetRepo.find', () => {
     server.resetHandlers();
     const recovered = await SheetRepo.find('meta');
     expect(recovered[0].value).toBe('test_value');
+  });
+});
+
+/**
+ * A page asks for many tabs at once. Each used to be its own request -- a round
+ * trip apiece on a cold server, and one apiece of the service account's 60
+ * reads a minute.
+ */
+describe('SheetRepo.find batching', () => {
+  const WEEK_LEAD_ROWS = [
+    ['id', 'created_at', 'updated_at', 'row_version', 'created_by', 'week_key', 'user_id'],
+    ['w1', '2023-01-01', '2023-01-01', '1', 'system', '2026-W42', 'u1'],
+  ];
+  const ROWS: Record<string, string[][]> = { meta: META_ROWS, week_leads: WEEK_LEAD_ROWS };
+  const BATCH_URL = 'https://sheets.googleapis.com/v4/spreadsheets/:id/values:batchGet';
+
+  /** The tabs each batchGet asked for, one entry per request. */
+  let requests: string[][];
+  const rangesOf = (request: Request) =>
+    new URL(request.url).searchParams
+      .getAll('ranges')
+      .flatMap((r) => r.split(','))
+      .map((r) => r.replace('!A:ZZ', ''));
+
+  beforeEach(() => {
+    requests = [];
+    server.use(
+      http.get(BATCH_URL, ({ request }) => {
+        const tabs = rangesOf(request);
+        requests.push(tabs);
+        if (tabs.some((t) => !(t in ROWS))) {
+          return HttpResponse.json({ error: { code: 400, message: 'Unable to parse range' } }, { status: 400 });
+        }
+        return HttpResponse.json({ valueRanges: tabs.map((t) => ({ values: ROWS[t] })) });
+      })
+    );
+  });
+
+  it('reads tabs asked for together in one request', async () => {
+    const [meta, leads] = await Promise.all([SheetRepo.find('meta'), SheetRepo.find('week_leads')]);
+
+    expect(requests).toEqual([['meta', 'week_leads']]);
+    expect(meta[0].key).toBe('test_key');
+    expect(leads[0].week_key).toBe('2026-W42');
+  });
+
+  it('shares a read already on its way instead of sending another', async () => {
+    const first = SheetRepo.find('meta');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = SheetRepo.find('meta');
+
+    await Promise.all([first, second]);
+    expect(requests).toEqual([['meta']]);
+  });
+
+  it('fails only the tab the sheet does not have', async () => {
+    // 'users' is not in ROWS, so the batch containing it is refused as a whole.
+    const [meta, users] = await Promise.allSettled([SheetRepo.find('meta'), SheetRepo.find('users')]);
+
+    expect(meta.status).toBe('fulfilled');
+    expect(users.status).toBe('rejected');
+  });
+
+  it('does not cache what a read saw when a write lands before it returns', async () => {
+    const stale = SheetRepo.find('meta');
+    // A write to the same tab while the read is still out.
+    await SheetRepo.update('meta', '1', { value: 'updated' }, 1);
+    await stale;
+
+    requests = [];
+    await SheetRepo.find('meta');
+    expect(requests).toEqual([['meta']]);
   });
 });
 
