@@ -12,7 +12,10 @@ import { usePrefs } from './prefs';
  * `hover:text-gray-900`, for instance, is not on that list and would turn
  * text near-black on the dark surface.
  */
-const FRAME = 'h-8 rounded-lg border border-gray-200';
+// 44px on a touch screen, like every other control (globals.css). The frame
+// grows rather than the buttons inside it: the touch floor applied to the
+// buttons alone pushed TH/EN out of a 32px frame and broke the pill apart.
+const FRAME = 'h-8 pointer-coarse:h-11 rounded-lg border border-gray-200';
 
 function SunIcon() {
   return (
@@ -60,7 +63,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       onClick={() => setTheme(next)}
       title={label}
       aria-label={label}
-      className={`${FRAME} w-8 inline-flex items-center justify-center text-gray-600 hover:bg-gray-100 transition ${className}`}
+      className={`${FRAME} w-8 pointer-coarse:w-11 inline-flex items-center justify-center text-gray-600 hover:bg-gray-100 transition ${className}`}
     >
       {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
     </button>
@@ -84,7 +87,9 @@ export function LocaleSwitcher({ className = '' }: { className?: string }) {
             type="button"
             onClick={() => setLocale(code)}
             aria-pressed={active}
-            className={`min-w-8 px-2 rounded-md text-xs transition ${
+            // tap-exempt: these fill the 44px frame above instead of taking
+            // the touch floor themselves.
+            className={`tap-exempt min-w-8 pointer-coarse:min-w-11 px-2 rounded-md text-xs transition ${
               active
                 ? 'bg-gray-100 text-gray-900 font-semibold'
                 : 'text-gray-500 font-medium hover:bg-gray-100'
