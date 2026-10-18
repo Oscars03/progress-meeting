@@ -248,6 +248,40 @@ export function planWeekLeads(
 }
 
 /**
+ * The weeks between the latest confirmed one and `target`, each with the
+ * student the arranged order lands on -- what has to be confirmed first when
+ * an admin chooses somebody for a week further ahead.
+ *
+ * Confirming `target` alone would make it the latest lead, and a week before
+ * the latest one with no lead counts as passed over: the calendar would show
+ * those weeks empty, and when they arrived they would be filled by stepping
+ * from the admin's choice rather than up to it. Fixing them as planned keeps
+ * every week in between exactly as it was shown, and the rotation carries on
+ * from the chosen student after `target`.
+ *
+ * Empty when `target` is not past the latest confirmed week, or when nothing
+ * has been confirmed yet and so there is no order to hold to.
+ */
+export function plannedWeeksBefore(
+  users: UserRecord[],
+  leads: WeekLeadRecord[],
+  breaks: TermBreakRecord[],
+  target: string
+): { week_key: string; user_id: string }[] {
+  const latest = latestLead(leads)?.week_key;
+  if (!latest || target <= latest) return [];
+
+  // Bounded like agendaWeekKey: a key typed years ahead must not hang a request.
+  let count = 0;
+  for (let k = nextWeekKey(latest); k < target && count < 104; k = nextWeekKey(k)) count++;
+  if (count === 0) return [];
+
+  return planWeekLeads(users, leads, breaks, nextWeekKey(latest), count)
+    .filter((week) => week.user_id && !week.confirmed)
+    .map((week) => ({ week_key: week.week_key, user_id: week.user_id as string }));
+}
+
+/**
  * The week whose duty and board should be showing right now.
  *
  * Ordinarily just the plain calendar week -- but a full lab day after a

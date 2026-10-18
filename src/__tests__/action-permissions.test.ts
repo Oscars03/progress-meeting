@@ -530,6 +530,76 @@ describe('term breaks', () => {
     expect(result).toMatchObject({ ok: false, error: 'error.duringBreak' });
     expect(insert).not.toHaveBeenCalled();
   });
+
+  // A break entered after its week was confirmed left that lead behind, and
+  // the refusal above meant nothing short of editing the sheet removed it.
+  it('lets an admin clear a lead left behind in a break week', async () => {
+    const { setWeekLead } = await import('../app/(app)/meetings/actions');
+    tables['week_leads'] = [{ id: 'wl1', week_key: WEEK, user_id: 'lead', row_version: 3 }];
+    signedInAs('boss', 'admin');
+
+    const result = await setWeekLead(WEEK, '');
+
+    expect(result.ok).toBe(true);
+    expect(remove).toHaveBeenCalledWith('week_leads', 'wl1', 3, 'boss');
+  });
+});
+
+/** An admin naming the lead for a week further ahead than the last confirmed one. */
+describe('choosing a week lead ahead of time', () => {
+  beforeEach(() => {
+    tables['term_breaks'] = [];
+    tables['users'] = [
+      { id: 'stu1', name: 'Stu1', role: 'student', active: true, rotation_order: 1, created_at: '2026-01-01', row_version: 1 },
+      { id: 'stu2', name: 'Stu2', role: 'student', active: true, rotation_order: 2, created_at: '2026-01-02', row_version: 1 },
+      { id: 'stu3', name: 'Stu3', role: 'student', active: true, rotation_order: 3, created_at: '2026-01-03', row_version: 1 },
+    ];
+    tables['week_leads'] = [{ id: 'wl38', week_key: '2026-W38', user_id: 'stu1', row_version: 1 }];
+  });
+
+  it('confirms the weeks in between as planned, then the chosen one', async () => {
+    const { setWeekLead } = await import('../app/(app)/meetings/actions');
+    signedInAs('boss', 'admin');
+
+    const result = await setWeekLead('2026-W41', 'stu1');
+
+    expect(result.ok).toBe(true);
+    expect(insert.mock.calls.map(([table, doc]) => [table, doc])).toEqual([
+      ['week_leads', { week_key: '2026-W39', user_id: 'stu2' }],
+      ['week_leads', { week_key: '2026-W40', user_id: 'stu3' }],
+      ['week_leads', { week_key: '2026-W41', user_id: 'stu1' }],
+    ]);
+  });
+
+  it('fills nothing in for the week straight after the latest', async () => {
+    const { setWeekLead } = await import('../app/(app)/meetings/actions');
+    signedInAs('boss', 'admin');
+
+    await setWeekLead('2026-W39', 'stu3');
+
+    expect(insert.mock.calls.map(([, doc]) => doc)).toEqual([{ week_key: '2026-W39', user_id: 'stu3' }]);
+  });
+
+  it('changes an earlier week on its own, leaving later ones as they are', async () => {
+    const { setWeekLead } = await import('../app/(app)/meetings/actions');
+    tables['week_leads'].push({ id: 'wl40', week_key: '2026-W40', user_id: 'stu3', row_version: 1 });
+    signedInAs('boss', 'admin');
+
+    await setWeekLead('2026-W38', 'stu2');
+
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith('week_leads', 'wl38', { user_id: 'stu2' }, 1, 'boss');
+  });
+
+  it('still refuses anyone but an admin', async () => {
+    const { setWeekLead } = await import('../app/(app)/meetings/actions');
+    signedInAs('prof', 'professor');
+
+    const result = await setWeekLead('2026-W41', 'stu1');
+
+    expect(result.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
 });
 
 /**

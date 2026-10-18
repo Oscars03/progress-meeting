@@ -212,6 +212,14 @@ export const common = defineMessages({
     'rotationOrder.save': 'บันทึกลำดับ',
     'rotationOrder.drag': 'กดค้างแล้วลากเพื่อจัดลำดับ',
 
+    'weekLeads.title': 'ผู้รับผิดชอบรายสัปดาห์',
+    'weekLeads.desc': 'เลือกคนให้สัปดาห์ใดก็ได้ สัปดาห์หลังจากนั้นจะเวียนต่อจากคนที่เลือก',
+    'weekLeads.thisWeek': 'สัปดาห์นี้',
+    'weekLeads.weekOf': 'ผู้รับผิดชอบสัปดาห์ {range}',
+    'weekLeads.clear': 'ล้าง',
+    'weekLeads.clearHint': 'ยกเลิกการยืนยันของสัปดาห์นี้',
+    'weekLeads.breakHeld': 'เป็นช่วงปิดเทอม แต่ยังมีผู้รับผิดชอบค้างอยู่',
+
     'termBreaks.title': 'ช่วงปิดเทอม',
     'termBreaks.desc': 'กำหนดช่วงเวลาปิดเทอม ระบบจะไม่เสนอรายชื่อผู้รับผิดชอบและระงับการนัดหมายในสัปดาห์เหล่านี้',
     'termBreaks.add': 'เพิ่มช่วงปิดเทอม',
@@ -443,6 +451,14 @@ export const common = defineMessages({
     'rotationOrder.desc': 'The next lead is suggested by stepping down this list. Anyone not placed follows in the order they joined.',
     'rotationOrder.save': 'Save order',
     'rotationOrder.drag': 'Hold and drag to reorder',
+
+    'weekLeads.title': 'Weekly leads',
+    'weekLeads.desc': 'Choose anyone for any week. The weeks after it carry on from whoever you choose.',
+    'weekLeads.thisWeek': 'This week',
+    'weekLeads.weekOf': 'Lead for {range}',
+    'weekLeads.clear': 'Clear',
+    'weekLeads.clearHint': "Undo this week's confirmation",
+    'weekLeads.breakHeld': 'A term break, but a lead is still recorded',
 
     'termBreaks.title': 'Term breaks',
     'termBreaks.desc': 'Define term breaks. The rotation will pause and meetings cannot be scheduled during these weeks.',

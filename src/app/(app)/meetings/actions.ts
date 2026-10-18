@@ -5,7 +5,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
-import { actsAsWeekLead, rotationMembers, suggestNextHost } from '@/lib/rotation';
+import { actsAsWeekLead, plannedWeeksBefore, rotationMembers, suggestNextHost } from '@/lib/rotation';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
 import { pushMeeting, removeMeetingEvent } from '@/lib/google/meeting-sync';
@@ -176,7 +176,14 @@ export async function rescheduleMeetingAction(
  * still records whose turn it was, which is what keeps the rotation honest.
  *
  * Passing an empty userId clears the week, so a wrong confirmation can be
- * undone without editing the sheet by hand.
+ * undone without editing the sheet by hand. Clearing is allowed in a break
+ * week too: a break entered after its week was confirmed leaves a lead behind
+ * that nothing else can remove.
+ *
+ * Any week, not only the current one. Choosing somebody for a week past the
+ * latest confirmed one first confirms the weeks in between as the order
+ * already lands them (see `plannedWeeksBefore`), and the rotation carries on
+ * from the chosen student afterwards.
  *
  * Admin settles it. This was professor-and-above, on the reading that naming
  * whose turn it is looks like an advisor's call; the rotation decides it
@@ -191,25 +198,37 @@ export async function setWeekLead(weekKey: string, userId: string): Promise<Acti
       throw new UserError('error.invalidValue', { value: weekKey });
     }
 
-    const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
+    const [breaks, users] = await Promise.all([
+      SheetRepo.find<TermBreakRecord>('term_breaks'),
+      SheetRepo.find<UserRecord>('users'),
+    ]);
     const coveringBreak = breakForWeek(breaks, weekKey);
-    if (coveringBreak) {
+    if (coveringBreak && userId) {
       throw new UserError('error.duringBreak', { name: coveringBreak.name });
     }
 
     if (userId) {
-      const users = await SheetRepo.find<UserRecord>('users');
       const eligible = rotationMembers(users).some((student) => student.id === userId);
       if (!eligible) throw new UserError('rotation.notEligible');
     }
 
     // Read then write rather than taking a row_version from the client: the
     // caller holds a week, not a row, and the row may not exist yet.
-    const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
+    const leads = await SheetRepo.find<WeekLeadRecord>('week_leads', { fresh: true });
     const existing = leads.find((lead) => lead.week_key === weekKey);
 
     if (!existing) {
-      if (userId) await SheetRepo.insert('week_leads', { week_key: weekKey, user_id: userId }, actor.id);
+      if (userId) {
+        // uniqueBy: the dashboard's auto-assign may be confirming one of these
+        // weeks at the same moment, and two rows for a week would be read as
+        // whichever comes first.
+        for (const week of plannedWeeksBefore(users, leads, breaks, weekKey)) {
+          await SheetRepo.insert('week_leads', week, actor.id, { uniqueBy: { week_key: week.week_key } });
+        }
+        await SheetRepo.insert('week_leads', { week_key: weekKey, user_id: userId }, actor.id, {
+          uniqueBy: { week_key: weekKey },
+        });
+      }
     } else if (!userId) {
       await SheetRepo.delete('week_leads', existing.id, existing.row_version, actor.id);
     } else if (existing.user_id !== userId) {
@@ -218,6 +237,7 @@ export async function setWeekLead(weekKey: string, userId: string): Promise<Acti
 
     revalidatePath('/meetings');
     revalidatePath('/dashboard');
+    revalidatePath('/settings/lab');
   });
 }
 
