@@ -9,6 +9,7 @@ import {
   meetingsInWeek,
   nextMeeting,
   planWeekLeads,
+  plannedWeeksBefore,
   weeksRunBy,
   leadsCurrentOrLater,
 } from '../lib/rotation';
@@ -393,5 +394,66 @@ describe('planWeekLeads', () => {
   it('starts at the top of the order when nobody has held a week', () => {
     const plan = planWeekLeads(people, [], [], '2026-W38', 2);
     expect(plan.map((w) => w.user_id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('plannedWeeksBefore', () => {
+  const people = [
+    user('a', 'student', '2026-01-01', true, 1),
+    user('b', 'student', '2026-01-02', true, 2),
+    user('c', 'student', '2026-01-03', true, 3),
+  ];
+  const held = (week_key: string, user_id: string) =>
+    ({ id: week_key, week_key, user_id } as WeekLeadRecord);
+  const brk = (start_date: string, end_date: string) =>
+    ({ id: 'x', name: 'ปิดเทอม', start_date, end_date } as TermBreakRecord);
+
+  it('fixes the weeks up to a later choice as the order lands them', () => {
+    expect(plannedWeeksBefore(people, [held('2026-W38', 'a')], [], '2026-W41')).toEqual([
+      { week_key: '2026-W39', user_id: 'b' },
+      { week_key: '2026-W40', user_id: 'c' },
+    ]);
+  });
+
+  it('leaves a break week in the gap unheld', () => {
+    // 2026-W40 is 28 Sep - 4 Oct.
+    const gap = plannedWeeksBefore(
+      people,
+      [held('2026-W38', 'a')],
+      [brk('2026-09-28', '2026-10-04')],
+      '2026-W42'
+    );
+    expect(gap).toEqual([
+      { week_key: '2026-W39', user_id: 'b' },
+      { week_key: '2026-W41', user_id: 'c' },
+    ]);
+  });
+
+  it('has nothing to fix for the next week, or one at or before the latest', () => {
+    const leads = [held('2026-W38', 'a'), held('2026-W40', 'c')];
+    expect(plannedWeeksBefore(people, leads, [], '2026-W41')).toEqual([]);
+    expect(plannedWeeksBefore(people, leads, [], '2026-W39')).toEqual([]);
+    expect(plannedWeeksBefore(people, leads, [], '2026-W40')).toEqual([]);
+  });
+
+  it('has no order to hold to when nothing is confirmed', () => {
+    expect(plannedWeeksBefore(people, [], [], '2026-W41')).toEqual([]);
+  });
+
+  it('lets the rotation carry on from the chosen student', () => {
+    // An admin puts c on W41 where the order said a.
+    const leads = [held('2026-W38', 'a')];
+    const filled = [
+      ...leads,
+      ...plannedWeeksBefore(people, leads, [], '2026-W41').map((w) => held(w.week_key, w.user_id)),
+      held('2026-W41', 'c'),
+    ];
+    const plan = planWeekLeads(people, filled, [], '2026-W39', 4);
+    expect(plan.map((w) => [w.week_key, w.user_id, w.confirmed])).toEqual([
+      ['2026-W39', 'b', true],
+      ['2026-W40', 'c', true],
+      ['2026-W41', 'c', true],
+      ['2026-W42', 'a', false],
+    ]);
   });
 });
