@@ -165,6 +165,11 @@ export const common = defineMessages({
 
     'dashboard.nextMeeting': 'การประชุมครั้งถัดไป',
     'dashboard.notScheduled': 'ยังไม่ได้นัดหมาย',
+    'busyNudge.title': 'คุณยังไม่ได้ระบุเวลาที่ไม่ว่างของสัปดาห์นี้',
+    'busyNudge.hint': 'สัปดาห์นี้ยังไม่มีการนัดประชุม ระบุช่วงที่ไม่ว่างในปฏิทิน เพื่อให้ผู้รับผิดชอบเลือกเวลาที่คุณมาได้',
+    'busyNudge.go': 'ระบุเวลาไม่ว่างในปฏิทิน',
+    'busyNudge.connect': 'หรือเชื่อม Google Calendar',
+    'busyNudge.dismiss': 'ว่างทั้งสัปดาห์',
     'dashboard.breakWeek': 'ปิดเทอม: {name}',
     'dashboard.breakResumes': 'เริ่มเปิดเทอมวันที่ {date}',
     'dashboard.scheduleNow': 'นัดหมายการประชุม',
@@ -407,6 +412,11 @@ export const common = defineMessages({
 
     'dashboard.nextMeeting': 'Next meeting',
     'dashboard.notScheduled': 'Not scheduled yet',
+    'busyNudge.title': "You haven't marked when you're busy this week",
+    'busyNudge.hint': "No meeting is booked yet. Mark the hours you can't make on the calendar, so this week's lead picks a time you can come to.",
+    'busyNudge.go': 'Mark busy times',
+    'busyNudge.connect': 'or connect Google Calendar',
+    'busyNudge.dismiss': "I'm free all week",
     'dashboard.breakWeek': 'Term break: {name}',
     'dashboard.breakResumes': 'Term resumes on {date}',
     'dashboard.scheduleNow': 'Schedule a meeting',
