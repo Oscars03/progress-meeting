@@ -16,9 +16,11 @@ import PendingUsers from './pending-users';
 import { autoAssignWeekLead } from '../meetings/actions';
 import { formatLabClock, formatLabTime, labDay } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
-import { brokenConnections } from '@/lib/google/tokens';
+import { brokenConnections, getConnectedUserIds, googleOAuthConfigured } from '@/lib/google/tokens';
+import { needsBusyTimes } from '@/lib/busy-nudge';
+import BusyTimeNudge from './busy-time-nudge';
 import { breakForWeek } from '@/lib/term-breaks';
-import { memberIds } from '@/lib/members';
+import { isMember, memberIds } from '@/lib/members';
 import { intlLocale } from '@/lib/ui/i18n';
 import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from '@/lib/presentation-order';
 import { actsAsWeekLead } from '@/lib/rotation';
@@ -52,6 +54,8 @@ export default async function DashboardPage() {
   // than waiting for the role and then making a round trip of its own. Only an
   // admin's page ever looks at the answer -- see brokenCalendars below.
   const brokenCalendarsRead = brokenConnections().catch(() => []);
+  // Same tab, same batched read -- see busyNudge below.
+  const connectedRead = getConnectedUserIds().catch(() => new Set<string>());
 
   const [
     actor,
@@ -148,6 +152,26 @@ export default async function DashboardPage() {
   const awaiting = open.filter((row) => row.remaining > 0);
   const answered = open.filter((row) => row.remaining === 0);
   const canConfirm = actor.role === 'admin';
+
+  // Somebody whose hours the grid cannot see looks free all week, and the lead
+  // books over their lecture. Asked of every member, professors included --
+  // their hours shape the choice too -- and of a previewed member role.
+  const iAmAMember = actor.previewing
+    ? actor.role === 'student' || actor.role === 'professor'
+    : users.some((user) => user.id === actor.id && isMember(user));
+  const busyNudge =
+    iAmAMember &&
+    needsBusyTimes({
+      userId: actor.id,
+      week: thisWeekKey,
+      isBreak: Boolean(currentBreak),
+      meetings,
+      personalEvents,
+      connected: await connectedRead,
+      // Lab-wide, not just polls this reader votes in: once any poll is out,
+      // the hours have been picked.
+      openPollCount: openPolls(polls, slots, votes, actor.id).length,
+    });
   // Booking a meeting outright skips the poll, so it is admin's escape hatch.
   // Everyone else schedules by proposing times and confirming the winner.
   const canSchedule = actor.role === 'admin';
@@ -413,6 +437,8 @@ export default async function DashboardPage() {
           {meetingCard}
         </>
       )}
+
+      {busyNudge && <BusyTimeNudge week={thisWeekKey} canConnect={googleOAuthConfigured()} />}
 
       {/* What the lead has to do this week, where they start the week rather
           than two pages into it. Not shown during a term break: there is no
