@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { Presence } from '@/lib/ui/presence';
@@ -113,7 +114,14 @@ export default function WeekAvailabilityGrid({
   /** The slot inside it a poll would be opened for, and how long it runs. */
   const [askStart, setAskStart] = useState('');
   const [askLength, setAskLength] = useState(60);
-  const [error, setError] = useState('');
+  const [error, setErrorText] = useState('');
+  /** The open poll that already asks for the hours just picked, when that is why it was refused. */
+  const [existingPollId, setExistingPollId] = useState('');
+  // Any new message replaces the old one, link included.
+  const setError = (text: string) => {
+    setErrorText(text);
+    setExistingPollId('');
+  };
   const [isPending, startTransition] = useTransition();
   const [asking, setAsking] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -206,10 +214,17 @@ export default function WeekAvailabilityGrid({
           note: '',
           slots: [{ start: span.start, end: span.end }],
         });
-        if (!result.ok) throw new Error(t(result.error as Parameters<typeof t>[0]));
+        if (!result.ok) {
+          setError(t(result.error, result.vars));
+          // The same hours are already being asked about: offer the way to that
+          // poll rather than leaving a dead end.
+          if (result.error === 'polls.error.duplicateTime') setExistingPollId(String(result.vars?.pollId ?? ''));
+          setAsking(false);
+          return;
+        }
         router.push(`/meetings/polls/${result.pollId}`);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t('avail.failed'));
+      } catch {
+        setError(t('avail.failed'));
         setAsking(false);
       }
     });
@@ -222,6 +237,8 @@ export default function WeekAvailabilityGrid({
 
   const pick = (run: AvailabilityRun, alreadyOpen: boolean, isPast: boolean) => {
     setEditing(false);
+    // A refusal belongs to the block it was about, not to the next one opened.
+    setError('');
     if (alreadyOpen) {
       setSelected(null);
       return;
@@ -279,6 +296,22 @@ export default function WeekAvailabilityGrid({
       router.refresh();
     });
   };
+
+  // Shown in the block's dialog while it is open -- that is where the button
+  // was pressed, and the page behind it is covered -- and on the page otherwise.
+  const errorNotice = error && (
+    <div role="status" className="p-2.5 text-sm text-red-800 bg-red-50 rounded-lg border border-red-200">
+      {error}
+      {existingPollId && (
+        <>
+          {' '}
+          <Link href={`/meetings/polls/${existingPollId}`} className="font-medium underline">
+            {t('polls.error.openExisting')}
+          </Link>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
@@ -352,11 +385,7 @@ export default function WeekAvailabilityGrid({
           : t('avail.coverage', { read: data.readCount, total })}
       </p>
 
-      {error && (
-        <div role="status" className="p-2.5 text-sm text-red-800 bg-red-50 rounded-lg border border-red-200">
-          {error}
-        </div>
-      )}
+      {!selected && errorNotice}
 
       {/* Blocks, not cells. The old grid drew one button per half hour per
           day -- 196 of them, each carrying a headcount, and a column would
@@ -556,6 +585,7 @@ export default function WeekAvailabilityGrid({
                           <span className="block text-gray-500">{t('avail.editNotifyHint')}</span>
                         </span>
                       </label>
+                      {errorNotice}
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="submit"
@@ -666,6 +696,10 @@ export default function WeekAvailabilityGrid({
                     })}
                   </div>
                 )}
+
+                {/* Above the button, not below: below it is off the bottom of
+                    the dialog on a phone, and the press looks like it did nothing. */}
+                {errorNotice}
 
                 {chosen && (
                   <button

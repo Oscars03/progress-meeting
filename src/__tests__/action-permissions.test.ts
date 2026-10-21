@@ -177,6 +177,32 @@ describe('opening a poll', () => {
     const result = await createPollAction({ title: 'Progress', note: '', slots });
     expect(result).toMatchObject({ ok: false, error: 'avail.leadOnly' });
   });
+
+  it('refuses the exact hours of a poll that is still open, naming it, and writes nothing', async () => {
+    seedPoll(); // p1 asks for 10:00-11:00 on MONDAY, the same as `slots`
+    signedInAs('lead');
+
+    const result = await createPollAction({ title: 'Progress again', note: '', slots });
+    expect(result).toMatchObject({
+      ok: false,
+      error: 'polls.error.duplicateTime',
+      vars: { title: 'Progress', pollId: 'p1' },
+    });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('still opens one for hours that only overlap, or that a closed poll asked for', async () => {
+    seedPoll();
+    signedInAs('lead');
+
+    const overlapping = [{ start: `${MONDAY}T10:30`, end: `${MONDAY}T11:30` }];
+    expect((await createPollAction({ title: 'Later', note: '', slots: overlapping })).ok).toBe(true);
+
+    insert.mockClear();
+    tables['availability_polls'] = [{ ...(tables['availability_polls'][0] as object), status: 'closed' }];
+    expect((await createPollAction({ title: 'Again', note: '', slots })).ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith('availability_polls', expect.anything(), 'lead');
+  });
 });
 
 describe('closing, confirming and deleting a poll', () => {

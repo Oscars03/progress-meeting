@@ -104,6 +104,27 @@ export async function createPollAction(input: {
     if (coveringBreak) throw new UserError('error.duringBreak', { name: coveringBreak.name });
   }
 
+  // Two open polls asking for the same hours split the answers between them,
+  // and each one can then be confirmed into its own meeting. The page does not
+  // stop this -- it may be stale, or somebody else asked a minute ago -- so it
+  // is refused here, naming the poll that already asks.
+  const [polls, existingSlots] = await Promise.all([
+    SheetRepo.find<AvailabilityPollRecord>('availability_polls', { fresh: true }),
+    SheetRepo.find<AvailabilitySlotRecord>('availability_slots', { fresh: true }),
+  ]);
+  const openPolls = new Map(polls.filter((p) => p.status === 'open').map((p) => [p.id, p]));
+  for (const s of slots) {
+    const start = Date.parse(s.start);
+    const end = Date.parse(s.end);
+    const same = existingSlots.find(
+      (x) => openPolls.has(x.poll_id) && Date.parse(x.start_at) === start && Date.parse(x.end_at) === end
+    );
+    if (same) {
+      const existing = openPolls.get(same.poll_id)!;
+      throw new UserError('polls.error.duplicateTime', { title: existing.title, pollId: existing.id });
+    }
+  }
+
   const poll = await SheetRepo.insert(
     'availability_polls',
     {
