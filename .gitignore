@@ -52,11 +52,12 @@ next-env.d.ts
 #
 # The exceptions are the documents somebody cloning the repo needs in order to
 # work on it -- how to run it, and how to ship it -- plus the shared list of
-# UI references to design against.
+# UI references to design against, and the to-do list for the next session.
 *.md
 !README.md
 !DEPLOY.md
 !docs/ui-references.md
+!docs/next-session.md
 
 # Claude Code personal settings (not shared)
 .claude/settings.local.json
