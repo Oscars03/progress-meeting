@@ -73,13 +73,20 @@ async function readAssigner(value: string | undefined): Promise<string> {
  * capped, blanks dropped, ids kept where given so a tick lands on the line it
  * was meant for.
  */
-function cleanSubtasks(items: { id?: string; title: string; done?: boolean }[]): Subtask[] {
+function cleanSubtasks(
+  items: { id?: string; title: string; done?: boolean; start?: string; due?: string }[]
+): Subtask[] {
   const out: Subtask[] = [];
   for (const item of items) {
     const title = String(item?.title ?? '').trim().slice(0, MAX_SUBTASK_TITLE);
     if (!title) continue;
     const id = typeof item.id === 'string' && item.id ? item.id : crypto.randomUUID();
-    out.push({ id, title, done: item.done === true });
+    // A line's dates are optional, and checked like a project's: real days,
+    // and an end that is not before the start.
+    const start = readDay(item.start);
+    const due = readDay(item.due);
+    assertDateOrder(start, due);
+    out.push({ id, title, done: item.done === true, start, due });
   }
   if (out.length > MAX_SUBTASKS) throw new UserError('tasks.tooManySubtasks', { max: MAX_SUBTASKS });
   return out;
@@ -304,7 +311,7 @@ export async function setTaskProgress(
  */
 export async function saveSubtasks(
   taskId: string,
-  items: { id?: string; title: string; done?: boolean }[],
+  items: { id?: string; title: string; done?: boolean; start?: string; due?: string }[],
   rowVersion: number
 ): Promise<ActionResult> {
   return toResult(async () => {

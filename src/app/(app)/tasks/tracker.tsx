@@ -162,6 +162,25 @@ export default function Tracker({
     </>
   );
 
+  // Dated checklist lines, as thin bars under their project's own. Only the
+  // first few: a row is one project's height, not a second timeline.
+  const subBars = (r: TrackerRow) =>
+    r.subtasks
+      .filter((s) => s.start && s.due)
+      .slice(0, 3)
+      .map((s, i) => {
+        const x1 = x(s.start);
+        return (
+          <span
+            key={s.id}
+            className="trk-subbar"
+            data-done={s.done ? '' : undefined}
+            title={s.title}
+            style={{ left: x1, width: Math.max(4, x(s.due, true) - x1), top: `calc(50% + ${14 + i * 5}px)` }}
+          />
+        );
+      });
+
   const bar = (r: TrackerRow, withNames: boolean) => {
     const cls = `trk-h-${tone(r)}`;
     if (!r.due) {
@@ -432,6 +451,7 @@ export default function Tracker({
           <div className="trk-tl" style={{ width: W, '--mw': `${mw}px` } as React.CSSProperties}>
             {guides()}
             {bar(r, compact)}
+            {subBars(r)}
           </div>
         </td>
       </tr>
@@ -493,7 +513,7 @@ export default function Tracker({
                 </div>
                 <span className="text-xs">{subtaskCount(r)}</span>
               </div>
-              <Checklist row={r} />
+              <Checklist row={r} today={today} />
             </section>
           );
         })}
