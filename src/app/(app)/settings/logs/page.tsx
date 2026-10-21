@@ -10,6 +10,7 @@ import {
   filterLog,
   formatLogDetail,
   isLevelFilter,
+  readableLogRows,
   summarizeLog,
   type LogLevelFilter,
 } from '@/lib/app-log-view';
@@ -51,7 +52,7 @@ export default async function LogsSettingsPage(props: PageProps<'/settings/logs'
   const userId = one(params.user);
 
   const [rows, users] = await Promise.all([
-    SheetRepo.find<AppLogRecord>('app_log', { fresh: true }).catch(() => null),
+    SheetRepo.find<AppLogRecord>('app_log', { fresh: true }).then(readableLogRows, () => null),
     SheetRepo.find<UserRecord>('users').catch((): UserRecord[] => []),
   ]);
 

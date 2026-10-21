@@ -14,6 +14,36 @@ export function isLevelFilter(value: unknown): value is LogLevelFilter {
   return value === 'all' || (LOG_LEVELS as readonly unknown[]).includes(value);
 }
 
+/**
+ * A cell back as the text it was written as.
+ *
+ * SheetRepo turns a cell that starts with `{` or `[` into JSON, and "TRUE" into
+ * a boolean. A log message is whatever was thrown -- a browser that rejects a
+ * promise with `{status: 500}` sends exactly that, and so can anybody posting
+ * to /api/log -- and an object rendered as text takes the whole page down. The
+ * row that does it is kept for 180 days.
+ */
+export function logText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+/** Every text column of every row as text. Run over the rows before anything else reads them. */
+export function readableLogRows(rows: AppLogRecord[]): AppLogRecord[] {
+  return rows.map((row) => ({
+    ...row,
+    created_at: logText(row.created_at),
+    level: logText(row.level),
+    event: logText(row.event),
+    user_id: logText(row.user_id),
+    path: logText(row.path),
+    message: logText(row.message),
+  }));
+}
+
 /** What the last seven days came to: the four numbers at the top of the page. */
 export function summarizeLog(rows: AppLogRecord[], now: number) {
   let errors = 0;
