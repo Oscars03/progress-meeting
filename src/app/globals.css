@@ -975,6 +975,35 @@ body {
   --trk-av4-ink: #9f1239;
   --trk-av5-bg: #e2e8f0;
   --trk-av5-ink: #334155;
+  /* Avatar colours a person can choose (lib/avatar-face.ts), and the ring
+     each role wears: gold for an advisor, sky for a student, grey for admin. */
+  --av-red-bg: #fee2e2;
+  --av-red-ink: #991b1b;
+  --av-orange-bg: #ffedd5;
+  --av-orange-ink: #9a3412;
+  --av-amber-bg: #fef3c7;
+  --av-amber-ink: #92400e;
+  --av-lime-bg: #ecfccb;
+  --av-lime-ink: #3f6212;
+  --av-green-bg: #dcfce7;
+  --av-green-ink: #166534;
+  --av-teal-bg: #ccfbf1;
+  --av-teal-ink: #115e59;
+  --av-cyan-bg: #cffafe;
+  --av-cyan-ink: #155e75;
+  --av-blue-bg: #dbeafe;
+  --av-blue-ink: #1e40af;
+  --av-indigo-bg: #e0e7ff;
+  --av-indigo-ink: #3730a3;
+  --av-violet-bg: #ede9fe;
+  --av-violet-ink: #5b21b6;
+  --av-pink-bg: #fce7f3;
+  --av-pink-ink: #9d174d;
+  --av-slate-bg: #e2e8f0;
+  --av-slate-ink: #334155;
+  --role-professor: #d4a017;
+  --role-student: #38bdf8;
+  --role-admin: #9ca3af;
 }
 :root[data-theme='dark'] {
   --trk-surface: #1c1c1e;
@@ -1019,6 +1048,33 @@ body {
   --trk-av4-ink: #fecdd3;
   --trk-av5-bg: #27303d;
   --trk-av5-ink: #cbd5e1;
+  --av-red-bg: #4c1d1d;
+  --av-red-ink: #fca5a5;
+  --av-orange-bg: #4a2511;
+  --av-orange-ink: #fdba74;
+  --av-amber-bg: #45300b;
+  --av-amber-ink: #fcd34d;
+  --av-lime-bg: #2a3a12;
+  --av-lime-ink: #bef264;
+  --av-green-bg: #14361f;
+  --av-green-ink: #86efac;
+  --av-teal-bg: #123b37;
+  --av-teal-ink: #5eead4;
+  --av-cyan-bg: #11333d;
+  --av-cyan-ink: #67e8f9;
+  --av-blue-bg: #172a4d;
+  --av-blue-ink: #93c5fd;
+  --av-indigo-bg: #242456;
+  --av-indigo-ink: #a5b4fc;
+  --av-violet-bg: #2e1f52;
+  --av-violet-ink: #c4b5fd;
+  --av-pink-bg: #4a1a33;
+  --av-pink-ink: #f9a8d4;
+  --av-slate-bg: #2a313b;
+  --av-slate-ink: #cbd5e1;
+  --role-professor: #fbbf24;
+  --role-student: #7dd3fc;
+  --role-admin: #6b7280;
 }
 
 /* Each health sets --x / --x-bg; everything tinted by health reads those. */
@@ -1090,6 +1146,16 @@ body {
 .trk-tag[data-tag='Thesis'] { background: var(--trk-av3-bg); color: var(--trk-av3-ink); }
 .trk-av { width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600; line-height: 1; background: var(--ab); color: var(--ai); }
 .trk-av-lg { width: 32px; height: 32px; font-size: 13px; }
+/* The role, as a ring round the avatar -- or, on a name chip, as the chip's
+   own border, which already frames the name and would make a ring a second
+   outline. A selected chip keeps the accent: being chosen is the news there. */
+.trk-av[data-role='professor'] { box-shadow: 0 0 0 2px var(--trk-surface), 0 0 0 3.5px var(--role-professor); }
+.trk-av[data-role='student'] { box-shadow: 0 0 0 2px var(--trk-surface), 0 0 0 3.5px var(--role-student); }
+.trk-av[data-role='admin'] { box-shadow: 0 0 0 2px var(--trk-surface), 0 0 0 3.5px var(--role-admin); }
+.trk-pick .trk-av[data-role] { box-shadow: none; }
+/* A ring is drawn outside the circle and takes no room, so a ringed avatar
+   is given the room itself, or the ring would touch the name beside it. */
+.trk-av[data-role]:not(.trk-pick .trk-av) { margin: 0 3px; }
 .trk-nobody { display: inline-flex; align-items: center; gap: 6px; color: var(--trk-bad); font-size: 12.5px; font-weight: 500; }
 .trk-nobody::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .trk-pill { display: inline-block; border-radius: 6px; padding: 1px 9px; font-size: 12px; border: 1px solid var(--trk-border); color: var(--trk-ink-2); background: var(--trk-sunken); }
@@ -1141,6 +1207,9 @@ body {
 .trk-chip-health { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 1px 9px; border-radius: 6px; background: var(--x-bg); color: var(--x); }
 .trk-check, .trk-range { accent-color: var(--trk-accent); }
 .trk-pick { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--trk-border); border-radius: 999px; padding: 3px 12px 3px 4px; background: var(--trk-surface); cursor: pointer; font-size: 13.5px; color: var(--trk-ink); }
+.trk-pick[data-role='professor'] { border-color: var(--role-professor); }
+.trk-pick[data-role='student'] { border-color: var(--role-student); }
+.trk-pick[data-role='admin'] { border-color: var(--role-admin); }
 .trk-pick[aria-pressed='true'] { border-color: var(--trk-accent); background: var(--trk-accent-soft); color: var(--trk-accent-ink); font-weight: 500; }
 .trk-pick[data-locked] { cursor: default; }
 /* Somebody busy, on the meeting planner: present, but not available. */

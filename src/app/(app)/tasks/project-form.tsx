@@ -221,6 +221,7 @@ export default function ProjectForm({
                     key={p.id}
                     type="button"
                     className="trk-pick"
+                    data-role={p.role}
                     aria-pressed={picked.includes(p.id)}
                     onClick={() => toggle(p.id)}
                   >

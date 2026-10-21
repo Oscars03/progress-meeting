@@ -1,7 +1,7 @@
 export const COMMON_COLUMNS = ['id', 'created_at', 'updated_at', 'row_version', 'created_by'] as const;
 
 export const SCHEMAS = {
-  users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active', 'rotation_order', 'permissions'],
+  users: [...COMMON_COLUMNS, 'name', 'email', 'password_hash', 'role', 'team_id', 'line_id', 'active', 'rotation_order', 'permissions', 'nickname', 'avatar_color'],
   teams: [...COMMON_COLUMNS, 'name'],
   meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at', 'host_id'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
@@ -47,6 +47,13 @@ export type BaseRecord = {
 
 export type UserRecord = BaseRecord & {
   name: string;
+  /**
+   * What they are called in the lab, set by themselves in Settings. Its first
+   * letter is the one in their avatar; '' falls back to the name's.
+   */
+  nickname?: string;
+  /** Their avatar colour, one of AVATAR_COLORS (lib/avatar-face.ts); '' for the automatic one. */
+  avatar_color?: string;
   email: string;
   password_hash: string;
   role: string;

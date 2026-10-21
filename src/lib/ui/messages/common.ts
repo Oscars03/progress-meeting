@@ -194,6 +194,14 @@ export const common = defineMessages({
     'myName.label': 'ชื่อของคุณ',
     'users.error.nameRequired': 'กรุณากรอกชื่อที่จะแสดง',
     'users.error.nameTooLong': 'ชื่อยาวเกินไป (ไม่เกิน 60 ตัวอักษร)',
+    'myFace.title': 'รูปประจำตัว',
+    'myFace.hint': 'วงกลมหน้าชื่อของคุณในหน้างานและปฏิทิน ใช้ตัวอักษรแรกของชื่อเล่น กรอบสีบอกบทบาท: อาจารย์สีทอง นักศึกษาสีฟ้า ผู้ดูแลระบบสีเทา',
+    'myFace.nickname': 'ชื่อเล่น',
+    'myFace.nicknamePlaceholder': 'เช่น ต้น',
+    'myFace.color': 'สี',
+    'myFace.auto': 'อัตโนมัติ',
+    'myFace.colorName': 'สี {color}',
+    'myFace.error.nicknameTooLong': 'ชื่อเล่นยาวเกินไป (ไม่เกิน {max} ตัวอักษร)',
 
     // The screen the person who is waiting sees. `pending.*` above is the
     // admin's list of them; these two are not the same audience.
@@ -441,6 +449,14 @@ export const common = defineMessages({
     'myName.label': 'Your name',
     'users.error.nameRequired': 'Give a name to show',
     'users.error.nameTooLong': 'That name is too long (60 characters at most)',
+    'myFace.title': 'Your avatar',
+    'myFace.hint': 'The circle before your name on Tasks and the calendar, with the first letter of your nickname. Its ring shows the role: gold for advisors, sky for students, grey for admin.',
+    'myFace.nickname': 'Nickname',
+    'myFace.nicknamePlaceholder': 'e.g. Ton',
+    'myFace.color': 'Colour',
+    'myFace.auto': 'Automatic',
+    'myFace.colorName': '{color}',
+    'myFace.error.nicknameTooLong': 'That nickname is too long ({max} characters at most)',
 
     'waiting.title': 'Waiting for approval',
     'waiting.created': 'Your account was created. Nothing went wrong.',

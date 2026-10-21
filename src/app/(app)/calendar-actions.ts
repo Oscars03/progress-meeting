@@ -20,7 +20,7 @@ import {
   type PersonAvailability,
 } from '@/lib/availability-grid';
 import { labInstant, labWallClock } from '@/lib/lab-time';
-import { toneOf } from '@/lib/person-tone';
+import { faceOf, type AvatarFace } from '@/lib/avatar-face';
 import { usualMeetingTime, type UsualTime } from '@/lib/availability-runs';
 import { actsAsWeekLead, leadForWeek } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
@@ -82,8 +82,8 @@ export type WeekAvailability = {
    * first when a lead opens a free block. null with no history yet.
    */
   usual: UsualTime | null;
-  /** Each member's avatar colour, by name -- the names are what the runs carry. */
-  tones: Record<string, number>;
+  /** How to draw each member, by name -- the names are what the runs carry. */
+  faces: Record<string, AvatarFace>;
 };
 
 /**
@@ -218,7 +218,7 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     readCount,
     leadName,
     usual: usualMeetingTime(meetings, (at) => labWallClock(at).toISOString().slice(11, 16)),
-    tones: Object.fromEntries(active.map((u) => [u.name, toneOf(u)])),
+    faces: Object.fromEntries(active.map((u) => [u.name, faceOf(u)])),
   };
 }
 

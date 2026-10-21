@@ -17,6 +17,7 @@ import { UserError } from '@/lib/user-error';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { breakForWeek } from '@/lib/term-breaks';
 import { ABILITIES, serializeOverrides, storedJson, type Overrides } from '@/lib/permissions';
+import { MAX_NICKNAME, isAvatarColor } from '@/lib/avatar-face';
 
 const ASSIGNABLE_ROLES: Role[] = ['admin', 'professor', 'student'];
 
@@ -471,5 +472,35 @@ export async function updateMyNameAction(name: string): Promise<ActionResult> {
     revalidatePath('/meetings');
     revalidatePath('/presentations');
     revalidatePath('/tasks');
+  });
+}
+
+/**
+ * Your own avatar: the nickname whose first letter it shows, and its colour.
+ * Yours alone to set -- it is how you appear, not a fact an admin keeps.
+ */
+export async function updateMyFaceAction(nickname: string, color: string): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+
+    const nick = nickname.trim().replace(/\s+/g, ' ');
+    if (nick.length > MAX_NICKNAME) throw new UserError('myFace.error.nicknameTooLong', { max: MAX_NICKNAME });
+    if (color && !isAvatarColor(color)) throw new UserError('error.invalidValue', { value: color });
+
+    const me = await SheetRepo.findOne<UserRecord>('users', actor.id);
+    if (!me) throw new UserError('error.notFound');
+    if ((me.nickname ?? '') === nick && (me.avatar_color ?? '') === color) return;
+
+    await SheetRepo.update<UserRecord>(
+      'users',
+      actor.id,
+      { nickname: nick, avatar_color: color },
+      me.row_version,
+      actor.id
+    );
+
+    revalidatePath('/settings', 'layout');
+    revalidatePath('/meetings', 'layout');
+    revalidatePath('/tasks', 'layout');
   });
 }
