@@ -17,12 +17,9 @@ export function isTaskTag(value: string): value is TaskTag {
 }
 
 /**
- * One line of a project's checklist. `start` and `due` are lab days, each ''
- * when not set; with both, the line is drawn under its project on the
- * timeline.
+ * The new-project form takes its first subtasks as lines of text, one each;
+ * these bound how many, and how long a line may be.
  */
-export type Subtask = { id: string; title: string; done: boolean; start: string; due: string };
-
 export const MAX_SUBTASKS = 50;
 export const MAX_SUBTASK_TITLE = 200;
 export const MAX_ROUND_NAME = 60;
@@ -36,42 +33,6 @@ export type RoundInput = {
   /** The version read with an existing round. */
   rowVersion?: number;
 };
-
-/**
- * The stored checklist, whatever shape the cell came back in.
- *
- * The repository decodes a cell starting with `[` as JSON, so this is usually
- * an array already; a hand-edited cell may still be a string. Anything that
- * does not read as a checklist is an empty one rather than an error -- a
- * mangled cell must not take the whole board down with it.
- */
-export function readSubtasks(stored: unknown): Subtask[] {
-  let raw: unknown = stored;
-  if (typeof raw === 'string') {
-    if (!raw.trim()) return [];
-    try {
-      raw = JSON.parse(raw);
-    } catch {
-      return [];
-    }
-  }
-  if (!Array.isArray(raw)) return [];
-
-  const out: Subtask[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const { id, title, done, start, due } = item as Record<string, unknown>;
-    if (typeof title !== 'string' || !title.trim()) continue;
-    out.push({
-      id: typeof id === 'string' && id ? id : `s${out.length + 1}`,
-      title: title.trim().slice(0, MAX_SUBTASK_TITLE),
-      done: done === true,
-      start: isDay(start) ? start : '',
-      due: isDay(due) ? due : '',
-    });
-  }
-  return out.slice(0, MAX_SUBTASKS);
-}
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 

@@ -22,9 +22,7 @@ import {
   isDay,
   laterDay,
   projectHealth,
-  readSubtasks,
   type Health,
-  type Subtask,
 } from '@/lib/tracker';
 import { readStatus, type TaskStatus } from './statuses';
 
@@ -65,7 +63,6 @@ export type TrackerRow = {
   due: string;
   progress: number;
   status: TaskStatus;
-  subtasks: Subtask[];
   lastUpdate: string | null;
   health: Health;
   /** The latest weekly reports, newest first. */
@@ -164,7 +161,6 @@ export function toRows(input: {
       due,
       progress,
       status,
-      subtasks: readSubtasks(task.subtasks),
       lastUpdate,
       health: projectHealth({ status, start, due, progress, lastUpdate }, today),
       log: reports.slice(0, 3).map((u) => ({

@@ -334,7 +334,8 @@ export default function ProjectForm({
             </div>
           </div>
 
-          {!row && (
+          {/* A new project only: a subtask has no subtasks of its own. */}
+          {!row && !parent && (
             <div>
               <label htmlFor="trk-f-subtasks" className="block text-gray-600 mb-1">
                 {t('tracker.form.subtasks')}
