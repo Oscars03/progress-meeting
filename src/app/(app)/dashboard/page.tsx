@@ -26,6 +26,7 @@ import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from '@/lib/pres
 import { actsAsWeekLead } from '@/lib/rotation';
 import { labInstant } from '@/lib/lab-time';
 import { can } from '@/lib/permissions';
+import { taskTitles } from '@/lib/task-title';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -254,6 +255,7 @@ export default async function DashboardPage() {
     .filter((item): item is typeof item & { at: Date } => item.at !== null && labDay(item.at) === today)
     .sort((a, b) => a.at.getTime() - b.at.getTime());
 
+  const taskTitle = taskTitles(tasks);
   const myOpenTasks = tasks
     .filter(task => {
       const assignees = Array.isArray(task.assignee_ids) ? task.assignee_ids : (task.assignee_ids ? [task.assignee_ids as string] : []);
@@ -594,7 +596,7 @@ export default async function DashboardPage() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
                       <span className={`font-semibold ${overdue ? 'text-red-900' : 'text-gray-900'}`}>
-                        {task.title}
+                        {taskTitle(task)}
                       </span>
                       {task.due_date && (
                         <span className={`text-xs font-medium tabular-nums ${overdue ? 'text-red-600' : 'text-gray-500'}`}>

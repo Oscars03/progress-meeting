@@ -3,6 +3,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
 import { recentWeekKeys, weekKey, weeksAgo, weekStartDate } from '@/lib/week';
 import type { TaskRecord, TaskUpdateRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
+import { taskTitles } from '@/lib/task-title';
 import { canRecordProgress } from '@/lib/task-rights';
 import WeeklyBoard, { type TaskRow } from './weekly-board';
 import { getT } from '@/lib/ui/server-i18n';
@@ -33,6 +34,7 @@ export default async function WeeklyPage() {
   const history = recentWeekKeys(6);
 
   const open = tasks.filter((t) => t.status !== 'done');
+  const titleOf = taskTitles(tasks);
 
   // Whose work a task is: the people it is assigned to, or whoever added it
   // when nobody is. This is what the per-person filter picks from.
@@ -55,7 +57,7 @@ export default async function WeeklyPage() {
 
     return {
       id: task.id,
-      title: task.title,
+      title: titleOf(task),
       status: task.status,
       dueDate: task.due_date ?? '',
       overdue: task.overdue_flag === true,

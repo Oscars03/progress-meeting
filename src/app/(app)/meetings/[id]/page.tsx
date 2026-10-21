@@ -21,6 +21,7 @@ import CalendarSync from './calendar-sync';
 import DeleteMeeting from './delete-meeting';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import { formatLabTime } from '@/lib/lab-time';
+import { taskTitles } from '@/lib/task-title';
 
 export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]'>) {
   const { id } = await props.params;
@@ -50,9 +51,10 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   const items = allItems.filter((i) => i.meeting_id === id);
 
   // Only unfinished tasks are worth linking a follow-up to.
+  const taskTitle = taskTitles(tasks);
   const openTasks = tasks
     .filter((t) => t.status !== 'done')
-    .map((t) => ({ id: t.id, title: t.title }));
+    .map((t) => ({ id: t.id, title: taskTitle(t) }));
 
   // Naming the week's lead is admin's; everything else this page can change
   // belongs to whoever runs the week -- see canRemove.

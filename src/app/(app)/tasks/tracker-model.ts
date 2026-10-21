@@ -16,7 +16,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import { labDay } from '@/lib/lab-time';
-import { canEditDetails, canEditWork, canRemoveWork } from '@/lib/task-rights';
+import { canAddSubproject, canEditDetails, canEditWork, canRemoveWork } from '@/lib/task-rights';
 import {
   isDay,
   laterDay,
@@ -45,6 +45,12 @@ export type TrackerRow = {
   tag: string;
   /** '' when the work is in no round, or its round has since been deleted. */
   roundId: string;
+  /**
+   * The project this is drawn under, '' for a project of its own. Also '' when
+   * the parent is gone or is itself a sub-project: such a row stands alone
+   * rather than vanish from the board.
+   */
+  parentId: string;
   assigneeIds: string[];
   ownerId: string;
   assignerId: string;
@@ -66,6 +72,8 @@ export type TrackerRow = {
     /** Rename, re-date, move between rounds. */
     edit: boolean;
     remove: boolean;
+    /** Break it into sub-projects: never true of a sub-project. */
+    addSub: boolean;
   };
 };
 
@@ -121,6 +129,11 @@ export function toRows(input: {
 }): TrackerRow[] {
   const { actor, tasks, rounds, updates, leads, thisWeek, today } = input;
   const roundIds = new Set(rounds.map((r) => r.id));
+  const byId = new Map(tasks.map((t) => [t.id, t] as const));
+  const parentOf = (task: TaskRecord): string => {
+    const parent = task.parent_id ? byId.get(task.parent_id) : undefined;
+    return parent && !parent.parent_id && parent.id !== task.id ? parent.id : '';
+  };
 
   return tasks.map((task) => {
     const reports = updates
@@ -145,6 +158,7 @@ export function toRows(input: {
       details: task.details ?? '',
       tag: task.category ?? '',
       roundId: roundIds.has(task.round_id) ? task.round_id : '',
+      parentId: parentOf(task),
       assigneeIds: assigneesOf(task),
       ownerId: task.owner_id ?? '',
       assignerId: task.assigner_id ?? '',
@@ -165,6 +179,7 @@ export function toRows(input: {
         work: canEditWork(actor, task),
         edit: canEditDetails(actor, task),
         remove: canRemoveWork(actor, task, thisWeek, leads),
+        addSub: !parentOf(task) && !task.parent_id && canAddSubproject(actor, task),
       },
     };
   });

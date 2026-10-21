@@ -25,7 +25,8 @@ import ProjectForm from './project-form';
 import RoundsDialog from './rounds-dialog';
 
 type View = 'table' | 'timeline' | 'subtasks';
-type FormState = { mode: 'new' } | { mode: 'edit'; id: string } | null;
+/** A new project, a new sub-project of `parentId`, or an existing one being edited. */
+type FormState = { mode: 'new'; parentId?: string } | { mode: 'edit'; id: string } | null;
 
 /** Rows in no round, or in one since deleted, gather under this. */
 const UNSORTED: TrackerRound = { id: '', name: '', due: '', rowVersion: 0 };
@@ -68,6 +69,22 @@ export default function Tracker({
     byId.get(id) ?? { id, name: t('common.deletedUser'), role: '', tone: 5 };
   const names = (ids: string[]) => ids.map((id) => person(id).name).join(', ');
 
+  // Sub-projects are drawn under their project, which can fold them away.
+  const kids = useMemo(() => {
+    const byParent = new Map<string, TrackerRow[]>();
+    for (const r of rows) if (r.parentId) byParent.set(r.parentId, [...(byParent.get(r.parentId) ?? []), r]);
+    return byParent;
+  }, [rows]);
+  const subsOf = (r: TrackerRow) => kids.get(r.id) ?? [];
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const q = query.trim().toLowerCase();
   const matches = (r: TrackerRow) => {
     if (health && r.health !== health) return false;
@@ -78,8 +95,17 @@ export default function Tracker({
       .toLowerCase()
       .includes(q);
   };
-  const visible = rows.filter(matches);
   const filtering = Boolean(health || mine || q);
+  /** Every row a filter lets through, sub-projects among them. */
+  const matching = rows.filter(matches);
+  /**
+   * Projects, each kept while it or one of its sub-projects is let through: a
+   * sub-project that matches is shown where it lives, under its project.
+   */
+  const visible = rows.filter((r) => !r.parentId && (matches(r) || subsOf(r).some(matches)));
+  const shownSubs = (r: TrackerRow) => (filtering ? subsOf(r).filter(matches) : subsOf(r));
+  // Folded unless opened -- or unless a filter found something inside.
+  const isOpen = (r: TrackerRow) => expanded.has(r.id) || (filtering && shownSubs(r).length > 0);
   const clearFilters = () => {
     setHealth(null);
     setMine(false);
@@ -90,6 +116,7 @@ export default function Tracker({
   for (const r of rows) counts[r.health]++;
   const nextRound = rounds.find((r) => r.due && r.due >= today);
   const onIt = new Set(rows.flatMap((r) => r.assigneeIds)).size;
+  const projectCount = rows.filter((r) => !r.parentId).length;
 
   // The window the timeline covers, and how wide one month is drawn.
   const win = timelineWindow(today, [...rows.map((r) => r.due), ...rounds.map((r) => r.due)]);
@@ -109,6 +136,9 @@ export default function Tracker({
 
   const open = rows.find((r) => r.id === openId) ?? null;
   const editing = form?.mode === 'edit' ? rows.find((r) => r.id === form.id) ?? null : null;
+  // The project a sub-project being added, or edited, belongs under.
+  const formParentId = form?.mode === 'new' ? form.parentId : editing?.parentId;
+  const formParent = (formParentId && rows.find((r) => r.id === formParentId)) || null;
 
   const healthLine = (r: TrackerRow) => (
     <div className={`trk-health trk-h-${tone(r)}`}>
@@ -295,104 +325,148 @@ export default function Tracker({
                     </td>
                   </tr>
                   {items.map((r) => (
-                    <tr
-                      key={r.id}
-                      className={`trk-row trk-h-${tone(r)}`}
-                      onClick={() => setOpenId(r.id)}
-                    >
-                      <td className="trk-proj">
-                        <div className="font-medium leading-snug">
-                          <button
-                            type="button"
-                            className="tap-exempt text-left hover:underline focus-visible:underline"
-                            onClick={() => setOpenId(r.id)}
-                          >
-                            {r.title}
-                          </button>
-                          <Tag tag={r.tag} />
-                        </div>
-                        {healthLine(r)}
-                        {compact && (
-                          <div className="mt-1 text-xs">
-                            {r.assigneeIds.length > 0 ? (
-                              <span className="flex items-center gap-1.5">
-                                {r.assigneeIds.map((id) => (
-                                  <Avatar key={id} person={person(id)} />
-                                ))}
-                                <span>{names(r.assigneeIds)}</span>
-                              </span>
-                            ) : (
-                              nobody
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      {!compact && (
-                        <>
-                          <td>
-                            {r.assigneeIds.length > 0 ? (
-                              <div className="flex flex-col gap-1">
-                                {r.assigneeIds.map((id) => (
-                                  <span key={id} className="flex items-center gap-1.5">
-                                    <Avatar person={person(id)} />
-                                    {person(id).name}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              nobody
-                            )}
-                          </td>
-                          <td>
-                            <span className="trk-pill" data-status={r.status}>
-                              {t(`tasks.status.${r.status}`)}
-                            </span>
-                          </td>
-                          <td>{subtaskCount(r)}</td>
-                          <td>{progressCell(r)}</td>
-                          <td className="trk-num">{leftCell(r)}</td>
-                        </>
-                      )}
-                      <td className="trk-tlc">
-                        <div className="trk-tl" style={{ width: W, '--mw': `${mw}px` } as React.CSSProperties}>
-                          {guides()}
-                          {bar(r, compact)}
-                        </div>
-                      </td>
-                    </tr>
+                    <Fragment key={r.id}>
+                      {projectRow(r)}
+                      {isOpen(r) && shownSubs(r).map((s) => projectRow(s))}
+                    </Fragment>
                   ))}
                 </Fragment>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="trk-legend">
-          <span>
-            <span className="trk-lg-tick" />
-            {t('tracker.legend.tick')}
-          </span>
-          <span>
-            <span className="trk-lg-dl" />
-            {t('tracker.legend.deadline')}
-          </span>
-          <span>{t('tracker.legend.stale', { n: STALE_AFTER_DAYS })}</span>
-          <span>{t('tracker.legend.scroll')}</span>
-        </div>
+        {legend}
       </>
     );
   };
 
+  /** One row of the table: a project, or -- indented under it -- a sub-project. */
+  const projectRow = (r: TrackerRow) => {
+    const compact = view === 'timeline';
+    const sub = Boolean(r.parentId);
+    const subs = sub ? [] : subsOf(r);
+    const open = isOpen(r);
+    return (
+      <tr
+        key={r.id}
+        className={`trk-row trk-h-${tone(r)}`}
+        data-sub={sub ? '' : undefined}
+        onClick={() => setOpenId(r.id)}
+      >
+        <td className="trk-proj">
+          <div className="font-medium leading-snug">
+            {sub && <span className="trk-sub-mark" aria-hidden="true">↳</span>}
+            <button
+              type="button"
+              className="tap-exempt text-left hover:underline focus-visible:underline"
+              onClick={() => setOpenId(r.id)}
+            >
+              {r.title}
+            </button>
+            <Tag tag={r.tag} />
+          </div>
+          {healthLine(r)}
+          {subs.length > 0 && (
+            <button
+              type="button"
+              className="trk-subs-toggle tap-exempt"
+              aria-expanded={open}
+              aria-label={t('tracker.toggleSubs', { title: r.title })}
+              onClick={(e) => {
+                // The row opens the project; this only folds it.
+                e.stopPropagation();
+                toggle(r.id);
+              }}
+            >
+              <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+              {t('tracker.subCount', { n: subs.length })}
+            </button>
+          )}
+          {compact && (
+            <div className="mt-1 text-xs">
+              {r.assigneeIds.length > 0 ? (
+                <span className="flex items-center gap-1.5">
+                  {r.assigneeIds.map((id) => (
+                    <Avatar key={id} person={person(id)} />
+                  ))}
+                  <span>{names(r.assigneeIds)}</span>
+                </span>
+              ) : (
+                nobody
+              )}
+            </div>
+          )}
+        </td>
+        {!compact && (
+          <>
+            <td>
+              {r.assigneeIds.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  {r.assigneeIds.map((id) => (
+                    <span key={id} className="flex items-center gap-1.5">
+                      <Avatar person={person(id)} />
+                      {person(id).name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                nobody
+              )}
+            </td>
+            <td>
+              <span className="trk-pill" data-status={r.status}>
+                {t(`tasks.status.${r.status}`)}
+              </span>
+            </td>
+            <td>{subtaskCount(r)}</td>
+            <td>{progressCell(r)}</td>
+            <td className="trk-num">{leftCell(r)}</td>
+          </>
+        )}
+        <td className="trk-tlc">
+          <div className="trk-tl" style={{ width: W, '--mw': `${mw}px` } as React.CSSProperties}>
+            {guides()}
+            {bar(r, compact)}
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
+  const legend = (
+    <div className="trk-legend">
+      <span>
+        <span className="trk-lg-tick" />
+        {t('tracker.legend.tick')}
+      </span>
+      <span>
+        <span className="trk-lg-dl" />
+        {t('tracker.legend.deadline')}
+      </span>
+      <span>{t('tracker.legend.stale', { n: STALE_AFTER_DAYS })}</span>
+      <span>{t('tracker.legend.scroll')}</span>
+    </div>
+  );
+
   const subtasks = () => {
-    const cards = visible.filter((r) => r.subtasks.length > 0 || r.can.work);
+    // Every piece of work has a checklist, sub-projects included; theirs are
+    // labelled with the project they belong to.
+    const cards = matching.filter((r) => r.subtasks.length > 0 || r.can.work);
     if (cards.length === 0) return <div className="trk-wrap">{empty}</div>;
     return (
       <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))]">
         {cards.map((r) => {
-          const round = rounds.find((x) => x.id === r.roundId);
+          const parent = r.parentId ? rows.find((x) => x.id === r.parentId) : undefined;
+          const round = rounds.find((x) => x.id === (parent ?? r).roundId);
           return (
             <section key={r.id} className="trk-hero" style={{ padding: 16 }}>
               <div className="flex items-start justify-between gap-3 mb-1">
                 <div className="min-w-0">
+                  {parent && (
+                    <p className="text-xs text-gray-500 truncate">
+                      {t('tracker.partOf')} {parent.title}
+                    </p>
+                  )}
                   <button
                     type="button"
                     className="font-medium text-left hover:underline"
@@ -444,7 +518,7 @@ export default function Tracker({
                   <span aria-hidden="true">·</span>
                 </>
               )}
-              <span>{t('tracker.summary', { projects: rows.length, people: onIt })}</span>
+              <span>{t('tracker.summary', { projects: projectCount, people: onIt })}</span>
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -558,11 +632,15 @@ export default function Tracker({
           <ProjectDrawer
             key={open.id}
             row={open}
+            parent={rows.find((r) => r.id === open.parentId) ?? null}
+            subs={subsOf(open)}
             rounds={rounds}
             person={person}
             today={today}
             onClose={() => setOpenId(null)}
             onEdit={() => setForm({ mode: 'edit', id: open.id })}
+            onOpen={setOpenId}
+            onAddSub={() => setForm({ mode: 'new', parentId: open.id })}
             onDeleted={(title) => {
               setOpenId(null);
               showNotice(t('tracker.deleted', { title }));
@@ -571,10 +649,11 @@ export default function Tracker({
         )}
       </Presence>
 
-      <Presence value={form && (form.mode === 'new' || editing) ? { editing } : null}>
-        {({ editing }) => (
+      <Presence value={form && (form.mode === 'new' || editing) ? { editing, parent: formParent } : null}>
+        {({ editing, parent }) => (
           <ProjectForm
             row={editing}
+            parent={parent}
             rounds={rounds}
             nextRound={nextRound ?? null}
             people={people}

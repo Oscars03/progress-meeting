@@ -131,20 +131,31 @@ export function Checklist({ row }: { row: TrackerRow }) {
 
 export default function ProjectDrawer({
   row,
+  parent,
+  subs,
   rounds,
   person,
   today,
   onClose,
   onEdit,
   onDeleted,
+  onOpen,
+  onAddSub,
 }: {
   row: TrackerRow;
+  /** The project this is a sub-project of, when it is one. */
+  parent: TrackerRow | null;
+  /** Its sub-projects, when it is a project. */
+  subs: TrackerRow[];
   rounds: TrackerRound[];
   person: (id: string) => TrackerPerson;
   today: string;
   onClose: () => void;
   onEdit: () => void;
   onDeleted: (title: string) => void;
+  /** Show another project in this panel instead. */
+  onOpen: (id: string) => void;
+  onAddSub: () => void;
 }) {
   const { t, locale } = usePrefs();
   const { pending, error, run } = useAction();
@@ -159,7 +170,8 @@ export default function ProjectDrawer({
   const drawerRef = useRef<HTMLElement>(null);
   useModal(drawerRef, true, onClose);
 
-  const round = rounds.find((r) => r.id === row.roundId);
+  // A sub-project sits in its project's round.
+  const round = rounds.find((r) => r.id === (parent ?? row).roundId);
   const started = daysBetween(today, row.start) <= 0;
   const elapsed = started ? elapsedPct(row.start, row.due, today) : null;
   const value = draft ?? row.progress;
@@ -181,6 +193,14 @@ export default function ProjectDrawer({
       <aside ref={drawerRef} className="trk-dialog" role="dialog" aria-modal="true" aria-labelledby="trk-drawer-title">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
+            {parent && (
+              <p className="text-xs text-gray-500">
+                {t('tracker.partOf')}{' '}
+                <button type="button" onClick={() => onOpen(parent.id)} className="text-blue-600 hover:underline">
+                  {parent.title}
+                </button>
+              </p>
+            )}
             <Tag tag={row.tag} />
             <h3 id="trk-drawer-title" className="text-lg font-semibold leading-snug mt-1">
               {row.title}
@@ -310,6 +330,53 @@ export default function ProjectDrawer({
         </div>
 
         <div>
+        {!parent && (subs.length > 0 || row.can.addSub) && (
+          <section className="trk-sec">
+            <h4 className="trk-sec-title">
+              {t('tracker.subprojects')}
+              {subs.length > 0 && ` ${subs.length}`}
+            </h4>
+            {subs.length === 0 ? (
+              <p className="text-sm text-gray-500">{t('tracker.noSubs')}</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {subs.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => onOpen(s.id)}
+                      className={`w-full text-left rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 trk-h-${s.health}`}
+                    >
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className="font-medium text-sm">{s.title}</span>
+                        <span className="trk-mono text-xs shrink-0">{s.progress}%</span>
+                      </span>
+                      <span className="flex flex-wrap gap-x-2 text-xs text-gray-500 mt-0.5">
+                        <span>
+                          {s.assigneeIds.length > 0
+                            ? s.assigneeIds.map((id) => person(id).name).join(', ')
+                            : t('tracker.nobody')}
+                        </span>
+                        {s.due && <span>· {formatDay(s.due, locale)}</span>}
+                        <span>· {t(`tracker.health.${s.health}`)}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {row.can.addSub && (
+              <button
+                type="button"
+                onClick={onAddSub}
+                className="mt-2 px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50"
+              >
+                {t('tracker.addSub')}
+              </button>
+            )}
+          </section>
+        )}
+
         {row.details && (
           <section className="trk-sec">
             <h4 className="trk-sec-title">{t('tasks.details')}</h4>

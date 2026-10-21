@@ -17,9 +17,14 @@ type Errors = { title?: string; people?: string; due?: string };
  * An advisor chooses who it is for, and has to choose somebody -- the board
  * exists to say who is doing what. A student is always adding their own, so
  * the only name on offer is theirs; they may say which advisor asked for it.
+ *
+ * With a `parent` it is a sub-project: the round and the label are the
+ * parent's and are not asked, and a new one starts with the parent's people
+ * and deadline, ready to be narrowed down.
  */
 export default function ProjectForm({
   row,
+  parent,
   rounds,
   nextRound,
   people,
@@ -32,6 +37,7 @@ export default function ProjectForm({
   onSaved,
 }: {
   row: TrackerRow | null;
+  parent: TrackerRow | null;
   rounds: TrackerRound[];
   nextRound: TrackerRound | null;
   people: TrackerPerson[];
@@ -50,13 +56,15 @@ export default function ProjectForm({
   const [errors, setErrors] = useState<Errors>({});
 
   const [title, setTitle] = useState(row?.title ?? '');
-  const [roundId, setRoundId] = useState(row ? row.roundId : nextRound?.id ?? '');
+  const [roundId, setRoundId] = useState(row ? row.roundId : parent ? '' : nextRound?.id ?? '');
   const [tag, setTag] = useState(row?.tag ?? '');
   const [start, setStart] = useState(row?.start ?? today);
-  const [due, setDue] = useState(row ? row.due : nextRound?.due ?? '');
+  const [due, setDue] = useState(row ? row.due : parent ? parent.due : nextRound?.due ?? '');
   const [details, setDetails] = useState(row?.details ?? '');
   const [lines, setLines] = useState('');
-  const [picked, setPicked] = useState<string[]>(row ? row.assigneeIds : canAssign ? [] : [me]);
+  const [picked, setPicked] = useState<string[]>(
+    row ? row.assigneeIds : !canAssign ? [me] : parent ? parent.assigneeIds : []
+  );
   const [assigner, setAssigner] = useState(row?.assignerId ?? '');
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -110,8 +118,7 @@ export default function ProjectForm({
                 due_date: due,
                 // An inferred start is only written once somebody changes it.
                 ...(row.startSet || start !== row.start ? { start_date: start } : {}),
-                round_id: roundId,
-                category: tag,
+                ...(parent ? {} : { round_id: roundId, category: tag }),
                 ...who,
               },
               row.rowVersion
@@ -121,8 +128,7 @@ export default function ProjectForm({
               details,
               due_date: due,
               start_date: start,
-              round_id: roundId,
-              category: tag,
+              ...(parent ? { parent_id: parent.id } : { round_id: roundId, category: tag }),
               subtasks: lines.split('\n'),
               ...who,
             });
@@ -154,7 +160,15 @@ export default function ProjectForm({
       >
         <div className="flex items-start justify-between gap-3">
           <h3 id="trk-form-title" className="text-lg font-semibold text-gray-900">
-            {row ? t('tracker.form.edit') : canAssign ? t('tracker.form.new') : t('tracker.form.newMine')}
+            {parent
+              ? row
+                ? t('tracker.form.editSub')
+                : t('tracker.form.newSub')
+              : row
+                ? t('tracker.form.edit')
+                : canAssign
+                  ? t('tracker.form.new')
+                  : t('tracker.form.newMine')}
           </h3>
           <button
             type="button"
@@ -166,6 +180,8 @@ export default function ProjectForm({
           </button>
         </div>
 
+        {parent && <p className="text-sm text-gray-600 mt-1">{t('tracker.form.subOf', { title: parent.title })}</p>}
+
         {error && (
           <div role="alert" className="mt-3 p-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-200">
             {error}
@@ -175,7 +191,7 @@ export default function ProjectForm({
         <form onSubmit={submit} noValidate className="mt-4 grid gap-4 text-sm">
           <div>
             <label htmlFor="trk-f-title" className="block text-gray-600 mb-1">
-              {t('tracker.form.name')} <span className="text-red-600">*</span>
+              {parent ? t('tracker.form.subName') : t('tracker.form.name')} <span className="text-red-600">*</span>
             </label>
             <input
               ref={titleRef}
@@ -251,34 +267,36 @@ export default function ProjectForm({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="trk-f-round" className="block text-gray-600 mb-1">
-                {t('tracker.form.round')}
-              </label>
-              <select id="trk-f-round" value={roundId} onChange={(e) => chooseRound(e.target.value)} className={field}>
-                {rounds.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.due ? `${r.name} · ${t('tracker.due', { date: formatDay(r.due, locale) })}` : r.name}
-                  </option>
-                ))}
-                <option value="">{t('tracker.unsorted')}</option>
-              </select>
+          {!parent && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="trk-f-round" className="block text-gray-600 mb-1">
+                  {t('tracker.form.round')}
+                </label>
+                <select id="trk-f-round" value={roundId} onChange={(e) => chooseRound(e.target.value)} className={field}>
+                  {rounds.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.due ? `${r.name} · ${t('tracker.due', { date: formatDay(r.due, locale) })}` : r.name}
+                    </option>
+                  ))}
+                  <option value="">{t('tracker.unsorted')}</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="trk-f-tag" className="block text-gray-600 mb-1">
+                  {t('tracker.form.tag')}
+                </label>
+                <select id="trk-f-tag" value={tag} onChange={(e) => setTag(e.target.value)} className={field}>
+                  <option value="">{t('tracker.form.noTag')}</option>
+                  {TASK_TAGS.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <label htmlFor="trk-f-tag" className="block text-gray-600 mb-1">
-                {t('tracker.form.tag')}
-              </label>
-              <select id="trk-f-tag" value={tag} onChange={(e) => setTag(e.target.value)} className={field}>
-                <option value="">{t('tracker.form.noTag')}</option>
-                {TASK_TAGS.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

@@ -5,7 +5,7 @@ export const SCHEMAS = {
   teams: [...COMMON_COLUMNS, 'name'],
   meetings: [...COMMON_COLUMNS, 'title', 'start_at', 'end_at', 'location', 'meet_link', 'status', 'recurrence_rule', 'owner_id', 'notes', 'google_event_id', 'google_calendar_owner_id', 'google_synced_at', 'host_id'],
   meeting_attendees: [...COMMON_COLUMNS, 'meeting_id', 'user_id', 'attend_status', 'present_order'],
-  tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links', 'assigner_id', 'round_id', 'start_date', 'subtasks', 'progress_at'],
+  tasks: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'assignee_ids', 'due_date', 'priority', 'progress_pct', 'status', 'overdue_flag', 'category', 'project', 'meeting_id', 'links', 'assigner_id', 'round_id', 'start_date', 'subtasks', 'progress_at', 'parent_id'],
   task_rounds: [...COMMON_COLUMNS, 'name', 'due_date'],
   task_updates: [...COMMON_COLUMNS, 'task_id', 'week_key', 'progress_pct', 'summary', 'risks', 'next_plan', 'updated_by'],
   action_items: [...COMMON_COLUMNS, 'meeting_id', 'title', 'owner_id', 'due_date', 'status', 'source_task_id'],
@@ -102,6 +102,13 @@ export type TaskRecord = BaseRecord & {
    * the weekly reports, not on updated_at: renaming a task is not news of it.
    */
   progress_at: string;
+  /**
+   * The project this is a sub-project of (`tasks.id`); '' for a project of its
+   * own. One level only: a sub-project has no sub-projects. A sub-project is
+   * full work in its own right -- people, dates, progress, reports -- and is
+   * drawn under its parent rather than in a round, so its `round_id` is ''.
+   */
+  parent_id: string;
 };
 
 /**
