@@ -26,8 +26,24 @@ export function thaiTrailer(body: string): string {
   return '';
 }
 
+/**
+ * `fix:` commits the panel should not list, by subject.
+ *
+ * A merged commit cannot be reworded -- master refuses a force-push -- so a
+ * line that should never have been shown is left out here instead. Each one
+ * says why. Keep it short: the answer to a wrong line is usually a trailer on
+ * the next commit, not this list.
+ */
+export const HIDDEN_SUBJECTS: ReadonlySet<string> = new Set([
+  // A fix to the activity log made before the log had shipped, merged the
+  // same day as the log itself: the lab never saw the page broken, so a
+  // "now works" line next to "new" announced a problem nobody had.
+  'fix: the activity log page reads a JSON-looking message back as text',
+]);
+
 /** One commit as a changelog line, or null for a commit the lab cannot see. */
 export function entryFrom(date: string, subject: string, body: string): ChangeEntry | null {
+  if (HIDDEN_SUBJECTS.has(subject.trim())) return null;
   // `feat!:` is still a feature as far as the lab is concerned.
   const match = /^(feat|fix)!?:\s*(.+)$/.exec(subject.trim());
   if (!match) return null;

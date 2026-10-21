@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   FIELD_SEP,
+  HIDDEN_SUBJECTS,
   RECORD_SEP,
   entriesFromApi,
   entriesFromGitLog,
@@ -23,6 +24,15 @@ describe('which commits become lines', () => {
   it('drops what the lab cannot see', () => {
     for (const subject of ['chore: refresh the changelog', 'docs: note', 'test: more', 'Merge pull request #1']) {
       expect(entryFrom('2026-09-23', subject, '')).toBeNull();
+    }
+  });
+
+  it('drops a fix listed as hidden, from either source', () => {
+    for (const subject of HIDDEN_SUBJECTS) {
+      expect(entryFrom('2026-10-21', subject, 'Changelog-TH: ข้อความ')).toBeNull();
+      expect(
+        entriesFromApi([{ commit: { message: `${subject}\n\nChangelog-TH: ข้อความ`, author: { date: '2026-10-21T10:00:00Z' } } }], () => '2026-10-21')
+      ).toEqual([]);
     }
   });
 });
