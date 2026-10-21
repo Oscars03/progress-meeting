@@ -3,6 +3,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession, AuthorizationError } from '@/lib/auth-guard';
 import { readFile } from '@/lib/google/drive';
 import type { AttachmentRecord } from '@/lib/db/schema';
+import { logError } from '@/lib/app-log';
 
 /**
  * Hand back an uploaded picture.
@@ -51,7 +52,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error(`Could not read attachment ${id}:`, error);
+    logError('attachment', error, { message: `Could not read attachment ${id}`, path: `/api/attachments/${id}` });
     return NextResponse.json({ error: 'UNAVAILABLE' }, { status: 502 });
   }
 }

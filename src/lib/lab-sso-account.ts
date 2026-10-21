@@ -4,6 +4,7 @@ import { SheetRepo } from './db/sheet-repo';
 import { normalizeEmail } from './signup-policy';
 import type { UserRecord } from './db/schema';
 import type { LabUser } from './lab-sso';
+import { logError } from './app-log';
 
 export type LabAccountOutcome =
   | { kind: 'signed-in'; user: UserRecord }
@@ -48,7 +49,7 @@ export async function resolveLabAccount(labUser: LabUser): Promise<LabAccountOut
     );
     return { kind: 'pending' };
   } catch (e) {
-    console.error('Lab SSO account lookup failed:', e);
+    logError('lab_sso', e, { message: 'Lab SSO account lookup failed', detail: { email } });
     return { kind: 'temporary' };
   }
 }

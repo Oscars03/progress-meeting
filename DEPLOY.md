@@ -255,10 +255,23 @@ npx vercel env add ชื่อตัวแปร production        # เพิ�
 การเชื่อม Google Calendar / Drive ของสมาชิก**ไม่หลุด** เพราะ refresh token
 ไม่ผูกกับโดเมน
 
+### มีคนแจ้งว่าใช้งานแล้วพัง — ดูที่ไหน
+
+**การตั้งค่า → บันทึกการใช้งาน** (หรือแท็บ `app_log` ในชีต) ไม่ใช่ Vercel logs —
+Vercel เก็บ runtime log แค่ชั่วโมงถึงวันเดียว แต่ `app_log` เก็บ error ไว้ 180 วัน
+กรองตามชื่อคนที่แจ้งแล้วดูว่าก่อนพังเขาเปิดหน้าไหน (`view`) กดอะไรไม่ผ่าน
+(`action_refused`) และ error ตัวไหนขึ้น ถ้าเขาส่ง **รหัสอ้างอิง** จากหน้าจอมา
+ให้ค้นรหัสนั้นใน `detail`
+
+การลบบันทึกเก่าใช้ Vercel Cron (`crons` ใน `vercel.json`, วันละครั้ง) ซึ่งต้องมี
+`CRON_SECRET` บน production — ไม่มีก็ได้แค่ 401 ไม่พัง แต่บันทึกจะไม่ถูกลบ
+ดูว่ารันหรือเปล่าที่ Vercel → Settings → Cron Jobs
+
 ### Schema ของฐานข้อมูล
 
 ถ้า PR แตะ `SCHEMAS` ใน `src/lib/db/schema.ts` ต้องรัน migration ด้วยมือ —
-**ไม่มีอะไรรันให้อัตโนมัติตอน deploy**
+**ไม่มีอะไรรันให้อัตโนมัติตอน deploy** (ยกเว้นแท็บ `app_log` ซึ่งตัวบันทึก
+สร้างเองถ้ายังไม่มี แต่ยังควรรัน migration เพื่อเลื่อน `schema_version`)
 
 ```bash
 npm run db:migrate-schema -- --dry-run    # ดูแผนก่อน

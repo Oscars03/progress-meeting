@@ -2,6 +2,7 @@ import { isBrowser, loadWidgetSummary } from '@/lib/widget-request';
 import { buildTiles } from '@/lib/widget-tiles';
 import { readWidgetSize, renderWidgetSvg, widgetBackground, type WidgetSize, type WidgetTheme } from '@/lib/widget-svg';
 import { svgToPng } from '@/lib/widget-png';
+import { logError } from '@/lib/app-log';
 
 /**
  * The dashboard picture as a web page, for AnyWidget on Android.
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
     // A link as well, for a tap that opens inside a WebView after all.
     return page(`<a href="/dashboard"><img alt="" src="${src}"></a>`, background);
   } catch (error) {
-    console.error('widget page failed', error);
+    logError('widget', error, { message: 'widget page failed', path: '/api/widget/page' });
     return page('<p>ยังวาดวิดเจ็ตไม่ได้ — ลองกดรีเฟรชอีกครั้ง</p>', background, 503);
   }
 }

@@ -2,6 +2,7 @@ import { loadWidgetSummary } from '@/lib/widget-request';
 import { buildTiles } from '@/lib/widget-tiles';
 import { readWidgetSize, renderWidgetSvg, type WidgetSize, type WidgetTheme } from '@/lib/widget-svg';
 import { svgToPng } from '@/lib/widget-png';
+import { logError } from '@/lib/app-log';
 
 /**
  * The dashboard as a PNG, for Android: KWGT shows it with a single Image item
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
       headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
     });
   } catch (error) {
-    console.error('widget image failed', error);
+    logError('widget', error, { message: 'widget image failed', path: '/api/widget/image' });
     return Response.json({ error: 'unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
 }

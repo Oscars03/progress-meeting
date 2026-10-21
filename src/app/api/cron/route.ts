@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { FeedbackRecord, UserRecord } from '@/lib/db/schema';
+import { trimAppLog } from '@/lib/app-log-retention';
 
 /** Constant-time compare that does not leak length through early return. */
 function secretMatches(provided: string | null, expected: string | undefined): boolean {
@@ -111,6 +112,12 @@ export async function GET(request: Request) {
     return NextResponse.json(await openFeedback());
   }
 
+  // Daily, from the schedule in vercel.json: Vercel sends CRON_SECRET as the
+  // bearer token itself. A write, so the read-only key never reaches it.
+  if (action === 'trim_logs') {
+    return NextResponse.json(await trimAppLog());
+  }
+
   if (action && PLANNED.includes(action)) {
     return NextResponse.json(
       {
@@ -123,7 +130,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(
-    { error: 'Invalid action', valid: ['open_feedback', ...PLANNED] },
+    { error: 'Invalid action', valid: ['open_feedback', 'trim_logs', ...PLANNED] },
     { status: 400 }
   );
 }

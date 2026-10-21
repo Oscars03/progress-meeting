@@ -13,6 +13,7 @@ import type {
 import { widgetKeyFrom, widgetKeyMatches } from './widget-key';
 import { buildWidgetSummary, type WidgetSummary } from './widget-summary';
 import { labDay } from './lab-time';
+import { logError } from './app-log';
 
 /**
  * Everything /api/widget and /api/widget/image share: find whose key this is,
@@ -81,7 +82,7 @@ export async function loadWidgetSummary(
 
     return { summary };
   } catch (error) {
-    console.error('widget summary failed', error);
+    logError('widget', error, { message: 'widget summary failed', path: '/api/widget' });
     return {
       response: NextResponse.json({ error: 'unavailable' }, { status: 503, headers: NO_STORE }),
     };
