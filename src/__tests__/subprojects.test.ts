@@ -60,6 +60,15 @@ function rowsFor(who: SessionUser) {
 }
 
 describe('sub-projects on the board', () => {
+  it('does not call work quiet that was only made today, but does once eight days pass unheard', () => {
+    const fresh = task({ id: 'new', title: 'New', created_at: `${TODAY}T03:00:00.000Z`, start_date: '', due_date: '' });
+    const old = task({ id: 'old', title: 'Old', created_at: '2026-10-01T03:00:00.000Z', start_date: '', due_date: '' });
+    const rows = toRows({ actor: actor('prof', 'professor'), tasks: [fresh, old], rounds: [], updates: [], leads: [], thisWeek: '2026-W43', today: TODAY });
+    expect(rows.find((r) => r.id === 'new')?.health).toBe('ok');
+    expect(rows.find((r) => r.id === 'new')?.lastUpdate).toBeNull();
+    expect(rows.find((r) => r.id === 'old')?.health).toBe('stale');
+  });
+
   it('hangs a sub-project under its project, and stands a stray one on its own', () => {
     const byId = new Map(rowsFor(actor('prof', 'professor')).map((r) => [r.id, r]));
     expect(byId.get('ch2')?.parentId).toBe('thesis');

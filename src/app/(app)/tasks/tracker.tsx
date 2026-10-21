@@ -114,10 +114,12 @@ export default function Tracker({
   for (const r of rows) counts[r.health]++;
   const nextRound = rounds.find((r) => r.due && r.due >= today);
   const onIt = new Set(rows.flatMap((r) => r.assigneeIds)).size;
-  // Every count on the page counts the same thing -- each piece of work, a
-  // sub-project as one like any other -- so the summary, the tiles and the
-  // rounds always add up to each other.
-  const projectCount = rows.length;
+  // The tiles and the rounds count every piece of work, a subtask as one like
+  // any other. The summary names the two kinds apart -- "6 projects" read as
+  // six projects when three were subtasks -- and the two still add up to
+  // what the tiles count.
+  const projectCount = rows.filter((r) => !r.parentId).length;
+  const subtaskTotal = rows.length - projectCount;
 
   // The window the timeline covers, and how wide one month is drawn.
   const win = timelineWindow(today, [...rows.map((r) => r.due), ...rounds.map((r) => r.due)]);
@@ -537,7 +539,11 @@ export default function Tracker({
                   <span aria-hidden="true">·</span>
                 </>
               )}
-              <span>{t('tracker.summary', { projects: projectCount, people: onIt })}</span>
+              <span>
+                {subtaskTotal > 0
+                  ? t('tracker.summarySubs', { projects: projectCount, subs: subtaskTotal, people: onIt })
+                  : t('tracker.summary', { projects: projectCount, people: onIt })}
+              </span>
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">

@@ -74,6 +74,12 @@ describe('projectHealth', () => {
   it('cannot call work without a due date behind', () => {
     expect(projectHealth({ ...base, due: '', progress: 0 }, TODAY)).toBe('ok');
   });
+
+  it('calls undelivered work past its due date behind, however close the figure', () => {
+    expect(projectHealth({ ...base, start: '2026-09-01', due: '2026-09-20', progress: 90 }, TODAY)).toBe('bad');
+    expect(projectHealth({ ...base, start: '2026-09-01', due: '2026-09-23', progress: 90 }, TODAY)).not.toBe('bad');
+    expect(projectHealth({ ...base, due: '2026-09-20', status: 'done' }, TODAY)).toBe('done');
+  });
 });
 
 describe('timeline', () => {

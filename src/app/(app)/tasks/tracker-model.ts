@@ -162,7 +162,12 @@ export function toRows(input: {
       progress,
       status,
       lastUpdate,
-      health: projectHealth({ status, start, due, progress, lastUpdate }, today),
+      // Never updated is measured from the day it was made: a subtask added
+      // this morning has not gone quiet, it has only just begun.
+      health: projectHealth(
+        { status, start, due, progress, lastUpdate: lastUpdate ?? dayOf(task.created_at) },
+        today
+      ),
       log: reports.slice(0, 3).map((u) => ({
         week: u.week_key,
         pct: Math.round(Number(u.progress_pct) || 0),
