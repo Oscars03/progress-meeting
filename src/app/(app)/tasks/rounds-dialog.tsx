@@ -103,7 +103,7 @@ export default function RoundsDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="trk-rounds-title"
-        className="motion-dialog bg-white rounded-2xl shadow-xl w-full max-w-xl p-5 sm:p-6 overflow-y-auto max-h-[92dvh]"
+        className="motion-dialog bg-white rounded-2xl shadow-xl w-full max-w-3xl p-5 sm:p-7 overflow-y-auto max-h-[92dvh]"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
