@@ -116,7 +116,10 @@ export default function Tracker({
   for (const r of rows) counts[r.health]++;
   const nextRound = rounds.find((r) => r.due && r.due >= today);
   const onIt = new Set(rows.flatMap((r) => r.assigneeIds)).size;
-  const projectCount = rows.filter((r) => !r.parentId).length;
+  // Every count on the page counts the same thing -- each piece of work, a
+  // sub-project as one like any other -- so the summary, the tiles and the
+  // rounds always add up to each other.
+  const projectCount = rows.length;
 
   // The window the timeline covers, and how wide one month is drawn.
   const win = timelineWindow(today, [...rows.map((r) => r.due), ...rounds.map((r) => r.due)]);
@@ -310,7 +313,9 @@ export default function Tracker({
                               : t('tracker.unsortedNote')}
                         </span>
                         {round.id && round.id === nextRound?.id && <span className="trk-next">{t('tracker.nextRound')}</span>}
-                        <span>· {t('tracker.count', { n: items.length })}</span>
+                        <span>
+                          · {t('tracker.count', { n: items.reduce((n, r) => n + 1 + shownSubs(r).length, 0) })}
+                        </span>
                       </span>
                     </td>
                     <td className="trk-tlc">
