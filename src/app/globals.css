@@ -1177,6 +1177,9 @@ body {
 .trk-dltag { position: absolute; top: 50%; transform: translate(-100%, -50%); margin-left: -4px; font-size: 11px; font-weight: 500; color: var(--trk-deadline); white-space: nowrap; }
 .trk-now { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--trk-today); }
 .trk-bar { position: absolute; top: 50%; height: 22px; transform: translateY(-50%); border-radius: 6px; border: 1.5px solid var(--x); overflow: hidden; background: var(--trk-surface); }
+/* A dated checklist line: a thin bar under its project's bar, a few at most. */
+.trk-subbar { position: absolute; height: 3px; border-radius: 2px; background: var(--x); opacity: 0.55; }
+.trk-subbar[data-done] { background: var(--trk-ink-3); opacity: 0.45; }
 .trk-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--x-bg); }
 .trk-bar span { position: relative; display: block; padding: 0 7px; font-size: 11.5px; line-height: 19px; font-weight: 500; color: var(--x); white-space: nowrap; }
 .trk-bar[data-clip] { border-left-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
@@ -1198,10 +1201,13 @@ body {
    every other dialog: the sidebar sits above 40, and the project form opened
    from here comes later in the page, so it still lands on top. */
 .trk-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(17, 24, 39, 0.45); animation: motion-fade var(--motion-base) var(--motion-ease-out) both; }
-.trk-dialog { position: fixed; inset: 0; margin: auto; z-index: 60; width: min(960px, calc(100% - 32px)); height: fit-content; max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; background: var(--trk-surface); border: 1px solid var(--trk-border); border-radius: 16px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25); padding: 22px 26px 26px; color: var(--trk-ink); }
+.trk-dialog { position: fixed; inset: 0; margin: auto; z-index: 60; width: calc(100% - 48px); height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; background: var(--trk-surface); border: 1px solid var(--trk-border); border-radius: 16px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25); padding: 22px 26px 26px; color: var(--trk-ink); }
 .trk-dialog-cols { display: grid; column-gap: 32px; }
-@media (min-width: 860px) { .trk-dialog-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
-@media (max-width: 640px) { .trk-dialog { width: 100%; max-height: 100dvh; border-radius: 0; padding: 18px 18px calc(28px + env(safe-area-inset-bottom, 0px)); } }
+@media (min-width: 860px) { .trk-dialog-cols { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } }
+/* Inside the panel the status switch is a control pressed often, so it is a
+   size a thumb finds; the same switch on the page stays compact. */
+.trk-dialog .trk-seg button { padding: 9px 20px; font-size: 14px; }
+@media (max-width: 640px) { .trk-dialog { width: 100%; height: 100dvh; border-radius: 0; padding: 18px 18px calc(28px + env(safe-area-inset-bottom, 0px)); } }
 .trk-sec { border-top: 1px solid var(--trk-line); padding-top: 14px; margin-top: 14px; }
 .trk-sec-title { font-size: 12.5px; font-weight: 600; color: var(--trk-ink-2); margin-bottom: 8px; }
 .trk-chip-health { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 1px 9px; border-radius: 6px; background: var(--x-bg); color: var(--x); }

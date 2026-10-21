@@ -16,8 +16,12 @@ export function isTaskTag(value: string): value is TaskTag {
   return (TASK_TAGS as readonly string[]).includes(value);
 }
 
-/** One line of a project's checklist. */
-export type Subtask = { id: string; title: string; done: boolean };
+/**
+ * One line of a project's checklist. `start` and `due` are lab days, each ''
+ * when not set; with both, the line is drawn under its project on the
+ * timeline.
+ */
+export type Subtask = { id: string; title: string; done: boolean; start: string; due: string };
 
 export const MAX_SUBTASKS = 50;
 export const MAX_SUBTASK_TITLE = 200;
@@ -56,12 +60,14 @@ export function readSubtasks(stored: unknown): Subtask[] {
   const out: Subtask[] = [];
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
-    const { id, title, done } = item as Record<string, unknown>;
+    const { id, title, done, start, due } = item as Record<string, unknown>;
     if (typeof title !== 'string' || !title.trim()) continue;
     out.push({
       id: typeof id === 'string' && id ? id : `s${out.length + 1}`,
       title: title.trim().slice(0, MAX_SUBTASK_TITLE),
       done: done === true,
+      start: isDay(start) ? start : '',
+      due: isDay(due) ? due : '',
     });
   }
   return out.slice(0, MAX_SUBTASKS);

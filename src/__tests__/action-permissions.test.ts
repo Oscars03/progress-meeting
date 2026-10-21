@@ -1011,9 +1011,27 @@ describe('progress and checklist on the tracker', () => {
     expect(result.ok).toBe(true);
     const fields = update.mock.calls[0][2] as { subtasks: { id: string; title: string; done: boolean }[] };
     expect(fields.subtasks).toHaveLength(2);
-    expect(fields.subtasks[0]).toEqual({ id: 'a', title: 'Collect data', done: true });
+    expect(fields.subtasks[0]).toEqual({ id: 'a', title: 'Collect data', done: true, start: '', due: '' });
     expect(fields.subtasks[1]).toMatchObject({ title: 'Write it up', done: false });
     expect(fields.subtasks[1].id).toBeTruthy();
+  });
+
+  it('stores a line’s start and end, and refuses an end before its start', async () => {
+    signedInAs('student1');
+    const ok = await saveSubtasks('t1', [{ id: 'a', title: 'Collect data', start: '2026-10-01', due: '2026-10-15' }], 2);
+    expect(ok.ok).toBe(true);
+    expect((update.mock.calls[0][2] as { subtasks: unknown[] }).subtasks[0]).toEqual({
+      id: 'a',
+      title: 'Collect data',
+      done: false,
+      start: '2026-10-01',
+      due: '2026-10-15',
+    });
+
+    update.mockClear();
+    const backwards = await saveSubtasks('t1', [{ id: 'a', title: 'Collect data', start: '2026-10-15', due: '2026-10-01' }], 2);
+    expect(backwards).toMatchObject({ ok: false, error: 'tasks.dueBeforeStart' });
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('refuses a checklist change from a student who is not on the work', async () => {
