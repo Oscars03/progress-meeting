@@ -5,6 +5,7 @@ import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession, AuthorizationError } from '@/lib/auth-guard';
 import {
   canAddOwnWork,
+  canAddSubproject,
   canAssignWork,
   canEditDetails,
   canEditWork,
@@ -125,10 +126,22 @@ export async function createTask(data: {
   assigner_id?: string;
   /** Checklist lines, one per entry. */
   subtasks?: string[];
+  /** The project this is a sub-project of; absent for a project of its own. */
+  parent_id?: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireSession();
     if (!canAddOwnWork(actor)) throw new AuthorizationError();
+
+    // A sub-project hangs under its parent on the board, not in a round of its
+    // own, and carries no tag: both are the parent's.
+    const parentId = data.parent_id?.trim() ?? '';
+    if (parentId) {
+      const parent = await SheetRepo.findOne<TaskRecord>('tasks', parentId);
+      if (!parent) throw new UserError('tasks.parentMissing');
+      if (parent.parent_id) throw new UserError('tasks.noNestedSubprojects');
+      if (!canAddSubproject(actor, parent)) throw new AuthorizationError();
+    }
 
     const title = data.title?.trim();
     if (!title) throw new UserError('tasks.titleRequired');
@@ -148,7 +161,10 @@ export async function createTask(data: {
     const due = readDay(data.due_date);
     assertDateOrder(start, due);
 
-    const [round, assigner] = await Promise.all([readRound(data.round_id), readAssigner(data.assigner_id)]);
+    const [round, assigner] = await Promise.all([
+      parentId ? '' : readRound(data.round_id),
+      readAssigner(data.assigner_id),
+    ]);
 
     await SheetRepo.insert(
       'tasks',
@@ -165,12 +181,13 @@ export async function createTask(data: {
         progress_pct: 0,
         status,
         overdue_flag: false,
-        category: readTag(data.category),
+        category: parentId ? '' : readTag(data.category),
         project: '',
         meeting_id: '',
         links: [],
         subtasks: cleanSubtasks((data.subtasks ?? []).map((line) => ({ title: line }))),
         progress_at: '',
+        parent_id: parentId,
       },
       actor.id
     );
@@ -209,14 +226,17 @@ export async function updateTaskDetails(
     }
     if (data.details !== undefined) updates.details = data.details.trim();
     if (data.priority !== undefined) updates.priority = data.priority;
-    if (data.category !== undefined) updates.category = readTag(data.category);
+    // A sub-project's round and tag are its parent's; the form does not offer
+    // them, and one sent anyway is not stored.
+    const sub = Boolean(task.parent_id);
+    if (data.category !== undefined && !sub) updates.category = readTag(data.category);
     if (data.due_date !== undefined) updates.due_date = readDay(data.due_date);
     if (data.start_date !== undefined) updates.start_date = readDay(data.start_date);
     assertDateOrder(
       updates.start_date ?? task.start_date ?? '',
       updates.due_date ?? task.due_date ?? ''
     );
-    if (data.round_id !== undefined) updates.round_id = await readRound(data.round_id);
+    if (data.round_id !== undefined && !sub) updates.round_id = await readRound(data.round_id);
 
     // Who the work is for is the advisors' to change. The owner of their own
     // work may edit everything else about it, but not hand it to somebody.
@@ -321,6 +341,13 @@ export async function deleteTask(taskId: string, rowVersion: number): Promise<Ac
 
     const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
     if (!canRemoveWork(actor, task, weekKey(), leads)) throw new AuthorizationError();
+
+    // Refused rather than taken along: each sub-project has people, reports
+    // and a remover of its own, and one press should not quietly take work
+    // that the person pressing could not have deleted one by one.
+    const tasks = await SheetRepo.find<TaskRecord>('tasks', { fresh: true });
+    const subs = tasks.filter((t) => t.parent_id === taskId).length;
+    if (subs > 0) throw new UserError('tasks.hasSubprojects', { n: subs });
 
     const updates = await SheetRepo.find<TaskUpdateRecord>('task_updates');
     for (const row of updates.filter((u) => u.task_id === taskId)) {

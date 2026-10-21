@@ -1070,6 +1070,15 @@ body {
 .trk-row:hover td, .trk-row:focus-visible td { background: var(--trk-hover); }
 .trk-row:focus-visible { outline: none; }
 .trk-row .trk-proj { box-shadow: inset 3px 0 0 var(--x); }
+/* A sub-project: under its project, indented, on a faintly different ground
+   so a run of them reads as one family. The sticky first cell needs the same
+   ground, or it would show the plain surface over it. */
+.trk-row[data-sub] td { background: color-mix(in srgb, var(--trk-surface) 95%, var(--trk-ink)); }
+.trk-row[data-sub]:hover td, .trk-row[data-sub]:focus-visible td { background: var(--trk-hover); }
+.trk-row[data-sub] .trk-proj { padding-left: 34px; }
+.trk-sub-mark { color: var(--trk-ink-3); margin: 0 6px 0 -18px; }
+.trk-subs-toggle { display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; padding: 1px 8px 1px 6px; border-radius: 6px; font-size: 12px; font-weight: 500; background: var(--trk-accent-soft); color: var(--trk-accent-ink); }
+.trk-subs-toggle:hover, .trk-subs-toggle:focus-visible { text-decoration: underline; }
 .trk-table .trk-group td { background: var(--trk-sunken); font-size: 12.5px; color: var(--trk-ink-2); padding: 7px 12px; border-bottom: 1px solid var(--trk-border); }
 .trk-table .trk-group td.trk-tlc { padding: 0; }
 .trk-group-label { position: sticky; left: 12px; display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }

@@ -789,6 +789,92 @@ describe('task permissions', () => {
     );
   });
 
+  describe('sub-projects', () => {
+    beforeEach(() => {
+      tables['task_rounds'] = [{ id: 'r1', name: 'Round 1', due_date: '2026-10-31', row_version: 1 }];
+    });
+
+    it('lets a professor break any project up, for several people, outside any round', async () => {
+      signedInAs('prof', 'professor');
+      const result = await createTask({
+        title: 'Chapter 2',
+        parent_id: 't1',
+        assignee_ids: ['student1', 'student2'],
+        round_id: 'r1',
+        category: 'Thesis',
+      });
+
+      expect(result.ok).toBe(true);
+      expect(insert).toHaveBeenCalledWith(
+        'tasks',
+        expect.objectContaining({
+          parent_id: 't1',
+          assignee_ids: ['student1', 'student2'],
+          // The round and the label are the parent's; sent anyway, they are not stored.
+          round_id: '',
+          category: '',
+        }),
+        'prof'
+      );
+    });
+
+    it('lets a student break up a project they are on, for themselves only', async () => {
+      signedInAs('student1');
+      const result = await createTask({ title: 'Chapter 2', parent_id: 't1', assignee_ids: ['student2'] });
+
+      expect(result.ok).toBe(true);
+      expect(insert).toHaveBeenCalledWith(
+        'tasks',
+        expect.objectContaining({ parent_id: 't1', assignee_ids: ['student1'] }),
+        'student1'
+      );
+    });
+
+    it('refuses a student breaking up somebody else’s project', async () => {
+      signedInAs('student2');
+      const result = await createTask({ title: 'Chapter 2', parent_id: 't1' });
+
+      expect(result.ok).toBe(false);
+      expect(insert).not.toHaveBeenCalled();
+    });
+
+    it('refuses a sub-project of a sub-project, and of a project that is gone', async () => {
+      tables['tasks'].push({ id: 't2', title: 'Chapter 2', assignee_ids: ['student1'], parent_id: 't1', row_version: 1 });
+      signedInAs('prof', 'professor');
+
+      expect(await createTask({ title: 'Section 1', parent_id: 't2', assignee_ids: ['student1'] })).toMatchObject({
+        ok: false,
+        error: 'tasks.noNestedSubprojects',
+      });
+      expect(await createTask({ title: 'Section 1', parent_id: 'gone', assignee_ids: ['student1'] })).toMatchObject({
+        ok: false,
+        error: 'tasks.parentMissing',
+      });
+      expect(insert).not.toHaveBeenCalled();
+    });
+
+    it('will not delete a project that still has sub-projects', async () => {
+      tables['tasks'].push({ id: 't2', title: 'Chapter 2', assignee_ids: ['student1'], parent_id: 't1', row_version: 1 });
+      signedInAs('boss', 'admin');
+
+      expect(await deleteTask('t1', 1)).toMatchObject({ ok: false, error: 'tasks.hasSubprojects', vars: { n: 1 } });
+      expect(remove).not.toHaveBeenCalled();
+
+      // The sub-project itself goes as any project would, and then the parent can.
+      expect((await deleteTask('t2', 1)).ok).toBe(true);
+      expect(remove).toHaveBeenCalledWith('tasks', 't2', 1, 'boss');
+    });
+
+    it('keeps a sub-project out of rounds when it is edited', async () => {
+      tables['tasks'].push({ id: 't2', title: 'Chapter 2', assignee_ids: ['student1'], parent_id: 't1', row_version: 1 });
+      signedInAs('prof', 'professor');
+
+      const result = await updateTaskDetails('t2', { title: 'Chapter two', round_id: 'r1', category: 'Thesis' }, 1);
+      expect(result.ok).toBe(true);
+      expect(update).toHaveBeenCalledWith('tasks', 't2', { title: 'Chapter two' }, 1, 'prof');
+    });
+  });
+
   describe('naming who asked for it', () => {
     beforeEach(() => {
       tables['users'] = [

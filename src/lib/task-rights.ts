@@ -45,6 +45,23 @@ export function canEditDetails(actor: SessionUser, task: Pick<TaskRecord, 'owner
 }
 
 /**
+ * Breaking a project into sub-projects. An advisor may break up any project;
+ * anybody else only one they are working on, and then -- as with their own
+ * work -- only for themselves (createTask decides who it is for).
+ *
+ * One level deep: a sub-project is never broken up further, so the table
+ * stays a project and the parts of it, not a tree to dig through.
+ */
+export function canAddSubproject(
+  actor: SessionUser,
+  parent: Pick<TaskRecord, 'assignee_ids' | 'parent_id'>
+): boolean {
+  if (parent.parent_id) return false;
+  if (!canAddOwnWork(actor)) return false;
+  return canAssignWork(actor) || canEditWork(actor, parent);
+}
+
+/**
  * Submission rounds belong to whoever hands out work: a round is a deadline
  * the advisors set, not one a student declares for themselves.
  */

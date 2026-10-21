@@ -3,6 +3,7 @@ import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from './presenta
 import { openPolls } from './poll-tally';
 import { memberIds } from './members';
 import { formatLabClock, formatLabTime, labDay } from './lab-time';
+import { taskTitles } from './task-title';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -145,9 +146,10 @@ export function buildWidgetSummary(
   }));
   const mine = presentations.find((row) => row.isMe);
 
+  const taskTitle = taskTitles(tasks);
   const allMyTasks = tasks
     .filter((task) => task.status !== 'done' && assigneesOf(task).includes(userId))
-    .map((task) => ({ title: task.title, dueDate: task.due_date ?? '', due: dueState(task.due_date ?? '', today) }))
+    .map((task) => ({ title: taskTitle(task), dueDate: task.due_date ?? '', due: dueState(task.due_date ?? '', today) }))
     // Dated first, soonest first; undated last, as on the dashboard.
     .sort((a, b) => {
       const aDated = a.due !== 'none';
