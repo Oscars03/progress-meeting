@@ -19,7 +19,9 @@ import {
   type Interval,
   type PersonAvailability,
 } from '@/lib/availability-grid';
-import { labInstant } from '@/lib/lab-time';
+import { labInstant, labWallClock } from '@/lib/lab-time';
+import { toneOf } from '@/lib/person-tone';
+import { usualMeetingTime, type UsualTime } from '@/lib/availability-runs';
 import { actsAsWeekLead, leadForWeek } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import { UserError } from '@/lib/user-error';
@@ -75,6 +77,13 @@ export type WeekAvailability = {
    * not say who is arranging it.
    */
   leadName: string;
+  /**
+   * When the lab's recent meetings have usually been, for the slot offered
+   * first when a lead opens a free block. null with no history yet.
+   */
+  usual: UsualTime | null;
+  /** Each member's avatar colour, by name -- the names are what the runs carry. */
+  tones: Record<string, number>;
 };
 
 /**
@@ -208,6 +217,8 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     connectedCount: active.filter((u) => connected.has(u.id)).length,
     readCount,
     leadName,
+    usual: usualMeetingTime(meetings, (at) => labWallClock(at).toISOString().slice(11, 16)),
+    tones: Object.fromEntries(active.map((u) => [u.name, toneOf(u)])),
   };
 }
 

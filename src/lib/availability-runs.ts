@@ -104,6 +104,91 @@ export function slotOptions(
   return out;
 }
 
+/** When the lab usually meets: a wall-clock start and a length. */
+export type UsualTime = { start: string; minutes: number };
+
+/** Lengths a usual time may have: what the length buttons offer. */
+const USUAL_LENGTHS = [30, 60, 90, 120];
+
+/**
+ * The start and length the lab's recent meetings have most often had.
+ *
+ * Read from the last `limit` meetings that were not cancelled, as the lab's
+ * wall clock (`wallClock` turns an instant into `HH:MM`). A tie goes to the
+ * time used most recently, so a lab that has just moved its slot is offered
+ * the new one. null with no history to go on.
+ */
+export function usualMeetingTime(
+  meetings: { start_at: string; end_at: string; status?: string }[],
+  wallClock: (instant: Date) => string,
+  limit = 10
+): UsualTime | null {
+  const recent = meetings
+    .filter((m) => m.status !== 'cancelled')
+    .map((m) => ({ start: Date.parse(m.start_at), end: Date.parse(m.end_at) }))
+    .filter((m) => !Number.isNaN(m.start) && !Number.isNaN(m.end) && m.end > m.start)
+    .sort((a, b) => b.start - a.start)
+    .slice(0, limit);
+
+  const counts = new Map<string, { usual: UsualTime; n: number }>();
+  for (const m of recent) {
+    const minutes = Math.round((m.end - m.start) / 60_000);
+    if (!USUAL_LENGTHS.includes(minutes)) continue;
+    const usual = { start: wallClock(new Date(m.start)), minutes };
+    const key = `${usual.start}|${minutes}`;
+    const seen = counts.get(key);
+    if (seen) seen.n += 1;
+    else counts.set(key, { usual, n: 1 });
+  }
+
+  // Map keeps insertion order, newest first, so the first of the most-used wins.
+  let best: { usual: UsualTime; n: number } | null = null;
+  for (const entry of counts.values()) if (!best || entry.n > best.n) best = entry;
+  return best?.usual ?? null;
+}
+
+export type SlotSuggestion = {
+  start: string;
+  end: string;
+  minutes: number;
+  /** Why it is offered: the lab's usual time, the nearest to it, or the first that fits. */
+  kind: 'usual' | 'nearUsual' | 'earliest';
+};
+
+/**
+ * One or two slots inside a run worth pressing straight away.
+ *
+ * The run's list of every half-hour start was too long to choose from --
+ * twenty-seven buttons for a free day -- when most weeks the answer is "when
+ * we always meet". So that comes first: the usual time if it fits in the
+ * block, or else the slot nearest to it; then the earliest slot, if it is a
+ * different one. Without a usual time, an hour from the start of the block.
+ */
+export function suggestSlots(
+  run: Pick<AvailabilityRun, 'start' | 'end'>,
+  usual: UsualTime | null
+): SlotSuggestion[] {
+  const minutes = usual && slotOptions(run, usual.minutes).length > 0 ? usual.minutes : 60;
+  const options = slotOptions(run, minutes);
+  if (options.length === 0) return [];
+
+  const out: SlotSuggestion[] = [];
+  if (usual) {
+    const exact = minutes === usual.minutes ? options.find((o) => o.start === usual.start) : undefined;
+    if (exact) {
+      out.push({ ...exact, minutes, kind: 'usual' });
+    } else {
+      const target = minutesOf(usual.start);
+      const nearest = options.reduce((a, b) =>
+        Math.abs(minutesOf(b.start) - target) < Math.abs(minutesOf(a.start) - target) ? b : a
+      );
+      out.push({ ...nearest, minutes, kind: 'nearUsual' });
+    }
+  }
+  if (!out.some((s) => s.start === options[0].start)) out.push({ ...options[0], minutes, kind: 'earliest' });
+  return out;
+}
+
 /**
  * Split one day's cells into runs.
  *

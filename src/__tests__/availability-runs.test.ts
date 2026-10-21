@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeRuns, runState, slotOptions } from '../lib/availability-runs';
+import { mergeRuns, runState, slotOptions, suggestSlots, usualMeetingTime } from '../lib/availability-runs';
 import type { AvailabilityCell, CellMeeting } from '../lib/availability-grid';
 
 /** A cell at `hour`, with whoever is free and whoever is not. */
@@ -171,5 +171,68 @@ describe('slotOptions', () => {
       { start: '22:30', end: '23:30' },
       { start: '23:00', end: '00:00' },
     ]);
+  });
+});
+
+describe('usualMeetingTime', () => {
+  // Bangkok wall clock of an instant, as the server passes it in.
+  const wall = (at: Date) => new Date(at.getTime() + 7 * 3_600_000).toISOString().slice(11, 16);
+  const meeting = (day: string, from: string, to: string, status = 'scheduled') => ({
+    start_at: `${day}T${from}:00+07:00`,
+    end_at: `${day}T${to}:00+07:00`,
+    status,
+  });
+
+  it('is the start and length the recent meetings have most often had', () => {
+    const usual = usualMeetingTime(
+      [
+        meeting('2026-09-04', '13:00', '15:00'),
+        meeting('2026-09-11', '13:00', '15:00'),
+        meeting('2026-09-18', '10:00', '11:00'),
+        meeting('2026-09-25', '13:00', '15:00', 'cancelled'),
+      ],
+      wall
+    );
+    expect(usual).toEqual({ start: '13:00', minutes: 120 });
+  });
+
+  it('settles a tie on the time used most recently, and has no answer without history', () => {
+    const usual = usualMeetingTime(
+      [meeting('2026-09-04', '13:00', '15:00'), meeting('2026-09-11', '10:00', '11:00')],
+      wall
+    );
+    expect(usual).toEqual({ start: '10:00', minutes: 60 });
+    expect(usualMeetingTime([], wall)).toBeNull();
+  });
+});
+
+describe('suggestSlots', () => {
+  const run = (from: string, to: string) => ({
+    start: `2026-10-23T${from}:00+07:00`,
+    end: `2026-10-23T${to}:00+07:00`,
+  });
+
+  it('offers the usual time first when it fits, then the earliest slot', () => {
+    expect(suggestSlots(run('08:00', '22:00'), { start: '13:00', minutes: 120 })).toEqual([
+      { start: '13:00', end: '15:00', minutes: 120, kind: 'usual' },
+      { start: '08:00', end: '10:00', minutes: 120, kind: 'earliest' },
+    ]);
+  });
+
+  it('offers the slot nearest the usual time when the usual one is outside the block', () => {
+    expect(suggestSlots(run('08:00', '12:00'), { start: '13:00', minutes: 120 })).toEqual([
+      { start: '10:00', end: '12:00', minutes: 120, kind: 'nearUsual' },
+      { start: '08:00', end: '10:00', minutes: 120, kind: 'earliest' },
+    ]);
+  });
+
+  it('falls back to an hour when the block is too short for the usual length, or there is no usual time', () => {
+    expect(suggestSlots(run('09:00', '10:00'), { start: '13:00', minutes: 120 })).toEqual([
+      { start: '09:00', end: '10:00', minutes: 60, kind: 'nearUsual' },
+    ]);
+    expect(suggestSlots(run('09:00', '11:00'), null)).toEqual([
+      { start: '09:00', end: '10:00', minutes: 60, kind: 'earliest' },
+    ]);
+    expect(suggestSlots(run('09:00', '09:30'), null)).toEqual([]);
   });
 });

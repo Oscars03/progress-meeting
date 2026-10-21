@@ -10,9 +10,11 @@ import { addDays, type CellMeeting } from '@/lib/availability-grid';
 import {
   mergeRuns,
   slotOptions,
+  suggestSlots,
   type AvailabilityRun,
   type RunState,
 } from '@/lib/availability-runs';
+import { Avatar } from '@/lib/ui/avatar';
 import { labWallClock } from '@/lib/lab-time';
 import { weekKey } from '@/lib/week';
 import { weekAvailabilityAction, type WeekAvailability } from '../../calendar-actions';
@@ -114,6 +116,8 @@ export default function WeekAvailabilityGrid({
   /** The slot inside it a poll would be opened for, and how long it runs. */
   const [askStart, setAskStart] = useState('');
   const [askLength, setAskLength] = useState(60);
+  /** Choosing a start and length by hand, rather than one of the suggestions. */
+  const [custom, setCustom] = useState(false);
   const [error, setErrorText] = useState('');
   /** The open poll that already asks for the hours just picked, when that is why it was refused. */
   const [existingPollId, setExistingPollId] = useState('');
@@ -246,15 +250,20 @@ export default function WeekAvailabilityGrid({
 
     setSelected(run);
     setSelectedIsPast(isPast);
+    setCustom(false);
 
-    // The block's own beginning, which is the slot people want most often.
-    setAskStart(clock(run.start));
+    // Ready on the first suggestion -- usually when the lab always meets -- so
+    // the common case is one press of the button.
+    const first = suggestSlots(run, data.usual ?? null)[0];
+    setAskLength(first?.minutes ?? 60);
+    setAskStart(first?.start ?? clock(run.start));
   };
 
   // The hours on offer inside the block being read, and whichever of them is
   // chosen. Derived rather than stored: the list changes with the length, and
   // a stored copy would go stale the moment either changed.
   const slots = selected ? slotOptions(selected, askLength) : [];
+  const suggestions = selected ? suggestSlots(selected, data.usual ?? null) : [];
   const chosen = slots.find((slot) => slot.start === askStart) ?? slots[0];
 
   /** The meeting's own span in the lab's zone, e.g. `Mon 14 Sep 13:00–15:00`. */
@@ -619,8 +628,10 @@ export default function WeekAvailabilityGrid({
             )}
 
             {/* Two lists, not three. An empty calendar is a free hour now, so
-                there is nobody left to file under "we do not know". */}
-            <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                there is nobody left to file under "we do not know". Each name
+                is a chip with its avatar, as on Tasks: a comma-separated line
+                of eight names was hard to scan for the one that mattered. */}
+            <dl className="grid gap-3 text-sm">
               {(
                 [
                   ['avail.free', selected.free, 'text-green-700'],
@@ -631,7 +642,23 @@ export default function WeekAvailabilityGrid({
                   <dt className={`font-medium ${tone}`}>
                     {t(key)} <span className="tabular-nums">({names.length})</span>
                   </dt>
-                  <dd className="text-gray-700">{names.length > 0 ? names.join(', ') : t('avail.nobody')}</dd>
+                  <dd className="mt-1.5 flex flex-wrap gap-1.5">
+                    {names.length > 0 ? (
+                      names.map((name) => (
+                        <span
+                          key={name}
+                          className="trk-pick"
+                          data-locked=""
+                          data-busy={key === 'avail.busy' ? '' : undefined}
+                        >
+                          <Avatar person={{ name, tone: data.tones?.[name] ?? 5 }} />
+                          {name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-500">{t('avail.nobody')}</span>
+                    )}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -642,58 +669,95 @@ export default function WeekAvailabilityGrid({
               <p className="text-xs text-gray-500">{t('avail.past')}</p>
             ) : canAsk(selected) ? (
               <div className="space-y-3">
-                {/* The hours inside the block, ready to press.
+                {/* Suggested first, chosen by hand second.
 
-                    Choosing when to meet used to be two dropdowns of 48 times
-                    each, which asked the reader to work out for themselves which
-                    of those 48 were inside the block they had just pressed. The
-                    block already knows. */}
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{t('avail.askRange')}</p>
-                  <p className="text-xs text-gray-500">{t('avail.askRangeHint')}</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-gray-500">{t('avail.askLength')}</span>
-                  {LENGTHS.map(({ minutes, key }) => (
-                    <button
-                      key={minutes}
-                      type="button"
-                      onClick={() => setAskLength(minutes)}
-                      aria-pressed={askLength === minutes}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                        askLength === minutes
-                          ? 'border-blue-600 bg-blue-600 text-white'
-                          : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {t(key)}
-                    </button>
-                  ))}
-                </div>
-
-                {slots.length === 0 ? (
+                    Every half-hour start in the block used to be a button --
+                    twenty-seven for a free day -- and finding the one wanted
+                    among them was the hard part. Most weeks the answer is the
+                    time the lab always meets, so that is offered as one press;
+                    anything else is a start and a length. */}
+                <p className="text-sm font-medium text-gray-900">{t('avail.suggested')}</p>
+                {suggestions.length === 0 ? (
                   <p className="text-xs text-gray-500">{t('avail.askNoRoom')}</p>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {slots.map((slot) => {
-                      const isChosen = slot.start === askStart;
+                  <div className="grid gap-2">
+                    {suggestions.map((s) => {
+                      const isChosen = !custom && askLength === s.minutes && chosen?.start === s.start;
                       return (
                         <button
-                          key={slot.start}
+                          key={`${s.kind}-${s.start}`}
                           type="button"
-                          onClick={() => setAskStart(slot.start)}
+                          onClick={() => {
+                            setCustom(false);
+                            setAskLength(s.minutes);
+                            setAskStart(s.start);
+                          }}
                           aria-pressed={isChosen}
-                          className={`rounded-lg border px-3 py-1.5 text-sm tabular-nums transition ${
-                            isChosen
-                              ? 'border-blue-600 bg-blue-50 font-semibold text-blue-700'
-                              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                          className={`flex flex-wrap items-baseline justify-between gap-x-3 rounded-xl border px-4 py-3 text-left transition ${
+                            isChosen ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'
                           }`}
                         >
-                          {slot.start}–{slot.end}
+                          <span
+                            className={`text-base font-semibold tabular-nums ${isChosen ? 'text-blue-700' : 'text-gray-900'}`}
+                          >
+                            {s.start}–{s.end}
+                          </span>
+                          <span className="text-xs text-gray-500">{t(`avail.suggest.${s.kind}`)}</span>
                         </button>
                       );
                     })}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  aria-expanded={custom}
+                  onClick={() => setCustom((c) => !c)}
+                  className="block text-sm font-medium text-blue-600 hover:underline"
+                >
+                  {t('avail.otherTime')} <span aria-hidden="true">{custom ? '▴' : '▾'}</span>
+                </button>
+
+                {custom && (
+                  <div className="space-y-2.5 rounded-xl border border-gray-200 p-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="w-12 text-xs text-gray-500">{t('avail.askLength')}</span>
+                      {LENGTHS.map(({ minutes, key }) => (
+                        <button
+                          key={minutes}
+                          type="button"
+                          onClick={() => setAskLength(minutes)}
+                          aria-pressed={askLength === minutes}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                            askLength === minutes
+                              ? 'border-blue-600 bg-blue-600 text-white'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {t(key)}
+                        </button>
+                      ))}
+                    </div>
+                    {slots.length === 0 ? (
+                      <p className="text-xs text-gray-500">{t('avail.askNoRoom')}</p>
+                    ) : (
+                      // One list, in the block's own hours, each option already
+                      // the whole span -- the end is never left to work out.
+                      <label className="flex items-center gap-1.5">
+                        <span className="w-12 text-xs text-gray-500">{t('avail.askStart')}</span>
+                        <select
+                          value={chosen?.start ?? ''}
+                          onChange={(e) => setAskStart(e.target.value)}
+                          className="min-w-0 px-2 py-1.5 text-base border border-gray-300 rounded-md bg-white text-gray-900 tabular-nums"
+                        >
+                          {slots.map((slot) => (
+                            <option key={slot.start} value={slot.start}>
+                              {slot.start}–{slot.end}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                   </div>
                 )}
 
@@ -708,7 +772,7 @@ export default function WeekAvailabilityGrid({
                     disabled={isPending}
                     className="w-full sm:w-auto min-h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-base font-semibold shadow-sm transition disabled:opacity-50"
                   >
-                    {asking ? t('avail.asking') : t('avail.ask')}
+                    {asking ? t('avail.asking') : t('avail.askFor', { time: `${chosen.start}–${chosen.end}` })}
                   </button>
                 )}
               </div>

@@ -1143,4 +1143,6 @@ body {
 .trk-pick { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--trk-border); border-radius: 999px; padding: 3px 12px 3px 4px; background: var(--trk-surface); cursor: pointer; font-size: 13.5px; color: var(--trk-ink); }
 .trk-pick[aria-pressed='true'] { border-color: var(--trk-accent); background: var(--trk-accent-soft); color: var(--trk-accent-ink); font-weight: 500; }
 .trk-pick[data-locked] { cursor: default; }
+/* Somebody busy, on the meeting planner: present, but not available. */
+.trk-pick[data-busy] { border-style: dashed; color: var(--trk-ink-2); }
 .trk-dialog { animation: motion-rise var(--motion-base) var(--motion-ease-out) both; }
