@@ -16,7 +16,7 @@ import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import type { TaskRecord, TaskUpdateRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { weekKey } from '@/lib/week';
-import { MAX_SUBTASKS, MAX_SUBTASK_TITLE, isDay, isTaskTag, type Subtask } from '@/lib/tracker';
+import { MAX_SUBTASKS, MAX_SUBTASK_TITLE, isDay, isTaskTag } from '@/lib/tracker';
 import { TASK_STATUSES, type TaskStatus } from './statuses';
 
 function assertStatus(value: string): asserts value is TaskStatus {
@@ -69,25 +69,13 @@ async function readAssigner(value: string | undefined): Promise<string> {
 }
 
 /**
- * A checklist as the client sent it, made safe to store: titles trimmed and
- * capped, blanks dropped, ids kept where given so a tick lands on the line it
- * was meant for.
+ * The new-project form's subtask lines, made safe to create: trimmed and
+ * capped, blanks dropped, and no more than a project may start with.
  */
-function cleanSubtasks(
-  items: { id?: string; title: string; done?: boolean; start?: string; due?: string }[]
-): Subtask[] {
-  const out: Subtask[] = [];
-  for (const item of items) {
-    const title = String(item?.title ?? '').trim().slice(0, MAX_SUBTASK_TITLE);
-    if (!title) continue;
-    const id = typeof item.id === 'string' && item.id ? item.id : crypto.randomUUID();
-    // A line's dates are optional, and checked like a project's: real days,
-    // and an end that is not before the start.
-    const start = readDay(item.start);
-    const due = readDay(item.due);
-    assertDateOrder(start, due);
-    out.push({ id, title, done: item.done === true, start, due });
-  }
+function subtaskLines(lines: string[] | undefined): string[] {
+  const out = (lines ?? [])
+    .map((line) => String(line ?? '').trim().slice(0, MAX_SUBTASK_TITLE))
+    .filter(Boolean);
   if (out.length > MAX_SUBTASKS) throw new UserError('tasks.tooManySubtasks', { max: MAX_SUBTASKS });
   return out;
 }
@@ -131,9 +119,12 @@ export async function createTask(data: {
   status?: string;
   assignee_ids?: string[];
   assigner_id?: string;
-  /** Checklist lines, one per entry. */
+  /**
+   * Subtasks to start a new project with, one title per entry. Each becomes a
+   * subtask of its own -- for the same people, with no dates yet.
+   */
   subtasks?: string[];
-  /** The project this is a sub-project of; absent for a project of its own. */
+  /** The project this is a subtask of; absent for a project of its own. */
   parent_id?: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
@@ -172,8 +163,10 @@ export async function createTask(data: {
       parentId ? '' : readRound(data.round_id),
       readAssigner(data.assigner_id),
     ]);
+    // A subtask has no subtasks, so lines sent with one are not taken.
+    const lines = parentId ? [] : subtaskLines(data.subtasks);
 
-    await SheetRepo.insert(
+    const created = await SheetRepo.insert(
       'tasks',
       {
         title,
@@ -192,12 +185,41 @@ export async function createTask(data: {
         project: '',
         meeting_id: '',
         links: [],
-        subtasks: cleanSubtasks((data.subtasks ?? []).map((line) => ({ title: line }))),
+        // The old checklist column. Subtasks are rows of their own now.
+        subtasks: [],
         progress_at: '',
         parent_id: parentId,
       },
       actor.id
     );
+
+    for (const line of lines) {
+      await SheetRepo.insert(
+        'tasks',
+        {
+          title: line,
+          details: '',
+          owner_id: actor.id,
+          assignee_ids: assignees,
+          assigner_id: assigner,
+          due_date: '',
+          start_date: '',
+          round_id: '',
+          priority: 'medium',
+          progress_pct: 0,
+          status: 'not_started',
+          overdue_flag: false,
+          category: '',
+          project: '',
+          meeting_id: '',
+          links: [],
+          subtasks: [],
+          progress_at: '',
+          parent_id: created.id,
+        },
+        actor.id
+      );
+    }
 
     revalidateTasks();
   });
@@ -297,32 +319,6 @@ export async function setTaskProgress(
     else if (progress > 0 && task.status !== 'in_progress') fields.status = 'in_progress';
 
     await SheetRepo.update<TaskRecord>('tasks', taskId, fields, rowVersion, actor.id);
-
-    revalidateTasks();
-  });
-}
-
-/**
- * Replace a project's checklist.
- *
- * The whole list in one write, guarded by the row version like every other
- * write: two people ticking lines on the same project at the same moment get
- * the second one refused, not a list that quietly lost the first one's tick.
- */
-export async function saveSubtasks(
-  taskId: string,
-  items: { id?: string; title: string; done?: boolean; start?: string; due?: string }[],
-  rowVersion: number
-): Promise<ActionResult> {
-  return toResult(async () => {
-    const actor = await requireSession();
-
-    const task = await SheetRepo.findOne<TaskRecord>('tasks', taskId);
-    if (!task) throw new UserError('error.notFound');
-    if (!canEditWork(actor, task)) throw new AuthorizationError();
-
-    const subtasks = cleanSubtasks(Array.isArray(items) ? items : []);
-    await SheetRepo.update<TaskRecord>('tasks', taskId, { subtasks }, rowVersion, actor.id);
 
     revalidateTasks();
   });

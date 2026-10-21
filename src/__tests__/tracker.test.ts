@@ -6,7 +6,6 @@ import {
   isDay,
   monthOffset,
   projectHealth,
-  readSubtasks,
   timelineWindow,
   MAX_MONTHS,
   MIN_MONTHS,
@@ -74,31 +73,6 @@ describe('projectHealth', () => {
 
   it('cannot call work without a due date behind', () => {
     expect(projectHealth({ ...base, due: '', progress: 0 }, TODAY)).toBe('ok');
-  });
-});
-
-describe('readSubtasks', () => {
-  it('reads what the repository decoded, and what a hand-edit left as text', () => {
-    const list = [{ id: 'a', title: 'Collect data', done: true, start: '2026-10-01', due: '2026-10-15' }];
-    expect(readSubtasks(list)).toEqual(list);
-    expect(readSubtasks(JSON.stringify(list))).toEqual(list);
-  });
-
-  it('reads a line written before lines had dates as undated, and an unreadable date as none', () => {
-    expect(readSubtasks([{ id: 'a', title: 'Old', done: false }])).toEqual([
-      { id: 'a', title: 'Old', done: false, start: '', due: '' },
-    ]);
-    expect(readSubtasks([{ id: 'a', title: 'Odd', done: false, start: '2026-02-30', due: 'soon' }])).toEqual([
-      { id: 'a', title: 'Odd', done: false, start: '', due: '' },
-    ]);
-  });
-
-  it('drops what is not a line of a checklist rather than failing', () => {
-    expect(readSubtasks('not json')).toEqual([]);
-    expect(readSubtasks({ title: 'x' })).toEqual([]);
-    expect(readSubtasks([null, { title: '  ' }, { title: 'Keep', done: 'yes' }])).toEqual([
-      { id: 's1', title: 'Keep', done: false, start: '', due: '' },
-    ]);
   });
 });
 

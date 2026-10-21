@@ -20,7 +20,7 @@ import {
 } from '@/lib/tracker';
 import type { TrackerPerson, TrackerRound, TrackerRow } from './tracker-model';
 import { Avatar, Tag } from './tracker-ui';
-import ProjectDrawer, { Checklist } from './tracker-drawer';
+import ProjectDrawer, { SubtaskList } from './tracker-drawer';
 import ProjectForm from './project-form';
 import RoundsDialog from './rounds-dialog';
 
@@ -90,14 +90,12 @@ export default function Tracker({
     if (health && r.health !== health) return false;
     if (mine && !r.assigneeIds.includes(me)) return false;
     if (!q) return true;
-    return [r.title, r.tag, names(r.assigneeIds), ...r.subtasks.map((s) => s.title)]
+    return [r.title, r.tag, names(r.assigneeIds)]
       .join(' ')
       .toLowerCase()
       .includes(q);
   };
   const filtering = Boolean(health || mine || q);
-  /** Every row a filter lets through, sub-projects among them. */
-  const matching = rows.filter(matches);
   /**
    * Projects, each kept while it or one of its sub-projects is let through: a
    * sub-project that matches is shown where it lives, under its project.
@@ -162,24 +160,27 @@ export default function Tracker({
     </>
   );
 
-  // Dated checklist lines, as thin bars under their project's own. Only the
-  // first few: a row is one project's height, not a second timeline.
+  // A folded project's dated subtasks, as thin bars under its own: the shape
+  // of the work without opening it. Opened, each has a row and a bar of its
+  // own instead. Only the first few: a row is one project's height.
   const subBars = (r: TrackerRow) =>
-    r.subtasks
-      .filter((s) => s.start && s.due)
-      .slice(0, 3)
-      .map((s, i) => {
-        const x1 = x(s.start);
-        return (
-          <span
-            key={s.id}
-            className="trk-subbar"
-            data-done={s.done ? '' : undefined}
-            title={s.title}
-            style={{ left: x1, width: Math.max(4, x(s.due, true) - x1), top: `calc(50% + ${14 + i * 5}px)` }}
-          />
-        );
-      });
+    r.parentId || isOpen(r)
+      ? null
+      : subsOf(r)
+          .filter((s) => s.startSet && s.due)
+          .slice(0, 3)
+          .map((s, i) => {
+            const x1 = x(s.start);
+            return (
+              <span
+                key={s.id}
+                className="trk-subbar"
+                data-done={s.status === 'done' ? '' : undefined}
+                title={s.title}
+                style={{ left: x1, width: Math.max(4, x(s.due, true) - x1), top: `calc(50% + ${14 + i * 5}px)` }}
+              />
+            );
+          });
 
   const bar = (r: TrackerRow, withNames: boolean) => {
     const cls = `trk-h-${tone(r)}`;
@@ -240,14 +241,16 @@ export default function Tracker({
     );
   };
 
-  const subtaskCount = (r: TrackerRow) =>
-    r.subtasks.length === 0 ? (
+  const subtaskCount = (r: TrackerRow) => {
+    const subs = subsOf(r);
+    return subs.length === 0 ? (
       <span className="trk-muted">—</span>
     ) : (
       <span className="trk-mono">
-        {r.subtasks.filter((s) => s.done).length}/{r.subtasks.length}
+        {subs.filter((s) => s.status === 'done').length}/{subs.length}
       </span>
     );
+  };
 
   const empty = (
     <div className="px-4 py-8 text-center text-sm text-gray-600">
@@ -474,46 +477,37 @@ export default function Tracker({
   );
 
   const subtasks = () => {
-    // Every piece of work has a checklist, sub-projects included; theirs are
-    // labelled with the project they belong to.
-    const cards = matching.filter((r) => r.subtasks.length > 0 || r.can.work);
+    // A card per project, holding its subtasks: what is left inside each piece
+    // of work, ticked off and added to without opening the project.
+    const cards = visible.filter((r) => subsOf(r).length > 0 || r.can.addSub);
     if (cards.length === 0) return <div className="trk-wrap">{empty}</div>;
     return (
-      <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))]">
+      <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))]">
         {cards.map((r) => {
-          const parent = r.parentId ? rows.find((x) => x.id === r.parentId) : undefined;
-          const round = rounds.find((x) => x.id === (parent ?? r).roundId);
+          const round = rounds.find((x) => x.id === r.roundId);
           return (
             <section key={r.id} className="trk-hero" style={{ padding: 16 }}>
-              <div className="flex items-start justify-between gap-3 mb-1">
-                <div className="min-w-0">
-                  {parent && (
-                    <p className="text-xs text-gray-500 truncate">
-                      {t('tracker.partOf')} {parent.title}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    className="font-medium text-left hover:underline"
-                    onClick={() => setOpenId(r.id)}
-                  >
-                    {r.title}
-                  </button>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
-                    <span>{round ? round.name : t('tracker.unsorted')}</span>
-                    {r.assigneeIds.length > 0
-                      ? r.assigneeIds.map((id) => (
-                          <span key={id} className="flex items-center gap-1.5">
-                            <Avatar person={person(id)} />
-                            {person(id).name}
-                          </span>
-                        ))
-                      : nobody}
-                  </div>
+              <div className="mb-2 min-w-0">
+                <button
+                  type="button"
+                  className="font-medium text-left hover:underline"
+                  onClick={() => setOpenId(r.id)}
+                >
+                  {r.title}
+                </button>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+                  <span>{round ? round.name : t('tracker.unsorted')}</span>
+                  {r.assigneeIds.length > 0
+                    ? r.assigneeIds.map((id) => (
+                        <span key={id} className="flex items-center gap-1.5">
+                          <Avatar person={person(id)} />
+                          {person(id).name}
+                        </span>
+                      ))
+                    : nobody}
                 </div>
-                <span className="text-xs">{subtaskCount(r)}</span>
               </div>
-              <Checklist row={r} today={today} />
+              <SubtaskList parent={r} subs={shownSubs(r)} person={person} today={today} onOpen={setOpenId} />
             </section>
           );
         })}
@@ -665,7 +659,6 @@ export default function Tracker({
             onClose={() => setOpenId(null)}
             onEdit={() => setForm({ mode: 'edit', id: open.id })}
             onOpen={setOpenId}
-            onAddSub={() => setForm({ mode: 'new', parentId: open.id })}
             onDeleted={(title) => {
               setOpenId(null);
               showNotice(t('tracker.deleted', { title }));

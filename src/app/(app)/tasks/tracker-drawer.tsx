@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { useModal } from '@/lib/ui/modal';
 import type { ActionResult } from '@/lib/action-result';
-import { daysBetween, elapsedPct, formatDay, type Subtask } from '@/lib/tracker';
-import { deleteTask, saveSubtasks, setTaskProgress, updateTaskDetails, updateTaskStatus } from './actions';
+import { daysBetween, elapsedPct, formatDay } from '@/lib/tracker';
+import { createTask, deleteTask, setTaskProgress, updateTaskDetails, updateTaskStatus } from './actions';
 import { TASK_STATUSES } from './statuses';
 import type { TrackerPerson, TrackerRound, TrackerRow } from './tracker-model';
 import { Avatar, CloseIcon, Tag } from './tracker-ui';
@@ -54,9 +54,6 @@ function ErrorLine({ text }: { text: string | null }) {
   );
 }
 
-type LineDraft = { title: string; start: string; due: string };
-const EMPTY_LINE: LineDraft = { title: '', start: '', due: '' };
-
 const dateField = 'px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white text-gray-900';
 
 /** A start and an end, as two date fields side by side. */
@@ -98,65 +95,72 @@ function DateRange({
   );
 }
 
-/**
- * A project's checklist, ticked, dated and edited in place. Shared with the
- * Subtasks tab.
- *
- * Each line is a row big enough to press: the box ticks it, pressing the
- * words opens it for editing -- its name and its start and end -- right where
- * it is, rather than in a form somewhere else.
- */
-export function Checklist({ row, today }: { row: TrackerRow; today?: string }) {
+/** A start and an end as the lab reads them: "1 ต.ค. 69 – 20 ต.ค. 69", or as much of it as is set. */
+function useSpan() {
   const { t, locale } = usePrefs();
+  return (start: string, due: string) => {
+    if (start && due) return `${formatDay(start, locale)} – ${formatDay(due, locale)}`;
+    if (due) return `${t('tracker.checklist.until')} ${formatDay(due, locale)}`;
+    if (start) return `${t('tracker.checklist.from')} ${formatDay(start, locale)}`;
+    return '';
+  };
+}
+
+/**
+ * A project's subtasks: each a piece of work of its own -- people, dates,
+ * progress, reports -- listed here as a row big enough to press. The box
+ * finishes it (100%), the row opens it, and a new one is added in place with
+ * its dates. Shared with the Subtasks tab.
+ */
+export function SubtaskList({
+  parent,
+  subs,
+  person,
+  today,
+  onOpen,
+}: {
+  parent: TrackerRow;
+  subs: TrackerRow[];
+  person: (id: string) => TrackerPerson;
+  today: string;
+  onOpen: (id: string) => void;
+}) {
+  const { t } = usePrefs();
   const { pending, error, run } = useAction();
-  const [adding, setAdding] = useState<LineDraft>(EMPTY_LINE);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<LineDraft>(EMPTY_LINE);
+  const span = useSpan();
+  const [adding, setAdding] = useState({ title: '', start: '', due: '' });
 
-  const can = row.can.work;
-  const items = row.subtasks;
-  const done = items.filter((s) => s.done).length;
-  const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0;
+  const done = subs.filter((s) => s.status === 'done').length;
+  const pct = subs.length > 0 ? Math.round((done / subs.length) * 100) : 0;
 
-  const save = (next: Subtask[], then?: () => void) =>
-    run(() => saveSubtasks(row.id, next, row.rowVersion), then);
-
-  const startEdit = (s: Subtask) => {
-    if (!can) return;
-    setEditId(s.id);
-    setDraft({ title: s.title, start: s.start, due: s.due });
-  };
-
-  const commitEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const title = draft.title.trim();
-    if (!title) return;
-    save(
-      items.map((x) => (x.id === editId ? { ...x, title, start: draft.start, due: draft.due } : x)),
-      () => setEditId(null)
-    );
-  };
+  // Finishing a subtask is the common case, and 100% sets it done as well;
+  // un-ticking only reopens it, leaving its figure for its owner to correct.
+  const tick = (s: TrackerRow, on: boolean) =>
+    run(() => (on ? setTaskProgress(s.id, 100, s.rowVersion) : updateTaskStatus(s.id, 'in_progress', s.rowVersion)));
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     const title = adding.title.trim();
     if (!title) return;
-    save([...items, { id: '', title, done: false, start: adding.start, due: adding.due }], () =>
-      setAdding(EMPTY_LINE)
+    run(
+      () =>
+        createTask({
+          title,
+          parent_id: parent.id,
+          start_date: adding.start,
+          due_date: adding.due,
+          // The project's people, as a start; an advisor can change them on the
+          // subtask, and anybody else's list is themselves whatever is sent.
+          assignee_ids: parent.assigneeIds,
+        }),
+      () => setAdding({ title: '', start: '', due: '' })
     );
-  };
-
-  const span = (s: Subtask) => {
-    if (s.start && s.due) return `${formatDay(s.start, locale)} – ${formatDay(s.due, locale)}`;
-    if (s.due) return `${t('tracker.checklist.until')} ${formatDay(s.due, locale)}`;
-    if (s.start) return `${t('tracker.checklist.from')} ${formatDay(s.start, locale)}`;
-    return '';
   };
 
   return (
     <div className="space-y-2">
-      {items.length === 0 ? (
-        <p className="text-sm text-gray-500">{t('tracker.noSubtasks')}</p>
+      {subs.length === 0 ? (
+        <p className="text-sm text-gray-500">{t('tracker.noSubs')}</p>
       ) : (
         <>
           <div className="flex items-center gap-3" aria-hidden="true">
@@ -164,52 +168,14 @@ export function Checklist({ row, today }: { row: TrackerRow; today?: string }) {
               <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${pct}%` }} />
             </div>
             <span className="trk-mono text-xs text-gray-600">
-              {done}/{items.length}
+              {done}/{subs.length}
             </span>
           </div>
           <ul className="space-y-1.5">
-            {items.map((s) => {
-              if (s.id === editId) {
-                return (
-                  <li key={s.id} className="rounded-xl border border-blue-600 p-3">
-                    <form onSubmit={commitEdit} className="space-y-2.5">
-                      <input
-                        type="text"
-                        value={draft.title}
-                        onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                        maxLength={200}
-                        autoFocus
-                        aria-label={t('tracker.checklist.edit', { title: s.title })}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-900"
-                      />
-                      <DateRange
-                        value={draft}
-                        onChange={(next) => setDraft({ ...draft, ...next })}
-                        disabled={pending}
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={pending || !draft.title.trim()}
-                          className="px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {pending ? t('common.saving') : t('common.save')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditId(null)}
-                          className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50"
-                        >
-                          {t('common.cancel')}
-                        </button>
-                      </div>
-                    </form>
-                  </li>
-                );
-              }
-
-              const when = span(s);
-              const late = !s.done && Boolean(today) && Boolean(s.due) && s.due < (today ?? '');
+            {subs.map((s) => {
+              const when = span(s.startSet ? s.start : '', s.due);
+              const late = s.status !== 'done' && Boolean(s.due) && s.due < today;
+              const finished = s.status === 'done';
               return (
                 <li
                   key={s.id}
@@ -218,49 +184,39 @@ export function Checklist({ row, today }: { row: TrackerRow; today?: string }) {
                   <input
                     type="checkbox"
                     className="trk-check h-5 w-5 shrink-0"
-                    checked={s.done}
-                    disabled={!can || pending}
-                    onChange={(e) =>
-                      save(items.map((x) => (x.id === s.id ? { ...x, done: e.target.checked } : x)))
-                    }
+                    checked={finished}
+                    disabled={!s.can.work || pending}
+                    onChange={(e) => tick(s, e.target.checked)}
                     aria-label={t('tracker.subtaskDone', { title: s.title })}
                   />
-                  <button
-                    type="button"
-                    disabled={!can}
-                    onClick={() => startEdit(s)}
-                    className="flex-1 min-w-0 text-left disabled:cursor-default"
-                    aria-label={can ? t('tracker.checklist.edit', { title: s.title }) : undefined}
-                  >
-                    <span className={`block text-sm ${s.done ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                  <button type="button" onClick={() => onOpen(s.id)} className="flex-1 min-w-0 text-left">
+                    <span
+                      className={`block text-sm font-medium ${finished ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                    >
                       {s.title}
                     </span>
-                    {when ? (
-                      <span className={`block text-xs tabular-nums ${late ? 'text-red-600' : 'text-gray-500'}`}>
-                        {when}
-                      </span>
-                    ) : (
-                      can && <span className="block text-xs text-blue-600">{t('tracker.checklist.addDates')}</span>
-                    )}
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                      {s.assigneeIds.length > 0 && (
+                        <span className="flex items-center gap-1">
+                          {s.assigneeIds.map((id) => (
+                            <Avatar key={id} person={person(id)} />
+                          ))}
+                          <span>{s.assigneeIds.map((id) => person(id).name).join(', ')}</span>
+                        </span>
+                      )}
+                      {when && <span className={`tabular-nums ${late ? 'text-red-600' : ''}`}>{when}</span>}
+                    </span>
                   </button>
-                  {can && (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => save(items.filter((x) => x.id !== s.id))}
-                      className="shrink-0 p-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 disabled:opacity-50"
-                      aria-label={t('tracker.removeSubtask', { title: s.title })}
-                    >
-                      <CloseIcon />
-                    </button>
-                  )}
+                  <span className={`trk-mono text-xs shrink-0 ${finished ? 'text-gray-500' : 'text-gray-900'}`}>
+                    {s.progress}%
+                  </span>
                 </li>
               );
             })}
           </ul>
         </>
       )}
-      {can && (
+      {parent.can.addSub && (
         <form onSubmit={add} className="rounded-xl border border-dashed border-gray-300 p-3 space-y-2.5">
           <div className="flex gap-2">
             <input
@@ -420,7 +376,6 @@ export default function ProjectDrawer({
   onEdit,
   onDeleted,
   onOpen,
-  onAddSub,
 }: {
   row: TrackerRow;
   /** The project this is a sub-project of, when it is one. */
@@ -435,7 +390,6 @@ export default function ProjectDrawer({
   onDeleted: (title: string) => void;
   /** Show another project in this panel instead. */
   onOpen: (id: string) => void;
-  onAddSub: () => void;
 }) {
   const { t, locale } = usePrefs();
   const { pending, error, run } = useAction();
@@ -455,7 +409,7 @@ export default function ProjectDrawer({
   const elapsed = started ? elapsedPct(row.start, row.due, today) : null;
   const tone = row.status !== 'done' && !started ? 'future' : row.health;
   const owner = person(row.ownerId);
-  const checklistDone = row.subtasks.filter((s) => s.done).length;
+  const subsDone = subs.filter((s) => s.status === 'done').length;
 
   let left = '—';
   let late = false;
@@ -595,9 +549,9 @@ export default function ProjectDrawer({
           </Stat>
           <Stat
             label={t('tracker.view.subtasks')}
-            value={row.subtasks.length > 0 ? `${checklistDone}/${row.subtasks.length}` : '—'}
+            value={subs.length > 0 ? `${subsDone}/${subs.length}` : '—'}
           >
-            {row.subtasks.length > 0 && <MiniBar pct={(checklistDone / row.subtasks.length) * 100} />}
+            {subs.length > 0 && <MiniBar pct={(subsDone / subs.length) * 100} />}
           </Stat>
           <div className="rounded-xl border border-gray-200 px-4 py-3 col-span-2 lg:col-span-1">
             <div className="text-xs text-gray-500 mb-1.5">{t('tracker.dates')}</div>
@@ -612,9 +566,9 @@ export default function ProjectDrawer({
           </div>
         </div>
 
-        {/* Who and how far on the left, what it is and what was reported on
-            the right -- side by side on a wide screen, one after the other on
-            a narrow one. */}
+        {/* Who and in what state on the left; the subtasks, what it is and what
+            was reported on the right -- side by side on a wide screen, one
+            after the other on a narrow one. */}
         <div className="trk-dialog-cols">
         <div>
         <section className="trk-sec">
@@ -664,57 +618,14 @@ export default function ProjectDrawer({
           )}
         </section>
 
-        <section className="trk-sec">
-          <h4 className="trk-sec-title">{t('tracker.view.subtasks')}</h4>
-          <Checklist row={row} today={today} />
-        </section>
         </div>
 
         <div>
-        {!parent && (subs.length > 0 || row.can.addSub) && (
+        {/* A subtask's own subtasks would be a second level, which there is not. */}
+        {!parent && (
           <section className="trk-sec">
-            <h4 className="trk-sec-title">
-              {t('tracker.subprojects')}
-              {subs.length > 0 && ` ${subs.length}`}
-            </h4>
-            {subs.length === 0 ? (
-              <p className="text-sm text-gray-500">{t('tracker.noSubs')}</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {subs.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => onOpen(s.id)}
-                      className={`w-full text-left rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 trk-h-${s.health}`}
-                    >
-                      <span className="flex items-baseline justify-between gap-3">
-                        <span className="font-medium text-sm">{s.title}</span>
-                        <span className="trk-mono text-xs shrink-0">{s.progress}%</span>
-                      </span>
-                      <span className="flex flex-wrap gap-x-2 text-xs text-gray-500 mt-0.5">
-                        <span>
-                          {s.assigneeIds.length > 0
-                            ? s.assigneeIds.map((id) => person(id).name).join(', ')
-                            : t('tracker.nobody')}
-                        </span>
-                        {s.due && <span>· {formatDay(s.due, locale)}</span>}
-                        <span>· {t(`tracker.health.${s.health}`)}</span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {row.can.addSub && (
-              <button
-                type="button"
-                onClick={onAddSub}
-                className="mt-2 px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50"
-              >
-                {t('tracker.addSub')}
-              </button>
-            )}
+            <h4 className="trk-sec-title">{t('tracker.view.subtasks')}</h4>
+            <SubtaskList parent={row} subs={subs} person={person} today={today} onOpen={onOpen} />
           </section>
         )}
 

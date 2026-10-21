@@ -1203,7 +1203,7 @@ body {
 .trk-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(17, 24, 39, 0.45); animation: motion-fade var(--motion-base) var(--motion-ease-out) both; }
 .trk-dialog { position: fixed; inset: 0; margin: auto; z-index: 60; width: calc(100% - 48px); height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; background: var(--trk-surface); border: 1px solid var(--trk-border); border-radius: 16px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25); padding: 22px 26px 26px; color: var(--trk-ink); }
 .trk-dialog-cols { display: grid; column-gap: 32px; }
-@media (min-width: 860px) { .trk-dialog-cols { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; } }
+@media (min-width: 860px) { .trk-dialog-cols { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); align-items: start; } }
 /* Inside the panel the status switch is a control pressed often, so it is a
    size a thumb finds; the same switch on the page stays compact. */
 .trk-dialog .trk-seg button { padding: 9px 20px; font-size: 14px; }

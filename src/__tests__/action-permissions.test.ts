@@ -69,7 +69,7 @@ const { createPollAction, closePollAction, confirmSlotAction, deletePollAction, 
 const { createMeeting, deleteMeeting, rescheduleMeetingAction, autoAssignWeekLead } = await import(
   '../app/(app)/meetings/actions'
 );
-const { createTask, updateTaskStatus, updateTaskDetails, deleteTask, setTaskProgress, saveSubtasks } = await import(
+const { createTask, updateTaskStatus, updateTaskDetails, deleteTask, setTaskProgress } = await import(
   '../app/(app)/tasks/actions'
 );
 const { saveRounds } = await import('../app/(app)/tasks/round-actions');
@@ -865,7 +865,31 @@ describe('task permissions', () => {
       expect(remove).toHaveBeenCalledWith('tasks', 't2', 1, 'boss');
     });
 
-    it('keeps a sub-project out of rounds when it is edited', async () => {
+    it('turns the new-project form’s lines into subtasks of the new project, for the same people', async () => {
+    signedInAs('prof', 'professor');
+    const result = await createTask({
+      title: 'Thesis',
+      assignee_ids: ['student1', 'student2'],
+      subtasks: ['  Chapter 1 ', '', 'Chapter 2'],
+    });
+
+    expect(result.ok).toBe(true);
+    const rows = insert.mock.calls.map(([, doc]) => doc as Record<string, unknown>);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({ title: 'Thesis', parent_id: '', subtasks: [] });
+    expect(rows.slice(1)).toEqual([
+      expect.objectContaining({ title: 'Chapter 1', parent_id: 'tasks-new', assignee_ids: ['student1', 'student2'] }),
+      expect.objectContaining({ title: 'Chapter 2', parent_id: 'tasks-new', assignee_ids: ['student1', 'student2'] }),
+    ]);
+  });
+
+  it('takes no lines with a subtask: it has no subtasks of its own', async () => {
+    signedInAs('prof', 'professor');
+    await createTask({ title: 'Chapter 2', parent_id: 't1', assignee_ids: ['student1'], subtasks: ['Section 1'] });
+    expect(insert).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a sub-project out of rounds when it is edited', async () => {
       tables['tasks'].push({ id: 't2', title: 'Chapter 2', assignee_ids: ['student1'], parent_id: 't1', row_version: 1 });
       signedInAs('prof', 'professor');
 
@@ -974,7 +998,7 @@ describe('task permissions', () => {
   });
 });
 
-describe('progress and checklist on the tracker', () => {
+describe('progress on the tracker', () => {
   beforeEach(() => {
     tables['tasks'] = [
       { id: 't1', title: 'Task 1', assignee_ids: ['student1'], status: 'in_progress', row_version: 2 },
@@ -1001,45 +1025,6 @@ describe('progress and checklist on the tracker', () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it('stores a cleaned checklist', async () => {
-    signedInAs('student1');
-    const result = await saveSubtasks(
-      't1',
-      [{ id: 'a', title: '  Collect data ', done: true }, { title: '   ' }, { title: 'Write it up' }],
-      2
-    );
-    expect(result.ok).toBe(true);
-    const fields = update.mock.calls[0][2] as { subtasks: { id: string; title: string; done: boolean }[] };
-    expect(fields.subtasks).toHaveLength(2);
-    expect(fields.subtasks[0]).toEqual({ id: 'a', title: 'Collect data', done: true, start: '', due: '' });
-    expect(fields.subtasks[1]).toMatchObject({ title: 'Write it up', done: false });
-    expect(fields.subtasks[1].id).toBeTruthy();
-  });
-
-  it('stores a line’s start and end, and refuses an end before its start', async () => {
-    signedInAs('student1');
-    const ok = await saveSubtasks('t1', [{ id: 'a', title: 'Collect data', start: '2026-10-01', due: '2026-10-15' }], 2);
-    expect(ok.ok).toBe(true);
-    expect((update.mock.calls[0][2] as { subtasks: unknown[] }).subtasks[0]).toEqual({
-      id: 'a',
-      title: 'Collect data',
-      done: false,
-      start: '2026-10-01',
-      due: '2026-10-15',
-    });
-
-    update.mockClear();
-    const backwards = await saveSubtasks('t1', [{ id: 'a', title: 'Collect data', start: '2026-10-15', due: '2026-10-01' }], 2);
-    expect(backwards).toMatchObject({ ok: false, error: 'tasks.dueBeforeStart' });
-    expect(update).not.toHaveBeenCalled();
-  });
-
-  it('refuses a checklist change from a student who is not on the work', async () => {
-    signedInAs('student2');
-    const result = await saveSubtasks('t1', [{ title: 'x' }], 2);
-    expect(result.ok).toBe(false);
-    expect(update).not.toHaveBeenCalled();
-  });
 });
 
 describe('submission rounds', () => {
