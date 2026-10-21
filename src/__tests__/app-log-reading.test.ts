@@ -25,7 +25,7 @@ const { toResult } = await import('../lib/action-result');
 const { UserError } = await import('../lib/user-error');
 const { ConflictError } = await import('../lib/db/sheet-repo');
 const { expiredLogRows, KEEP_DAYS } = await import('../lib/app-log-retention');
-const { filterLog, formatLogDetail, summarizeLog } = await import('../lib/app-log-view');
+const { filterLog, formatLogDetail, readableLogRows, summarizeLog } = await import('../lib/app-log-view');
 const { parseCookies, userIdFromCookieHeader } = await import('../lib/request-context');
 
 beforeEach(() => {
@@ -157,6 +157,17 @@ describe('reading the log on Settings → Logs', () => {
     expect(formatLogDetail(JSON.stringify(detail))).toContain('Error: boom\n    at page.tsx:3');
     expect(formatLogDetail('not json')).toBe('not json');
     expect(formatLogDetail('')).toBe('');
+  });
+
+  it('gives back a message that looks like JSON as the text it was written as', () => {
+    // What SheetRepo hands back for a cell holding '{"status":500}', '[1,2]' or 'TRUE'.
+    const read = readableLogRows([
+      entry({ message: { status: 500 } as unknown as string }),
+      entry({ message: [1, 2] as unknown as string }),
+      entry({ message: true as unknown as string, path: undefined as unknown as string }),
+    ]);
+    expect(read.map((r) => r.message)).toEqual(['{"status":500}', '[1,2]', 'TRUE']);
+    expect(read[2].path).toBe('');
   });
 });
 
