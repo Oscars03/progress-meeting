@@ -709,13 +709,19 @@ export default function WeekAvailabilityGrid({
                   </div>
                 )}
 
+                {/* The same size as a suggestion -- it is the third choice, not
+                    a footnote -- in a different colour, because pressing it
+                    opens the controls rather than choosing a time. */}
                 <button
                   type="button"
                   aria-expanded={custom}
                   onClick={() => setCustom((c) => !c)}
-                  className="block text-sm font-medium text-blue-600 hover:underline"
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl border border-dashed px-4 py-3 text-left text-base font-semibold transition ${
+                    custom ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
                 >
-                  {t('avail.otherTime')} <span aria-hidden="true">{custom ? '▴' : '▾'}</span>
+                  {t('avail.otherTime')}
+                  <span aria-hidden="true" className="text-sm">{custom ? '▴' : '▾'}</span>
                 </button>
 
                 {custom && (
@@ -741,22 +747,34 @@ export default function WeekAvailabilityGrid({
                     {slots.length === 0 ? (
                       <p className="text-xs text-gray-500">{t('avail.askNoRoom')}</p>
                     ) : (
-                      // One list, in the block's own hours, each option already
-                      // the whole span -- the end is never left to work out.
-                      <label className="flex items-center gap-1.5">
-                        <span className="w-12 text-xs text-gray-500">{t('avail.askStart')}</span>
-                        <select
-                          value={chosen?.start ?? ''}
-                          onChange={(e) => setAskStart(e.target.value)}
-                          className="min-w-0 px-2 py-1.5 text-base border border-gray-300 rounded-md bg-white text-gray-900 tabular-nums"
-                        >
-                          {slots.map((slot) => (
-                            <option key={slot.start} value={slot.start}>
-                              {slot.start}–{slot.end}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      // The start is chosen; the end follows from the length and
+                      // is shown beside it, never typed.
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <label className="flex items-center gap-1.5">
+                          <span className="w-12 text-xs text-gray-500">{t('avail.askStart')}</span>
+                          <select
+                            value={chosen?.start ?? ''}
+                            onChange={(e) => setAskStart(e.target.value)}
+                            className="min-w-0 px-2 py-1.5 text-base border border-gray-300 rounded-md bg-white text-gray-900 tabular-nums"
+                          >
+                            {slots.map((slot) => (
+                              <option key={slot.start} value={slot.start}>
+                                {slot.start}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-500">{t('avail.askEnd')}</span>
+                          <input
+                            type="text"
+                            readOnly
+                            tabIndex={-1}
+                            value={chosen?.end ?? ''}
+                            className="w-20 px-2 py-1.5 text-base border border-gray-200 rounded-md bg-gray-50 text-gray-700 tabular-nums"
+                          />
+                        </label>
+                      </div>
                     )}
                   </div>
                 )}
@@ -772,7 +790,7 @@ export default function WeekAvailabilityGrid({
                     disabled={isPending}
                     className="w-full sm:w-auto min-h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-base font-semibold shadow-sm transition disabled:opacity-50"
                   >
-                    {asking ? t('avail.asking') : t('avail.askFor', { time: `${chosen.start}–${chosen.end}` })}
+                    {asking ? t('avail.asking') : t('avail.ask')}
                   </button>
                 )}
               </div>
