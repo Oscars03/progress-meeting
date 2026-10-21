@@ -3,24 +3,8 @@
  * No state and no hooks, so they render wherever they are imported.
  */
 
-import type { TrackerPerson } from './tracker-model';
-
-/** The first letter that stands for the name: past "อ." and a leading vowel. */
-function initialOf(name: string): string {
-  return name.replace(/^อ\.\s*/, '').replace(/^[เแโใไ]/, '').charAt(0).toUpperCase() || '?';
-}
-
-export function Avatar({ person, large = false }: { person: TrackerPerson; large?: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`trk-av${large ? ' trk-av-lg' : ''}`}
-      style={{ '--ab': `var(--trk-av${person.tone}-bg)`, '--ai': `var(--trk-av${person.tone}-ink)` } as React.CSSProperties}
-    >
-      {initialOf(person.name)}
-    </span>
-  );
-}
+// Shared with the meeting planner, which draws its people the same way.
+export { Avatar } from '@/lib/ui/avatar';
 
 export function Tag({ tag }: { tag: string }) {
   if (!tag) return null;

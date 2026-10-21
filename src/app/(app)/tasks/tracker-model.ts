@@ -16,6 +16,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import { labDay } from '@/lib/lab-time';
+import { toneOf } from '@/lib/person-tone';
 import { canAddSubproject, canEditDetails, canEditWork, canRemoveWork } from '@/lib/task-rights';
 import {
   isDay,
@@ -92,13 +93,6 @@ function dayOf(iso: unknown): string | null {
   if (typeof iso !== 'string' || !iso) return null;
   const t = new Date(iso);
   return Number.isNaN(t.getTime()) ? null : labDay(t);
-}
-
-function toneOf(user: Pick<UserRecord, 'id' | 'role'>): number {
-  if (user.role === 'professor') return 0;
-  let h = 0;
-  for (const ch of user.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return (h % 5) + 1;
 }
 
 export function toPeople(users: UserRecord[]): TrackerPerson[] {
