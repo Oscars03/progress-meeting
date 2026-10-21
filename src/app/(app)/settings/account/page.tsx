@@ -4,6 +4,8 @@ import { requirePageSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import CalendarCard from '../calendar-card';
 import MyName from '../my-name';
+import MyFace from '../my-face';
+import { faceOf } from '@/lib/avatar-face';
 
 /** Settings → My account: what every member sets about themselves. */
 export default async function AccountSettingsPage() {
@@ -19,6 +21,7 @@ export default async function AccountSettingsPage() {
   return (
     <>
       <MyName name={me?.name ?? (actor.name ?? '')} email={actor.email ?? ''} />
+      <MyFace face={faceOf(me ?? { id: actor.id, name: actor.name ?? '', role: actor.role })} />
       <CalendarCard
         status={{
           connected: Boolean(stored),

@@ -644,17 +644,21 @@ export default function WeekAvailabilityGrid({
                   </dt>
                   <dd className="mt-1.5 flex flex-wrap gap-1.5">
                     {names.length > 0 ? (
-                      names.map((name) => (
-                        <span
-                          key={name}
-                          className="trk-pick"
-                          data-locked=""
-                          data-busy={key === 'avail.busy' ? '' : undefined}
-                        >
-                          <Avatar person={{ name, tone: data.tones?.[name] ?? 5 }} />
-                          {name}
-                        </span>
-                      ))
+                      names.map((name) => {
+                        const face = data.faces?.[name];
+                        return (
+                          <span
+                            key={name}
+                            className="trk-pick"
+                            data-locked=""
+                            data-role={face?.role}
+                            data-busy={key === 'avail.busy' ? '' : undefined}
+                          >
+                            <Avatar person={face ?? { name, tone: 5 }} />
+                            {name}
+                          </span>
+                        );
+                      })
                     ) : (
                       <span className="text-gray-500">{t('avail.nobody')}</span>
                     )}

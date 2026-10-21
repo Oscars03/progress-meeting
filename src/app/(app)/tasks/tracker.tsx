@@ -66,7 +66,7 @@ export default function Tracker({
 
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p] as const)), [people]);
   const person = (id: string): TrackerPerson =>
-    byId.get(id) ?? { id, name: t('common.deletedUser'), role: '', tone: 5 };
+    byId.get(id) ?? { id, name: t('common.deletedUser'), role: '', tone: 5, color: '', nickname: '' };
   const names = (ids: string[]) => ids.map((id) => person(id).name).join(', ');
 
   // Sub-projects are drawn under their project, which can fold them away.

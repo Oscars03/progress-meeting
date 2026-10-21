@@ -74,7 +74,7 @@ const { createTask, updateTaskStatus, updateTaskDetails, deleteTask, setTaskProg
 );
 const { saveRounds } = await import('../app/(app)/tasks/round-actions');
 const { saveWeeklyUpdateAction, deleteWeeklyUpdateAction } = await import('../app/(app)/tasks/update-actions');
-const { updateMyNameAction } = await import('../app/(app)/settings/actions');
+const { updateMyNameAction, updateMyFaceAction } = await import('../app/(app)/settings/actions');
 const { setTopicOrder, clearTopicOrder, addTopic, updateTopic, deleteTopic } = await import(
   '../app/(app)/presentations/actions'
 );
@@ -1500,6 +1500,40 @@ describe('changing your own display name', () => {
     const result = await updateMyNameAction('Whoever');
 
     expect(result).toMatchObject({ ok: false, error: 'error.signInRequired' });
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+// Your avatar, like your name, reaches only your own row.
+describe('choosing your own avatar', () => {
+  beforeEach(() => {
+    tables['users'] = [
+      { id: 'me', name: 'Old Name', email: 'me@test.com', role: 'student', active: true, row_version: 3 },
+    ];
+  });
+
+  it('stores a trimmed nickname and a colour from the set', async () => {
+    signedInAs('me');
+    const result = await updateMyFaceAction('  Ton  ', 'teal');
+
+    expect(result.ok).toBe(true);
+    expect(update).toHaveBeenCalledWith('users', 'me', { nickname: 'Ton', avatar_color: 'teal' }, 3, 'me');
+  });
+
+  it('takes back the automatic colour and no nickname', async () => {
+    tables['users'][0] = { ...(tables['users'][0] as object), nickname: 'Ton', avatar_color: 'teal' };
+    signedInAs('me');
+    expect((await updateMyFaceAction('', '')).ok).toBe(true);
+    expect(update).toHaveBeenCalledWith('users', 'me', { nickname: '', avatar_color: '' }, 3, 'me');
+  });
+
+  it('refuses a colour outside the set and a nickname that is too long', async () => {
+    signedInAs('me');
+    expect(await updateMyFaceAction('Ton', '#ff0000')).toMatchObject({ ok: false, error: 'error.invalidValue' });
+    expect(await updateMyFaceAction('x'.repeat(21), 'teal')).toMatchObject({
+      ok: false,
+      error: 'myFace.error.nicknameTooLong',
+    });
     expect(update).not.toHaveBeenCalled();
   });
 });
