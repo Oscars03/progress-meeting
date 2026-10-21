@@ -99,6 +99,10 @@ export function projectHealth(input: HealthInput, today: string): Health {
   if (input.status === 'done') return 'done';
   if (isDay(input.start) && daysBetween(today, input.start) > 0) return 'ok';
   if (!input.lastUpdate || daysBetween(input.lastUpdate, today) > STALE_AFTER_DAYS) return 'stale';
+  // Past its due date and not delivered is behind, however close the figure:
+  // elapsed time stops at 100%, so 90% done eleven days late was only "10
+  // points behind" -- worth watching, it said, of work already overdue.
+  if (isDay(input.due) && daysBetween(input.due, today) > 0) return 'bad';
   const elapsed = elapsedPct(input.start, input.due, today);
   if (elapsed === null) return 'ok';
   const gap = elapsed - input.progress;
