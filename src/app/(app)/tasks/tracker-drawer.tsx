@@ -178,7 +178,7 @@ export default function ProjectDrawer({
   return (
     <>
       <div className="trk-scrim" onClick={onClose} aria-hidden="true" />
-      <aside ref={drawerRef} className="trk-drawer" role="dialog" aria-modal="true" aria-labelledby="trk-drawer-title">
+      <aside ref={drawerRef} className="trk-dialog" role="dialog" aria-modal="true" aria-labelledby="trk-drawer-title">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Tag tag={row.tag} />
@@ -201,6 +201,11 @@ export default function ProjectDrawer({
           </button>
         </div>
 
+        {/* Who and how far on the left, what it is and what was reported on
+            the right -- side by side on a wide screen, one after the other on
+            a narrow one. */}
+        <div className="trk-dialog-cols">
+        <div>
         <section className="trk-sec">
           <h4 className="trk-sec-title">{t('tasks.assignees')}</h4>
           {row.assigneeIds.length > 0 ? (
@@ -302,7 +307,9 @@ export default function ProjectDrawer({
           </h4>
           <Checklist row={row} />
         </section>
+        </div>
 
+        <div>
         {row.details && (
           <section className="trk-sec">
             <h4 className="trk-sec-title">{t('tasks.details')}</h4>
@@ -335,6 +342,8 @@ export default function ProjectDrawer({
             </Link>
           )}
         </section>
+        </div>
+        </div>
 
         {(row.can.edit || row.can.remove) && (
           <div className="flex flex-wrap gap-2 mt-5">
