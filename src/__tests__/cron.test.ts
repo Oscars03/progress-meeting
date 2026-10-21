@@ -18,6 +18,9 @@ vi.mock('../lib/db/sheet-repo', () => ({
   },
 }));
 
+const trimAppLog = vi.fn(async () => ({ deleted: 4, kept: 10 }));
+vi.mock('../lib/app-log-retention', () => ({ trimAppLog }));
+
 const { GET } = await import('../app/api/cron/route');
 
 const SECRET = 'a-secret-of-some-length';
@@ -84,10 +87,10 @@ describe('the cron endpoint', () => {
     expect((await get('https://x/api/cron?action=open_feedback', SECRET)).status).toBe(401);
   });
 
-  it('names open_feedback among the valid actions', async () => {
+  it('names open_feedback and trim_logs among the valid actions', async () => {
     const res = await get('https://x/api/cron', SECRET);
     expect(res.status).toBe(400);
-    expect((await res.json()).valid).toContain('open_feedback');
+    expect((await res.json()).valid).toEqual(expect.arrayContaining(['open_feedback', 'trim_logs']));
   });
 
   it('still reports the planned jobs as unbuilt', async () => {
@@ -162,5 +165,22 @@ describe('open_feedback', () => {
     const item = body.items.find((i: { id: string }) => i.id === 'f-3');
 
     expect(item.author).toBe('unknown');
+  });
+});
+
+describe('trim_logs', () => {
+  beforeEach(() => trimAppLog.mockClear());
+
+  it('trims the app log with the full key, as the daily schedule calls it', async () => {
+    const res = await get('https://x/api/cron?action=trim_logs', SECRET);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: 4, kept: 10 });
+    expect(trimAppLog).toHaveBeenCalledTimes(1);
+  });
+
+  it('is a write, so the read-only key cannot reach it', async () => {
+    expect((await get('https://x/api/cron?action=trim_logs', READ_SECRET)).status).toBe(403);
+    expect(trimAppLog).not.toHaveBeenCalled();
   });
 });

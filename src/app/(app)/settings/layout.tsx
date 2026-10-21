@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { getT } from '@/lib/ui/server-i18n';
 
 /**
- * Settings is five pages -- account, widget, lab, users, system -- reached
+ * Settings is six pages -- account, widget, lab, users, system, logs -- reached
  * from the sub-menu under Settings in the sidebar (app-nav.tsx). This holds
  * what they share: the heading.
  *

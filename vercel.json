@@ -5,5 +5,11 @@
       "**": false,
       "master": true
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron?action=trim_logs",
+      "schedule": "17 19 * * *"
+    }
+  ]
 }

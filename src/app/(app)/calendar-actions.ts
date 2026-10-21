@@ -32,6 +32,7 @@ import type {
   PersonalEventRecord,
   WeekLeadRecord,
 } from '@/lib/db/schema';
+import { logError } from '@/lib/app-log';
 
 /**
  * The hours the grid covers each day, in the lab's zone. Kept in step with the
@@ -182,7 +183,7 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
       }
       readCount++;
     } else if (result.status === 'rejected' && !(result.reason instanceof NotConnectedError)) {
-      console.error(`freebusy failed for ${u.id}:`, result.reason);
+      logError('google_calendar', result.reason, { message: `freebusy failed for ${u.id}`, detail: { calendarOf: u.id } });
     }
 
     // Nothing on the calendar is a free hour. There used to be a third answer
@@ -374,7 +375,7 @@ export async function slotConflictsAction(
       busy = result.value;
       checked++;
     } else if (result.status === 'rejected' && !(result.reason instanceof NotConnectedError)) {
-      console.error(`freebusy failed for ${user.id}:`, result.reason);
+      logError('google_calendar', result.reason, { message: `freebusy failed for ${user.id}`, detail: { calendarOf: user.id } });
     } else if (!connected.has(user.id)) {
       // Manual schedule user
       checked++;

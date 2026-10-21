@@ -3,6 +3,7 @@ import type { drive_v3 } from 'googleapis';
 import { Readable } from 'node:stream';
 import { recordTokenError, tokenForGoogleAccount } from './tokens';
 import { UserError } from '../user-error';
+import { logError } from '../app-log';
 
 /**
  * File storage, on the lab's own Google Drive.
@@ -182,7 +183,7 @@ export async function removeFile(fileId: string): Promise<void> {
   try {
     await asLab((drive) => drive.files.delete({ fileId }));
   } catch (err) {
-    console.error(`Could not remove Drive file ${fileId}:`, err);
+    logError('google_drive', err, { message: `Could not remove Drive file ${fileId}` });
   }
 }
 

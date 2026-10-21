@@ -29,9 +29,9 @@ const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
 ];
 
 /**
- * Settings is five pages, listed under it in the menu. A page appears only to
- * somebody who can change something on it: Lab, Users and System are the
- * admin's, so everybody else sees two. System was once shown to all, and for
+ * Settings is six pages, listed under it in the menu. A page appears only to
+ * somebody who can change something on it: Lab, Users, System and the log are
+ * the admin's, so everybody else sees two. System was once shown to all, and for
  * anyone but admin it held one line saying its only control was admin's.
  *
  * An admin previewing another role gets that role's menu (see layout.tsx);
@@ -43,6 +43,7 @@ const SETTINGS_PAGES: { href: string; key: TranslationKey; adminOnly: boolean }[
   { href: '/settings/lab', key: 'nav.settings.lab', adminOnly: true },
   { href: '/settings/users', key: 'nav.settings.users', adminOnly: true },
   { href: '/settings/system', key: 'nav.settings.system', adminOnly: true },
+  { href: '/settings/logs', key: 'nav.settings.logs', adminOnly: true },
 ];
 
 function Icon({

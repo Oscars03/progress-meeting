@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { writeQueue } from '@/lib/db/write-queue';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requireSession, AuthorizationError } from '@/lib/auth-guard';
+import { logError } from '@/lib/app-log';
 
 const WATCHED_TABS = ['users', 'tasks', 'meetings'] as const;
 
@@ -28,7 +29,7 @@ export async function GET() {
   } catch (error) {
     // Detail stays server-side: Sheets errors carry the spreadsheet id and the
     // service-account address.
-    console.error('status check failed:', error);
+    logError('status_check', error, { message: 'status check failed', path: '/api/status' });
     return NextResponse.json(
       { status: 'ERROR', message: 'Cannot reach the database' },
       { status: 500 }

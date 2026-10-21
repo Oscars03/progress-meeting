@@ -13,6 +13,7 @@ import { myEvents, busyTimes, type GoogleEvent } from '@/lib/google/calendar';
 import type { PersonalEventRecord, UserRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { leadsCurrentOrLater, planWeekLeads } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
+import { logError } from '@/lib/app-log';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
 export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string };
@@ -103,7 +104,12 @@ export default async function MeetingsPage() {
           });
         }
       } catch (err) {
-        console.error(`Failed to fetch Google events for user ${uId}:`, err);
+        logError('google_calendar', err, {
+          message: `Failed to fetch Google events for user ${uId}`,
+          userId: actor.id,
+          path: '/meetings',
+          detail: { calendarOf: uId },
+        });
       }
     })
   );

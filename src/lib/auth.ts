@@ -8,6 +8,7 @@ import { storeRefreshToken } from './google/tokens';
 import { IDENTITY_SCOPES } from './google/scopes';
 import type { UserRecord } from './db/schema';
 import { PENDING_APPROVAL, TEMPORARY_ERROR } from './auth-signals';
+import { describeError, logError, logEvent } from './app-log';
 
 /**
  * One retry for a read that failed because the Sheets API was busy.
@@ -24,7 +25,11 @@ async function withRetry<T>(op: () => Promise<T>): Promise<T> {
   try {
     return await op();
   } catch (e) {
-    console.warn('Sheet read during sign-in failed; retrying once:', e);
+    logError('sign_in_retry', e, {
+      level: 'warn',
+      message: 'Sheet read during sign-in failed; retrying once',
+      path: '/login',
+    });
     await new Promise((resolve) => setTimeout(resolve, 400));
     return await op();
   }
@@ -48,17 +53,45 @@ const providers: NextAuthOptions['providers'] = [
       const password = credentials?.password;
       if (!email || !password) return null;
 
-      const user = await findUserByEmail(email);
-      if (!user) return null;
+      let user: UserRecord | null;
+      try {
+        user = await findUserByEmail(email);
+      } catch (e) {
+        logError('sign_in_error', e, { message: 'Could not read users during sign-in', path: '/login', detail: { email } });
+        throw e;
+      }
+
+      // Kept so "I cannot sign in" can be answered: which address was typed,
+      // and which of the three ways it failed. Never the password.
+      const failed = (reason: string, userId?: string) =>
+        logEvent({
+          level: 'warn',
+          event: 'sign_in_failed',
+          message: reason,
+          userId,
+          path: '/login',
+          detail: { email, provider: 'credentials' },
+        });
+
+      if (!user) {
+        failed('unknown_email');
+        return null;
+      }
 
       // Fails closed for legacy plaintext rows -- see npm run db:migrate-passwords.
       const ok = await verifyPassword(password, user.password_hash);
-      if (!ok) return null;
+      if (!ok) {
+        failed('wrong_password', user.id);
+        return null;
+      }
 
       // Checked *after* the password, deliberately. "Waiting for approval" is
       // told only to somebody who already proved the account is theirs, so it
       // reveals nothing a stranger could use to find out who has registered.
-      if (user.active !== true) throw new Error(PENDING_APPROVAL);
+      if (user.active !== true) {
+        failed('pending_approval', user.id);
+        throw new Error(PENDING_APPROVAL);
+      }
 
       return { id: user.id, name: user.name, email: user.email, role: user.role };
     },
@@ -101,7 +134,17 @@ export const authOptions: NextAuthOptions = {
           // account exists and signing in again cannot help, which is what the
           // waiting screen says. Sending them back to the form with an error
           // invites the retry that is the one thing that cannot work.
-          if (existing.active !== true) return '/?pending=1';
+          if (existing.active !== true) {
+            logEvent({
+              level: 'warn',
+              event: 'sign_in_failed',
+              message: 'pending_approval',
+              userId: existing.id,
+              path: '/login',
+              detail: { email, provider: 'google' },
+            });
+            return '/?pending=1';
+          }
           user.id = existing.id;
           user.role = existing.role;
 
@@ -115,7 +158,11 @@ export const authOptions: NextAuthOptions = {
               accountEmail: email,
             });
           } catch (e) {
-            console.error('Could not store Google refresh token:', e);
+            logError('google_token', e, {
+              message: 'Could not store Google refresh token',
+              userId: existing.id,
+              path: '/login',
+            });
           }
 
           return true;
@@ -123,10 +170,24 @@ export const authOptions: NextAuthOptions = {
 
         const domain = email.split('@')[1] ?? '';
         if (!allowedSignupDomains().includes(domain)) {
+          logEvent({
+            level: 'warn',
+            event: 'sign_in_failed',
+            message: 'no_account',
+            path: '/login',
+            detail: { email, provider: 'google' },
+          });
           return '/login?error=AccessDenied';
         }
 
         // Self-registration lands inactive; an admin must approve before login.
+        logEvent({
+          level: 'info',
+          event: 'sign_up',
+          message: 'google',
+          path: '/login',
+          detail: { email, provider: 'google' },
+        });
         await SheetRepo.insert(
           'users',
           {
@@ -150,7 +211,11 @@ export const authOptions: NextAuthOptions = {
         // which is the wrong thing to say about a spreadsheet that was busy,
         // and leaves them nowhere to try again from. This code lands on the
         // login form with a message that says to.
-        console.error('Google sign-in error:', e);
+        logError('sign_in_error', e, {
+          message: 'Google sign-in error',
+          path: '/login',
+          detail: { email, provider: 'google' },
+        });
         return `/login?error=${TEMPORARY_ERROR}`;
       }
     },
@@ -169,6 +234,46 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
       }
       return session;
+    },
+  },
+  events: {
+    // Only a sign-in that worked arrives here; the ways one fails are logged
+    // where they are decided, above.
+    signIn({ user, account }) {
+      logEvent({
+        level: 'info',
+        event: 'sign_in',
+        message: account?.provider ?? '',
+        userId: user.id,
+        path: '/login',
+      });
+    },
+  },
+  // NextAuth's own failures -- a callback Google refused, a session cookie
+  // that no longer decrypts -- which it would otherwise only print. Printed
+  // still; kept as well. Only the error and the provider are taken from the
+  // metadata: some codes attach the OAuth exchange itself.
+  //
+  // Setting this switches on NextAuth's /_log endpoint, which would pass any
+  // stranger's body to it; the route answers that one itself -- see
+  // app/api/auth/[...nextauth]/route.ts.
+  logger: {
+    error(code, metadata) {
+      const error = metadata instanceof Error ? metadata : metadata?.error;
+      const providerId =
+        metadata && !(metadata instanceof Error) && typeof metadata.providerId === 'string'
+          ? metadata.providerId
+          : undefined;
+      console.error(`[next-auth][error][${code}]`, error ?? metadata);
+      logEvent({
+        level: 'error',
+        event: 'auth_error',
+        message: code,
+        detail: {
+          ...(error ? { error: describeError(error) } : {}),
+          ...(providerId ? { providerId } : {}),
+        },
+      });
     },
   },
   pages: {

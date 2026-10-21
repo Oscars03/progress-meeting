@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { initDatabase, DatabaseAlreadyInitializedError } from '@/lib/db/init-db';
 import { requireRole, AuthorizationError } from '@/lib/auth-guard';
+import { logError } from '@/lib/app-log';
 
 /**
  * Destructive: rewrites every tab's header row and seeds the users tab.
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    console.error('db-init failed:', error);
+    logError('db_init', error, { message: 'db-init failed', path: '/api/db-init' });
     return NextResponse.json(
       { success: false, message: 'Database installation failed' },
       { status: 500 }

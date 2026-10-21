@@ -6,6 +6,7 @@ import PreviewBanner from './preview-banner';
 import { requireSession } from '@/lib/auth-guard';
 import { NavDepth } from '@/lib/ui/back-link';
 import { ToastProvider } from '@/lib/ui/toast';
+import { UsageBeacon } from '@/lib/ui/usage-beacon';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { UserRecord } from '@/lib/db/schema';
 
@@ -42,6 +43,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <ToastProvider>
       <div className="h-dvh flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
         <NavDepth />
+        <UsageBeacon />
         {/* The role being looked through, not realRole: an admin previewing a
             professor sees a professor's menu, with no admin pages in it. The
             way back is the banner's own button, so Users is not needed for it. */}

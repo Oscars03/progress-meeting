@@ -6,6 +6,7 @@ import { isSignupAllowed, looksLikeEmail, normalizeEmail } from '@/lib/signup-po
 import type { UserRecord } from '@/lib/db/schema';
 import type { ActionFailure } from '@/lib/action-result';
 import type { TranslationKey } from '@/lib/ui/i18n';
+import { logError } from '@/lib/app-log';
 
 /**
  * Notice returned whenever a sign-up is accepted for review.
@@ -78,7 +79,7 @@ export async function registerAction(input: {
 
     return { ok: true, notice: PENDING };
   } catch (e) {
-    console.error('registerAction failed:', e);
+    logError('sign_up', e, { message: 'registerAction failed', path: '/login', detail: { email } });
     return { ok: false, error: 'register.failed' };
   }
 }

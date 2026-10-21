@@ -11,6 +11,7 @@ import {
 } from './calendar';
 import { getStoredToken } from './tokens';
 import type { TranslationKey } from '../ui/i18n';
+import { logError } from '../app-log';
 
 /**
  * Keeping a meeting row and a Google Calendar event in step.
@@ -71,7 +72,7 @@ function eventInputFrom(meeting: MeetingRecord, emails: string[]): EventInput {
 
 /** Google's own error text stays in the server log; the page gets a key. */
 function failed(err: unknown): TranslationKey {
-  console.error('calendar sync failed:', err);
+  logError('google_calendar', err, { message: 'calendar sync failed' });
   return 'sync.failed';
 }
 

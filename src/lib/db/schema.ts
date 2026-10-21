@@ -29,6 +29,7 @@ export const SCHEMAS = {
   term_breaks: [...COMMON_COLUMNS, 'name', 'start_date', 'end_date'],
   feedback: [...COMMON_COLUMNS, 'body', 'category', 'status'],
   widget_keys: [...COMMON_COLUMNS, 'user_id', 'key_hash', 'last_used_at'],
+  app_log: [...COMMON_COLUMNS, 'level', 'event', 'user_id', 'path', 'message', 'detail'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -350,4 +351,29 @@ export type AttachmentRecord = BaseRecord & {
   url: string;
   mime: string;
   size: number;
+};
+
+/**
+ * One thing that happened while somebody used the app: an error, a refusal, a
+ * sign-in, a page opened. See lib/app-log.ts, which is the only writer.
+ *
+ * Not written through SheetRepo. A log row is appended many at a time and
+ * never edited, so it carries no audit row of its own and its `row_version`
+ * stays 1. `created_at` is when it happened.
+ */
+export type AppLogRecord = BaseRecord & {
+  /** 'error' | 'warn' | 'info' */
+  level: string;
+  /** What kind of thing happened, e.g. 'server_error', 'sign_in', 'view'. */
+  event: string;
+  /** Who it happened to; '' when nobody was signed in. */
+  user_id: string;
+  /** The page or endpoint it happened on, without the query string. */
+  path: string;
+  message: string;
+  /**
+   * JSON: the stack, the digest, whatever else helps reproduce it. Read back
+   * through SheetRepo it arrives parsed; '' when there was nothing to add.
+   */
+  detail: Record<string, unknown> | string;
 };

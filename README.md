@@ -50,6 +50,30 @@ curl -H "Authorization: Bearer $CRON_SECRET" "https://<host>/api/cron?action=rem
 
 > **Roadmap — ยังไม่ได้พัฒนา**: `backup`, `recurring_meetings`, `reminders` ปัจจุบันตอบกลับ `501 Not Implemented` ตามจริง (เดิมตอบ success ทั้งที่ไม่ได้ทำอะไร)
 
+`trim_logs` ลบบันทึกเก่าใน `app_log` (ดูหัวข้อถัดไป) — Vercel เรียกให้เองวันละครั้งตาม `crons` ใน `vercel.json` โดยส่ง `CRON_SECRET` เป็น Bearer token ให้อัตโนมัติ กุญแจอ่านอย่างเดียว (`CRON_READ_SECRET`) เรียกไม่ได้
+
+## บันทึกการใช้งานและข้อผิดพลาด (app log)
+
+ทุกข้อผิดพลาดและการใช้งานถูกเก็บลงแท็บ `app_log` ในชีตเดียวกับข้อมูล เพราะ log ของ Vercel เก็บไว้แค่ชั่วโมงถึงวันเดียว — พออาจารย์หรือนักศึกษามาแจ้งว่า "เมื่อวานกดแล้วพัง" ของเดิมหายไปแล้ว ผู้ดูแลระบบเปิดดูได้ที่ **การตั้งค่า → บันทึกการใช้งาน** (กรองตามระดับ/ตามคน) หรือเปิดแท็บในชีตตรง ๆ
+
+| ระดับ | event | มาจาก |
+| --- | --- | --- |
+| `error` | `server_error` | หน้า/route/action ที่ throw บนเซิร์ฟเวอร์ (`src/instrumentation.ts`) |
+| `error` | `action_failed` | Server Action ที่พังใน `toResult` |
+| `error` | `client_error` | error ในเบราว์เซอร์ (`src/instrumentation-client.ts`, `error.tsx`) ผ่าน `/api/log` |
+| `error` | `google_calendar`, `google_drive`, `widget`, `auth_error`, … | ส่วนที่พังแล้วทำงานต่อได้ (เดิมเป็น `console.error` เฉย ๆ) |
+| `warn` | `action_refused` | ระบบปฏิเสธตามตั้งใจ เช่น ข้อมูลชนกัน (`error.conflict`) ไม่มีสิทธิ์ |
+| `warn` | `sign_in_failed` | เข้าสู่ระบบไม่ผ่าน พร้อมอีเมลที่พิมพ์และเหตุผล (ไม่เก็บรหัสผ่าน) |
+| `info` | `sign_in`, `view` | เข้าสู่ระบบสำเร็จ และหน้าที่แต่ละคนเปิด |
+
+- หน้าที่พังจะแสดง **รหัสอ้างอิง** (digest) ให้ผู้ใช้ — ค้นรหัสนี้ใน `detail` เพื่อหาแถวที่ตรงกัน
+- เก็บ `info` 30 วัน, `warn`/`error` 180 วัน แล้ว `trim_logs` ลบให้ทุกวัน
+- **ไม่กินโควตาเขียนของชีต**: แถวรอรวมกันแล้วเขียนทีเดียว ห่างกันอย่างน้อย 5 วินาทีต่อ instance และเหตุการณ์เดียวกันเก็บได้ไม่เกิน 60 แถว/นาที, 5,000 แถว/วัน
+- **ไม่เคยทำให้หน้าเว็บพัง**: ถ้าเขียนลงชีตไม่ได้ จะพิมพ์ลง console แล้วทิ้งไป
+- ไม่เก็บ header, cookie หรือ token — เก็บเฉพาะชื่อ/ข้อความ/stack ของ error, user agent และ id ผู้ใช้
+- แท็บ `app_log` ถูกสร้างเองเมื่อมีบันทึกแรก ถ้ายังไม่ได้รัน `npm run db:migrate-schema`
+- ไม่มี `SPREADSHEET_ID`/`SERVICE_ACCOUNT_JSON` (เช่นตอนรันเทสต์) = พิมพ์ลง console อย่างเดียวเหมือนเดิม
+
 ## คำสั่งที่ใช้บ่อย
 
 | คำสั่ง | หน้าที่ |

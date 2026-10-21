@@ -21,6 +21,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import { breakCovering, breakForWeek } from '@/lib/term-breaks';
+import { logError } from '@/lib/app-log';
 
 function isHttpUrl(value: string): boolean {
   try {
@@ -157,7 +158,11 @@ export async function rescheduleMeetingAction(
       try {
         await pushMeeting(meetingId, actor.id, notify);
       } catch (err) {
-        console.error('Could not move the Google event for this meeting:', err);
+        logError('google_calendar', err, {
+          message: 'Could not move the Google event for this meeting',
+          userId: actor.id,
+          detail: { meetingId },
+        });
       }
     }
 
@@ -304,7 +309,11 @@ export async function deleteMeeting(meetingId: string, rowVersion: number): Prom
       try {
         await removeMeetingEvent(meeting, actor.id);
       } catch (err) {
-        console.error('Could not remove the Google event for this meeting:', err);
+        logError('google_calendar', err, {
+          message: 'Could not remove the Google event for this meeting',
+          userId: actor.id,
+          detail: { meetingId: meeting.id },
+        });
       }
     }
 
