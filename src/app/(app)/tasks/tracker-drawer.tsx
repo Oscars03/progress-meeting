@@ -12,9 +12,6 @@ import { TASK_STATUSES } from './statuses';
 import type { TrackerPerson, TrackerRound, TrackerRow } from './tracker-model';
 import { Avatar, CloseIcon, Tag } from './tracker-ui';
 
-/** One press each: most updates are one of these, and a slider made every one a drag and a save. */
-const PROGRESS_STEPS = [0, 25, 50, 75, 100];
-
 /**
  * Run an action from a click, and report what came back.
  *
@@ -291,16 +288,123 @@ export function Checklist({ row, today }: { row: TrackerRow; today?: string }) {
   );
 }
 
-/** One of the figures across the top of the panel. */
-function Stat({ label, children, tone }: { label: string; children: React.ReactNode; tone?: 'late' }) {
+/** A thin bar under a figure: how much of something is done. */
+function MiniBar({ pct, tone = 'blue' }: { pct: number; tone?: 'blue' | 'red' | 'gray' }) {
+  const fill = tone === 'red' ? 'bg-red-600' : tone === 'gray' ? 'bg-gray-400' : 'bg-blue-600';
+  return (
+    <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden" aria-hidden="true">
+      <div className={`h-full rounded-full ${fill}`} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+    </div>
+  );
+}
+
+/** One of the figures across the top of the panel: a label, the figure, and what it is measured against. */
+function Stat({
+  label,
+  value,
+  late,
+  children,
+}: {
+  label: string;
+  value: React.ReactNode;
+  late?: boolean;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="rounded-xl border border-gray-200 px-4 py-3">
       <div className="text-xs text-gray-500">{label}</div>
-      <div
-        className={`mt-0.5 text-2xl font-semibold tabular-nums leading-tight ${tone === 'late' ? 'text-red-600' : 'text-gray-900'}`}
-      >
-        {children}
+      <div className={`mt-0.5 text-2xl font-semibold tabular-nums leading-tight ${late ? 'text-red-600' : 'text-gray-900'}`}>
+        {value}
       </div>
+      {children}
+    </div>
+  );
+}
+
+const TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
+/**
+ * How far along, as a slider that snaps to tens and saves when let go.
+ *
+ * The figure follows the thumb while it moves, and stays on the new value
+ * until the page comes back with it, so a release never flickers back to the
+ * old number. Someone who cannot move the work sees the same figure as a bar.
+ */
+function ProgressCard({
+  value,
+  canWork,
+  pending,
+  onCommit,
+  note,
+}: {
+  value: number;
+  canWork: boolean;
+  pending: boolean;
+  onCommit: (pct: number, done: () => void) => void;
+  note: string;
+}) {
+  const { t } = usePrefs();
+  const [draft, setDraft] = useState<number | null>(null);
+  // A release can arrive as more than one event (pointer, touch, blur); one save.
+  const sent = useRef<number | null>(null);
+  const keyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shown = draft ?? value;
+
+  const commit = () => {
+    if (keyTimer.current) clearTimeout(keyTimer.current);
+    if (draft === null || draft === value || sent.current === draft) return;
+    sent.current = draft;
+    onCommit(draft, () => {
+      setDraft(null);
+      sent.current = null;
+    });
+  };
+
+  useEffect(() => () => {
+    if (keyTimer.current) clearTimeout(keyTimer.current);
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-gray-200 px-4 py-3 col-span-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs text-gray-500">{t('tracker.col.progress')}</span>
+        <span className="text-2xl font-semibold tabular-nums leading-tight text-gray-900">{shown}%</span>
+      </div>
+      {canWork ? (
+        <>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={10}
+            value={shown}
+            // Not `disabled` while saving: that would take keyboard focus away
+            // after every step. A move made mid-save is simply not taken.
+            aria-busy={pending}
+            onChange={(e) => {
+              if (!pending) setDraft(Number(e.target.value));
+            }}
+            onPointerUp={commit}
+            onTouchEnd={commit}
+            // Arrow keys step through tens; the save waits until they stop.
+            onKeyUp={() => {
+              if (keyTimer.current) clearTimeout(keyTimer.current);
+              keyTimer.current = setTimeout(commit, 500);
+            }}
+            onBlur={commit}
+            aria-label={t('tracker.col.progress')}
+            className="trk-range trk-range-lg mt-1"
+          />
+          <div className="trk-ticks" aria-hidden="true">
+            {TICKS.map((n) => (
+              <span key={n}>{n}</span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <MiniBar pct={shown} />
+      )}
+      <p className="text-xs text-gray-500 mt-2">{note}</p>
     </div>
   );
 }
@@ -335,7 +439,6 @@ export default function ProjectDrawer({
 }) {
   const { t, locale } = usePrefs();
   const { pending, error, run } = useAction();
-  const [draft, setDraft] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -350,7 +453,6 @@ export default function ProjectDrawer({
   const round = rounds.find((r) => r.id === (parent ?? row).roundId);
   const started = daysBetween(today, row.start) <= 0;
   const elapsed = started ? elapsedPct(row.start, row.due, today) : null;
-  const value = draft ?? row.progress;
   const tone = row.status !== 'done' && !started ? 'future' : row.health;
   const owner = person(row.ownerId);
   const checklistDone = row.subtasks.filter((s) => s.done).length;
@@ -462,15 +564,40 @@ export default function ProjectDrawer({
         )}
         <ErrorLine text={error} />
 
-        {/* The answers first, large: how far, how long left, how much of the
-            checklist -- and the dates, which can be changed here. */}
-        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Stat label={t('tracker.col.progress')}>{row.progress}%</Stat>
-          <Stat label={t('tracker.col.left')} tone={late ? 'late' : undefined}>
-            {left}
+        {/* The answers first, large: how far (and moved right here), how long
+            left against how long it had, how much of the checklist -- and the
+            dates, which can be changed here too. Each card carries something
+            under its figure, so none is a number floating in empty space. */}
+        <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <ProgressCard
+            key={row.id}
+            value={row.progress}
+            canWork={row.can.work}
+            pending={pending}
+            onCommit={(pct, done) => run(() => setTaskProgress(row.id, pct, row.rowVersion), done)}
+            note={[
+              elapsed !== null ? t('tracker.elapsed', { pct: elapsed }) : '',
+              row.lastUpdate ? t('tracker.lastUpdate', { date: formatDay(row.lastUpdate, locale) }) : t('tracker.neverUpdated'),
+              row.can.work ? '' : t('tracker.onlyTheirs'),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          />
+          <Stat label={t('tracker.col.left')} value={left} late={late}>
+            {row.due && (
+              <>
+                <MiniBar pct={elapsed ?? 0} tone={late ? 'red' : 'gray'} />
+                <p className="text-xs text-gray-500 mt-1.5">
+                  {t('tasks.due')} {formatDay(row.due, locale)}
+                </p>
+              </>
+            )}
           </Stat>
-          <Stat label={t('tracker.view.subtasks')}>
-            {row.subtasks.length > 0 ? `${checklistDone}/${row.subtasks.length}` : '—'}
+          <Stat
+            label={t('tracker.view.subtasks')}
+            value={row.subtasks.length > 0 ? `${checklistDone}/${row.subtasks.length}` : '—'}
+          >
+            {row.subtasks.length > 0 && <MiniBar pct={(checklistDone / row.subtasks.length) * 100} />}
           </Stat>
           <div className="rounded-xl border border-gray-200 px-4 py-3 col-span-2 lg:col-span-1">
             <div className="text-xs text-gray-500 mb-1.5">{t('tracker.dates')}</div>
@@ -521,6 +648,7 @@ export default function ProjectDrawer({
                 <button
                   key={s}
                   type="button"
+                  data-status={s}
                   aria-pressed={row.status === s}
                   disabled={pending}
                   onClick={() => row.status !== s && run(() => updateTaskStatus(row.id, s, row.rowVersion))}
@@ -534,78 +662,6 @@ export default function ProjectDrawer({
               {t(`tasks.status.${row.status}`)}
             </span>
           )}
-        </section>
-
-        <section className="trk-sec">
-          <h4 className="trk-sec-title">{t('tracker.col.progress')}</h4>
-          {row.can.work ? (
-            <>
-              <div className="flex flex-wrap gap-1.5">
-                {PROGRESS_STEPS.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    aria-pressed={row.progress === p}
-                    disabled={pending}
-                    onClick={() => p !== row.progress && run(() => setTaskProgress(row.id, p, row.rowVersion), () => setDraft(null))}
-                    className={`min-w-16 px-3 py-2 rounded-lg border text-sm font-semibold tabular-nums transition disabled:opacity-50 ${
-                      row.progress === p
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {p}%
-                  </button>
-                ))}
-              </div>
-              <details className="mt-3">
-                <summary className="cursor-pointer text-xs text-blue-600 hover:underline">{t('tracker.fineTune')}</summary>
-                <div className="flex items-center gap-3 mt-2">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={value}
-                    disabled={pending}
-                    onChange={(e) => setDraft(Number(e.target.value))}
-                    aria-label={t('tracker.col.progress')}
-                    className="trk-range flex-1"
-                  />
-                  <b className="trk-mono w-12 text-right">{value}%</b>
-                </div>
-                {draft !== null && draft !== row.progress && (
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => run(() => setTaskProgress(row.id, draft, row.rowVersion), () => setDraft(null))}
-                      className="px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {pending ? t('common.saving') : t('tracker.saveProgress')}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => setDraft(null)}
-                      className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                )}
-              </details>
-            </>
-          ) : (
-            <b className="trk-mono text-lg">{row.progress}%</b>
-          )}
-          <p className="text-xs text-gray-500 mt-2">
-            {elapsed !== null && `${t('tracker.elapsed', { pct: elapsed })} · `}
-            {row.lastUpdate
-              ? t('tracker.lastUpdate', { date: formatDay(row.lastUpdate, locale) })
-              : t('tracker.neverUpdated')}
-            {!row.can.work && ` · ${t('tracker.onlyTheirs')}`}
-          </p>
         </section>
 
         <section className="trk-sec">

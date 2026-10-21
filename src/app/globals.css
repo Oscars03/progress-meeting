@@ -1207,6 +1207,17 @@ body {
 /* Inside the panel the status switch is a control pressed often, so it is a
    size a thumb finds; the same switch on the page stays compact. */
 .trk-dialog .trk-seg button { padding: 9px 20px; font-size: 14px; }
+/* The chosen status wears its own colour, as the pills on the table do:
+   grey not started, blue under way, green finished. */
+.trk-seg button[data-status='not_started'][aria-pressed='true'] { background: #6b7280; color: #ffffff; }
+.trk-seg button[data-status='in_progress'][aria-pressed='true'] { background: var(--trk-accent); color: #ffffff; }
+.trk-seg button[data-status='done'][aria-pressed='true'] { background: #16a34a; color: #ffffff; }
+/* Progress, dragged: a track tall enough for a thumb, ticks every ten. */
+.trk-range-lg { width: 100%; height: 28px; cursor: pointer; }
+.trk-range-lg:disabled { cursor: default; }
+.trk-ticks { display: flex; justify-content: space-between; padding: 0 7px; font-size: 11px; color: var(--trk-ink-3); font-variant-numeric: tabular-nums; }
+.trk-ticks span { width: 0; display: flex; flex-direction: column; align-items: center; }
+.trk-ticks span::before { content: ''; width: 1px; height: 5px; margin-bottom: 2px; background: var(--trk-border); }
 @media (max-width: 640px) { .trk-dialog { width: 100%; height: 100dvh; border-radius: 0; padding: 18px 18px calc(28px + env(safe-area-inset-bottom, 0px)); } }
 .trk-sec { border-top: 1px solid var(--trk-line); padding-top: 14px; margin-top: 14px; }
 .trk-sec-title { font-size: 12.5px; font-weight: 600; color: var(--trk-ink-2); margin-bottom: 8px; }
