@@ -26,6 +26,9 @@ import { actsAsWeekLead } from '@/lib/rotation';
 import { labInstant } from '@/lib/lab-time';
 import { can } from '@/lib/permissions';
 import { taskTitles } from '@/lib/task-title';
+import { daysBetween } from '@/lib/tracker';
+import { facesOf } from '@/lib/avatar-face';
+import { Avatar } from '@/lib/ui/avatar';
 import type {
   AvailabilityPollRecord,
   AvailabilitySlotRecord,
@@ -271,21 +274,46 @@ export default async function DashboardPage() {
    * the poll leads and the meeting card, which then has only "nothing
    * scheduled" to say, falls in behind it.
    */
+  // How soon, in the words people use: today, tomorrow, in three days.
+  const upcomingAt = upcoming ? labInstant(upcoming.start_at) : null;
+  const daysToGo = upcomingAt ? daysBetween(today, labDay(upcomingAt)) : null;
+  const soon =
+    daysToGo === null
+      ? ''
+      : daysToGo <= 0
+        ? t('dashboard.meetingToday')
+        : daysToGo === 1
+          ? t('dashboard.meetingTomorrow')
+          : t('dashboard.meetingInDays', { n: daysToGo });
+  const faces = facesOf(users);
+  const leadFace = lead ? faces.get(lead.user_id) : suggested ? faces.get(suggested.id) : undefined;
+
+  /**
+   * The card the page exists for, drawn to look it: a band of accent down its
+   * side, and when -- the day and the hour -- as the largest thing on the
+   * screen. It used to be a white card like the four below it, with the time
+   * in small grey type under the meeting's name, so the one fact everybody
+   * opens the page for was the easiest to miss.
+   */
   const meetingCard = (
-    <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-      <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.nextMeeting')}</h3>
+    <section className="dash-hero p-5 sm:p-6 rounded-xl space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold dash-hero-eyebrow">{t('dashboard.nextMeeting')}</h3>
+        {upcoming && soon && (
+          <span className="dash-hero-chip" data-today={daysToGo !== null && daysToGo <= 0 ? '' : undefined}>
+            {soon}
+          </span>
+        )}
+      </div>
 
       {upcoming ? (
         <>
-          <p className="text-xl font-bold text-gray-900">{upcoming.title}</p>
-          <p className="text-sm text-gray-600 tabular-nums">
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums leading-tight">
             {formatLabTime(upcoming.start_at, locale)}
           </p>
+          <p className="text-base font-medium text-gray-700">{upcoming.title}</p>
           {upcoming.location && <p className="text-sm text-gray-500">{upcoming.location}</p>}
-          <Link
-            href={`/meetings/${upcoming.id}`}
-            className="tap text-sm text-blue-600 hover:underline"
-          >
+          <Link href={`/meetings/${upcoming.id}`} className="btn btn-secondary btn-sm">
             {t('dashboard.openMeeting')}
           </Link>
         </>
@@ -320,6 +348,7 @@ export default async function DashboardPage() {
             <>
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                 <span className="text-gray-500">{t('rotation.title')}:</span>
+                {leadFace && <Avatar person={leadFace} />}
                 <span className="font-semibold text-gray-900">
                   {confirmedHost || suggested?.name}
                 </span>
