@@ -52,12 +52,19 @@ next-env.d.ts
 #
 # The exceptions are the documents somebody cloning the repo needs in order to
 # work on it -- how to run it, and how to ship it -- plus the shared list of
-# UI references to design against, and the to-do list for the next session.
+# UI references to design against, the UI rules every session must follow, the
+# to-do list for the next session, and the Claude Code skills vendored into
+# .claude/skills/ (cloud sessions start from a clone, so they must be tracked).
 *.md
 !README.md
 !DEPLOY.md
 !docs/ui-references.md
+!docs/ui-rules.md
 !docs/next-session.md
+!.claude/skills/**/*.md
+
+# Python bytecode from running a skill's scripts
+__pycache__/
 
 # Claude Code personal settings (not shared)
 .claude/settings.local.json
