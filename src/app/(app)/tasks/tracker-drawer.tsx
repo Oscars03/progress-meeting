@@ -523,16 +523,20 @@ export default function ProjectDrawer({
             dates, which can be changed here too. Each card carries something
             under its figure, so none is a number floating in empty space. */}
         <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* A project with subtasks moves when they do, so it has no slider
+              of its own: one figure set by hand beside one worked out would
+              be two answers to the same question. */}
           <ProgressCard
             key={row.id}
             value={row.progress}
-            canWork={row.can.work}
+            canWork={row.can.work && !row.rolledUp}
             pending={pending}
             onCommit={(pct, done) => run(() => setTaskProgress(row.id, pct, row.rowVersion), done)}
             note={[
+              row.rolledUp ? t('tracker.rolledUp', { n: subs.length }) : '',
               elapsed !== null ? t('tracker.elapsed', { pct: elapsed }) : '',
               row.lastUpdate ? t('tracker.lastUpdate', { date: formatDay(row.lastUpdate, locale) }) : t('tracker.neverUpdated'),
-              row.can.work ? '' : t('tracker.onlyTheirs'),
+              row.can.work || row.rolledUp ? '' : t('tracker.onlyTheirs'),
             ]
               .filter(Boolean)
               .join(' · ')}

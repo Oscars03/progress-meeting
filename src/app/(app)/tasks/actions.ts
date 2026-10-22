@@ -309,6 +309,11 @@ export async function setTaskProgress(
     if (!task) throw new UserError('error.notFound');
     if (!canEditWork(actor, task)) throw new AuthorizationError();
 
+    // A project with subtasks takes their average, so a figure of its own
+    // would be overwritten on the next render -- refused, not taken and lost.
+    const tasks = await SheetRepo.find<TaskRecord>('tasks', { fresh: true });
+    if (tasks.some((t) => t.parent_id === taskId)) throw new UserError('tasks.progressFromSubs');
+
     const n = Math.round(Number(progressPct));
     if (!Number.isFinite(n)) throw new UserError('error.invalidValue', { value: String(progressPct) });
     const progress = Math.min(100, Math.max(0, n));

@@ -6,6 +6,7 @@ import {
   isDay,
   monthOffset,
   projectHealth,
+  rollUpProgress,
   sortWork,
   timelineWindow,
   MAX_MONTHS,
@@ -134,5 +135,23 @@ describe('sortWork', () => {
     expect(titles(sortWork(twins, 'due'))).toEqual(['a', 'b']);
     sortWork(items, 'title');
     expect(items[0].title).toBe('later');
+  });
+});
+
+describe('rollUpProgress', () => {
+  it('averages the subtasks, counting a finished one as 100%', () => {
+    expect(
+      rollUpProgress([
+        { status: 'done', progress: 100 },
+        { status: 'in_progress', progress: 50 },
+        { status: 'not_started', progress: 0 },
+      ])
+    ).toBe(50);
+    expect(rollUpProgress([{ status: 'done', progress: 40 }, { status: 'in_progress', progress: 0 }])).toBe(50);
+  });
+
+  it('rounds, and leaves a project without subtasks to its own figure', () => {
+    expect(rollUpProgress([{ status: 'in_progress', progress: 10 }, { status: 'in_progress', progress: 0 }, { status: 'in_progress', progress: 0 }])).toBe(3);
+    expect(rollUpProgress([])).toBeNull();
   });
 });

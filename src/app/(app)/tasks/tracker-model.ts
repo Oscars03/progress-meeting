@@ -22,6 +22,7 @@ import {
   isDay,
   laterDay,
   projectHealth,
+  rollUpProgress,
   type Health,
 } from '@/lib/tracker';
 import { readStatus, type TaskStatus } from './statuses';
@@ -62,6 +63,12 @@ export type TrackerRow = {
   startSet: boolean;
   due: string;
   progress: number;
+  /**
+   * Whether `progress` is the mean of its subtasks' rather than a figure of
+   * its own: true of every project that has any. Nobody sets such a figure
+   * by hand -- it moves when the subtasks do.
+   */
+  rolledUp: boolean;
   status: TaskStatus;
   lastUpdate: string | null;
   health: Health;
@@ -129,7 +136,10 @@ export function toRows(input: {
     return parent && !parent.parent_id && parent.id !== task.id ? parent.id : '';
   };
 
-  return tasks.map((task) => {
+  // Each project's own figures first, then its subtasks' rolled up into it:
+  // a project's progress, and how recently it moved, come from its subtasks
+  // when it has any.
+  const base = tasks.map((task) => {
     const reports = updates
       .filter((u) => u.task_id === task.id)
       .sort((a, b) => (a.week_key < b.week_key ? 1 : -1));
@@ -146,6 +156,30 @@ export function toRows(input: {
     const lastUpdate = laterDay(dayOf(task.progress_at), reportedOn);
 
     return {
+      task,
+      reports,
+      start,
+      due,
+      progress,
+      status,
+      lastUpdate,
+    };
+  });
+
+  const subsOf = new Map<string, typeof base>();
+  for (const b of base) {
+    const parent = parentOf(b.task);
+    if (parent) subsOf.set(parent, [...(subsOf.get(parent) ?? []), b]);
+  }
+
+  return base.map(({ task, reports, start, due, progress: own, status, lastUpdate: ownUpdate }) => {
+    const subs = subsOf.get(task.id) ?? [];
+    const rolled = rollUpProgress(subs);
+    const progress = rolled ?? own;
+    const lastUpdate = subs.reduce((latest, s) => laterDay(latest, s.lastUpdate), ownUpdate);
+    const startSet = isDay(task.start_date);
+
+    return {
       id: task.id,
       rowVersion: task.row_version,
       title: task.title,
@@ -160,6 +194,7 @@ export function toRows(input: {
       startSet,
       due,
       progress,
+      rolledUp: rolled !== null,
       status,
       lastUpdate,
       // Never updated is measured from the day it was made: a subtask added
