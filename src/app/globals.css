@@ -1015,10 +1015,12 @@ body {
   --trk-ink: #ededed;
   --trk-ink-2: #a1a1aa;
   --trk-ink-3: #71717a;
-  /* Lighter on a dark ground, with dark text on it: the band stays the one
-     loud surface on the page either way. */
-  --trk-band: #6470e6;
-  --trk-band-ink: #0c1024;
+  /* A deep, quieter indigo with light text, not the light theme's band made
+     brighter. #6470e6 under #0c1024 was the brightest thing on a dark page,
+     and its text came to 4.49:1, under the 4.5:1 floor; this is 8.35:1 and
+     still stands clear of the card (1.46:1). The today tag swaps the two. */
+  --trk-band: #2e3466;
+  --trk-band-ink: #d4d8fb;
   --trk-accent: #3b82f6;
   --trk-accent-soft: #131f33;
   --trk-accent-ink: #93c5fd;
