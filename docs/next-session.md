@@ -61,6 +61,31 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
 
 ## First task once the skills are in
 
-- [ ] "Audit `/tasks` and `/dashboard` at 390px and desktop, in light and dark,
+- [x] "Audit `/tasks` and `/dashboard` at 390px and desktop, in light and dark,
       TH and EN. Send screenshots and a ranked list of fixes before changing
-      anything."
+      anything." Done 2026-10-22. No page scrolls sideways at 390px and dark
+      mode maps correctly on both. Ranked findings:
+
+  - [x] 1. `/tasks` on a phone showed only project and assignee; status,
+        progress and time left sat off-screen in a 1204px scroller. Now a card
+        per piece of work below 640px.
+  - [x] 2. English counted subtasks as "projects" ("4 projects", "6 projects"
+        beside "3 projects · 3 subtasks"). Now "items", as เรื่อง in Thai.
+  - [x] 3. The search box shared a row with the buttons on a phone and read
+        "Search pr". Own row on a phone, 320px from `sm` up.
+  - [x] 4. The today line struck through "ไม่มีกำหนดส่ง", and the วันนี้ tag
+        sat on the month label. Labels now carry their row's background; the
+        header has a row for the tag.
+  - [x] 5. Timeline on a phone left the chart about 150px. Name column 136px
+        there, so about 220px.
+  - [x] 6. The legend called the tick "black" (it is white in dark mode) and
+        said to scroll right for a Timeline that is now a tab. Each view now
+        lists only what it draws.
+  - [ ] 7. The admin dashboard has three ways to schedule a meeting on one
+        screen: the header's "+ นัดหมายประชุม", the "นัดหมายการประชุม" link in
+        the next-meeting card and the "นัดหมายเวลาประชุม" button in the weekly
+        card. Keep one.
+  - [ ] 8. Tap targets under 44px: the dashboard's text links (20–23px:
+        ดูลำดับทั้งหมด, ดูทั้งหมด, นัดหมายการประชุม).
+  - [ ] 9. The tracker's table header (`--trk-band`, saturated indigo) is the
+        brightest thing on the page in dark mode. A taste call: **ask the owner**.
