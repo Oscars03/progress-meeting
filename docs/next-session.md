@@ -4,9 +4,10 @@ To-do list for the next Claude Code session. Tick items off as they are done
 and delete the file when it is empty.
 
 Source: ["Must-Have UX/UI Design Skills for Claude Code"](https://uxplanet.org/must-have-ux-ui-design-skills-for-claude-code-364e93e3a614)
-(UX Planet, member-only). The article lists six skills; only five names could
-be confirmed from outside the paywall. **Open the article and fill in the
-sixth before installing.**
+(Nick Babich, UX Planet, 2026-03-27; member-only, read through the author's
+friend link). It lists six skills, all below. The article installs each with
+`npx skills add <repo>@<skill>`; check where that puts the files before relying
+on it, since the skill has to end up in this repo's `.claude/skills/`.
 
 ## Before installing anything
 
@@ -24,16 +25,17 @@ sixth before installing.**
 
 | | Skill | Source | Install | Status |
 |---|---|---|---|---|
-| [ ] | **ui-ux-pro-max** — styles, palettes, font pairs, UX rules | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | `/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill` then `/plugin install ui-ux-pro-max@ui-ux-pro-max-skill` | Confirmed. Its search script needs Python 3. Check it with `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "test" --domain style` |
-| [ ] | **frontend-design** — Anthropic's own UI skill | Anthropic plugin directory (`anthropics/claude-plugins-official`, `plugins/frontend-design`) | Install card in claude.ai, or `/plugin` → search "frontend-design" | Confirmed. **Install this one first.** |
-| [ ] | **web-design-guidelines** — audits UI code against Vercel's Web Interface Guidelines | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) (original; other repos are mirrors) | Copy `skills/web-design-guidelines` from that repo into `.claude/skills/` | Confirmed. Use the vercel-labs original, not a mirror |
-| [ ] | **shadcn** | shadcn-ui/ui | — | Name only. This app does **not** use shadcn/ui (plain Tailwind), so probably skip it |
-| [ ] | **ui-animation** | — | — | Name only; no source found. Find the repo from the article |
-| [ ] | *(sixth skill)* | — | — | Not readable outside the paywall |
+| [ ] | **frontend-design** — Anthropic's own UI skill; avoids generic layouts | Anthropic plugin directory (`anthropics/claude-plugins-official`, `plugins/frontend-design`) | `npx skills add frontend-design`, or `/plugin` → search "frontend-design" | **Install this one first.** Triggers on its own for any front-end task |
+| [ ] | **web-design-guidelines** — 100+ rules from Vercel's Web Interface Guidelines; audits UI code | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) (original; other repos are mirrors) | `npx skills add vercel-labs/agent-skills@web-design-guidelines` | Responds to "review my UI", "check accessibility", "review UX". Good fit for the audit below |
+| [ ] | **ui-ux-pro-max** — UX strategist; v2 generates a whole design system (pattern, palette, fonts, anti-patterns, pre-delivery checklist) | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | `npx skills add nextlevelbuilder/ui-ux-pro-max-skill@ui-ux-pro-max` (or `/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill` then `/plugin install ui-ux-pro-max@ui-ux-pro-max-skill`) | Its search script needs Python 3. Its sample output lists "dark mode" as an anti-pattern; this app has dark mode on purpose, so do not let it remove it |
+| [ ] | **ui-animation** — motion, easing, timing, reduced-motion, CSS transitions | [mblode/agent-skills](https://github.com/mblode/agent-skills) | `npx skills add mblode/agent-skills@ui-animation` | Low priority: the app has little motion. Useful mainly for `prefers-reduced-motion` |
+| [ ] | **taste-skill** — a set of skills for "premium" look: animation, spacing, visual polish | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | `npx skills add https://github.com/Leonxlnx/taste-skill` | Community, a whole collection rather than one skill. Read every `SKILL.md` in it first; likely overlaps frontend-design |
+| [ ] | **shadcn-ui** — knowledge of the shadcn/ui component library | [giuseppe-trisciuoglio/developer-kit](https://github.com/giuseppe-trisciuoglio/developer-kit) | `npx skills add giuseppe-trisciuoglio/developer-kit@shadcn-ui` | **Probably skip**: this app uses plain Tailwind, not shadcn/ui |
 
 ## Also suggested (Anthropic plugin directory)
 
-- [ ] **Design** (Anthropic): design critique, accessibility review, UX copy, design system
+- [x] **Design** (Anthropic): design critique, accessibility review, UX copy, design system.
+      Installed on the local machine (`design:*` skills); not yet in cloud sessions
 - [ ] **ux-ui-audit** (community): browser checks for contrast, tap targets and focus rings, plus a
       check that the TH and EN versions of each page match
 - [ ] **VectorLab UI/UX Skills** (community): forms, empty states, errors, loaders, spacing
@@ -52,7 +54,10 @@ sixth before installing.**
       data in screenshots. Never the production sheet.
 - [ ] Optional: turn on Vercel preview deployments for branches (`vercel.json`
       only deploys `master` now), so every UI PR has a link to try on a phone.
-      Point previews at the test sheet.
+      Point previews at the test sheet. **Ask the owner first**: previews are
+      off on purpose (see CLAUDE.md, "Changes land through pull requests") —
+      the repo is public and env vars exist for Production only, so a preview
+      with the real sheet would put lab data behind a guessable URL.
 
 ## First task once the skills are in
 
