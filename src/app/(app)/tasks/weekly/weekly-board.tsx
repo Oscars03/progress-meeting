@@ -14,6 +14,8 @@ export type TaskRow = {
   dueDate: string;
   overdue: boolean;
   progressPct: number;
+  /** A project with subtasks: its figure is their average, not set here. */
+  rolledUp: boolean;
   ownerName: string;
   isMine: boolean;
   /** Whose work it is -- assignees, or the owner when nobody is assigned. */
@@ -85,7 +87,7 @@ export default function WeeklyBoard({
     setError(null);
     setOpenId(row.id);
     setDraft({
-      progressPct: row.current?.progressPct ?? row.progressPct,
+      progressPct: row.rolledUp ? row.progressPct : row.current?.progressPct ?? row.progressPct,
       summary: row.current?.summary ?? '',
       risks: row.current?.risks ?? '',
       nextPlan: row.current?.nextPlan ?? '',
@@ -310,6 +312,14 @@ export default function WeeklyBoard({
 
                 {editing && draft && (
                   <div className="pt-3 border-t border-gray-100 space-y-3">
+                    {row.rolledUp ? (
+                      <div>
+                        <div className="text-xs font-medium text-gray-600 mb-1">
+                          {t('weekly.progress', { pct: draft.progressPct })}
+                        </div>
+                        <p className="text-xs text-gray-500">{t('weekly.rolledUp')}</p>
+                      </div>
+                    ) : (
                     <div>
                       <label
                         className="block text-xs font-medium text-gray-600 mb-1"
@@ -330,6 +340,7 @@ export default function WeeklyBoard({
                         className="w-full"
                       />
                     </div>
+                    )}
 
                     <div>
                       <label

@@ -5,6 +5,7 @@ import { recentWeekKeys, weekKey, weeksAgo, weekStartDate } from '@/lib/week';
 import type { TaskRecord, TaskUpdateRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { taskTitles } from '@/lib/task-title';
 import { canRecordProgress } from '@/lib/task-rights';
+import { rollUpProgress } from '@/lib/tracker';
 import WeeklyBoard, { type TaskRow } from './weekly-board';
 import { getT } from '@/lib/ui/server-i18n';
 
@@ -43,8 +44,17 @@ export default async function WeeklyPage() {
     return assigned.length > 0 ? assigned : task.owner_id ? [task.owner_id] : [];
   };
 
+  // A project with subtasks reports their average, as the board shows it.
+  const rolledUp = (task: TaskRecord) =>
+    rollUpProgress(
+      tasks
+        .filter((s) => s.parent_id === task.id)
+        .map((s) => ({ status: s.status, progress: Number(s.progress_pct) || 0 }))
+    );
+
   const rows: TaskRow[] = open.map((task) => {
     const mine = updates.filter((u) => u.task_id === task.id);
+    const rolled = rolledUp(task);
     const current = mine.find((u) => u.week_key === thisWeek) ?? null;
 
     // Longest silence is what makes a stalled task visible: the last week that
@@ -61,7 +71,8 @@ export default async function WeeklyPage() {
       status: task.status,
       dueDate: task.due_date ?? '',
       overdue: task.overdue_flag === true,
-      progressPct: Math.round(Number(task.progress_pct) || 0),
+      progressPct: rolled ?? Math.round(Number(task.progress_pct) || 0),
+      rolledUp: rolled !== null,
       ownerName: nameById.get(task.owner_id) ?? '—',
       isMine: task.owner_id === actor.id || assigneeIds(task).includes(actor.id),
       workerIds: workersOf(task),

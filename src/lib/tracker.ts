@@ -111,6 +111,18 @@ export function projectHealth(input: HealthInput, today: string): Health {
   return 'ok';
 }
 
+/**
+ * A project's progress when it has subtasks: the mean of theirs, so it moves
+ * with both how many are finished and how far each unfinished one has got. A
+ * subtask marked done counts as 100% whatever figure it was left at. null
+ * when there are no subtasks, and the project's own figure stands.
+ */
+export function rollUpProgress(subs: readonly { status: string; progress: number }[]): number | null {
+  if (subs.length === 0) return null;
+  const total = subs.reduce((sum, s) => sum + (s.status === 'done' ? 100 : Math.min(100, Math.max(0, s.progress))), 0);
+  return Math.round(total / subs.length);
+}
+
 /** The orders the board can be read in; the first is the one it opens in. */
 export const TRACKER_SORTS = ['due', 'added', 'progress', 'title'] as const;
 export type TrackerSort = (typeof TRACKER_SORTS)[number];

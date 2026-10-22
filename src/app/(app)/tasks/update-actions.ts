@@ -8,6 +8,7 @@ import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import type { TaskRecord, TaskUpdateRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { canRecordProgress } from '@/lib/task-rights';
+import { rollUpProgress } from '@/lib/tracker';
 
 function clampPct(value: unknown): number {
   const n = Math.round(Number(value));
@@ -54,7 +55,6 @@ async function saveWeeklyUpdate(input: {
   if (!summary) throw new UserError('weekly.summaryRequired');
 
   const key = input.weekKey?.trim() || weekKey();
-  const progress = clampPct(input.progressPct);
 
   const [tasks, updates, leads] = await Promise.all([
     SheetRepo.find<TaskRecord>('tasks'),
@@ -68,6 +68,15 @@ async function saveWeeklyUpdate(input: {
   if (!canRecordProgress(actor, task, key, leads)) {
     throw new UserError('error.roleRequired');
   }
+
+  // A project with subtasks is as far along as they are on average; the
+  // report records that figure, whatever the form sent.
+  const rolled = rollUpProgress(
+    tasks
+      .filter((t) => t.parent_id === taskId)
+      .map((t) => ({ status: t.status, progress: clampPct(t.progress_pct) }))
+  );
+  const progress = rolled ?? clampPct(input.progressPct);
 
   const existing = updates.find((u) => u.task_id === taskId && u.week_key === key);
 
@@ -103,8 +112,10 @@ async function saveWeeklyUpdate(input: {
   // Only this week's figure is the task's *current* progress. Correcting an
   // earlier week is history, and letting it write through would drag a task
   // that has since reached 80% back to whatever it was in that week.
+  // A rolled-up figure is never stored on the project: it is worked out from
+  // the subtasks each time, and a stored copy would only go stale.
   const isCurrentWeek = key === weekKey();
-  if (isCurrentWeek && clampPct(task.progress_pct) !== progress) {
+  if (rolled === null && isCurrentWeek && clampPct(task.progress_pct) !== progress) {
     await SheetRepo.update<TaskRecord>(
       'tasks',
       taskId,
