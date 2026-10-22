@@ -17,9 +17,11 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
 - [x] Install into the project (`.claude/skills/`) and commit it, not only into
       `~/.claude/skills/`. Cloud sessions start from a fresh clone, so a skill
       that lives only on one computer is missing there.
-- [ ] Install one at a time and try it on one page (e.g. `/tasks` on a phone)
+- [x] Install one at a time and try it on one page (e.g. `/tasks` on a phone)
       before adding the next. Several style skills at once give conflicting
-      advice.
+      advice. In the end the three went in together, as one PR (#157), and
+      ui-ux-pro-max was then used on `/tasks` (audit item 9 below). Add any
+      further style skill alone.
 
 ## Skills from the article
 
@@ -90,5 +92,9 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
         defect: they were measured with a mouse pointer. All seven links and
         buttons on the page match the `pointer: coarse` floor in
         `globals.css`, so they are 44px on a phone.
-  - [ ] 9. The tracker's table header (`--trk-band`, saturated indigo) is the
-        brightest thing on the page in dark mode. A taste call: **ask the owner**.
+  - [x] 9. The tracker's table header (`--trk-band`, saturated indigo) is the
+        brightest thing on the page in dark mode. The owner asked for the
+        skills to decide. ui-ux-pro-max's database had no dark-mode match, so
+        its built-in rules decided it (darker desaturated tone, text ≥4.5:1).
+        It also turned up a real defect: the old header text was 4.49:1. Dark
+        band now #2e3466 under #d4d8fb (8.35:1); light unchanged.
