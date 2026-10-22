@@ -10,7 +10,6 @@ import {
   rotationMembers,
   suggestNextHost,
 } from '@/lib/rotation';
-import NewMeetingButton from '../meetings/new-meeting-button';
 import HostPicker from './host-picker';
 import PendingUsers from './pending-users';
 import { autoAssignWeekLead } from '../meetings/actions';
@@ -173,10 +172,6 @@ export default async function DashboardPage() {
       // the hours have been picked.
       openPollCount: openPolls(polls, slots, votes, actor.id).length,
     });
-  // Booking a meeting outright skips the poll, so it is admin's escape hatch.
-  // Everyone else schedules by proposing times and confirming the winner.
-  const canSchedule = actor.role === 'admin';
-
   // Where you come in this week's meeting, and what you are down to show.
   // The order itself lives on /presentations; what belongs here is the one
   // line about it that concerns the person reading -- being third is something
@@ -308,17 +303,9 @@ export default async function DashboardPage() {
           </p>
         </>
       ) : (
-        <>
-          <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
-          {canSchedule && (
-            <Link
-              href="/meetings"
-              className="tap text-sm text-blue-600 hover:underline"
-            >
-              {t('dashboard.scheduleNow')}
-            </Link>
-          )}
-        </>
+        // No "schedule" link here: whoever may arrange the meeting has the
+        // week's card below, whose button starts it the usual way.
+        <p className="text-xl font-bold text-gray-900">{t('dashboard.notScheduled')}</p>
       )}
 
       {/* The lead stands whether or not anything is scheduled, so this strip
@@ -402,10 +389,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
-        {canSchedule && <NewMeetingButton />}
-      </div>
+      {/* One way to arrange the week from here: the grid, in the week's card
+          below. Admin also had "+ Schedule meeting" in this header and a link
+          in the meeting card -- three buttons with nearly one name, one of
+          which skips the poll. Booking outright stays on /meetings. */}
+      <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
 
       {/* Above the meeting, and the only notice that is. Somebody waiting on
           approval cannot use the app at all until an admin acts, so it is the

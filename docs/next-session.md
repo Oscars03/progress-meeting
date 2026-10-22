@@ -81,11 +81,14 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
   - [x] 6. The legend called the tick "black" (it is white in dark mode) and
         said to scroll right for a Timeline that is now a tab. Each view now
         lists only what it draws.
-  - [ ] 7. The admin dashboard has three ways to schedule a meeting on one
+  - [x] 7. The admin dashboard has three ways to schedule a meeting on one
         screen: the header's "+ นัดหมายประชุม", the "นัดหมายการประชุม" link in
         the next-meeting card and the "นัดหมายเวลาประชุม" button in the weekly
-        card. Keep one.
-  - [ ] 8. Tap targets under 44px: the dashboard's text links (20–23px:
-        ดูลำดับทั้งหมด, ดูทั้งหมด, นัดหมายการประชุม).
+        card. Kept the weekly card's (the grid, the usual way, and the one a
+        lead sees); booking outright stays on /meetings.
+  - [x] 8. ~~Tap targets under 44px on the dashboard's text links.~~ Not a
+        defect: they were measured with a mouse pointer. All seven links and
+        buttons on the page match the `pointer: coarse` floor in
+        `globals.css`, so they are 44px on a phone.
   - [ ] 9. The tracker's table header (`--trk-band`, saturated indigo) is the
         brightest thing on the page in dark mode. A taste call: **ask the owner**.
