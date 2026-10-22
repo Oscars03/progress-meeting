@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"if (process.env.CLAUDE_CODE_REMOTE === 'true') require('child_process').execSync('npm ci --no-audit --no-fund', { stdio: 'inherit' })\"",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
+  }
+}

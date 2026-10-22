@@ -11,10 +11,10 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
 
 ## Before installing anything
 
-- [ ] Read each skill's `SKILL.md` first. Community skills are instructions
+- [x] Read each skill's `SKILL.md` first. Community skills are instructions
       Claude will follow in this repo; check they do not run scripts or fetch
       things you did not expect.
-- [ ] Install into the project (`.claude/skills/`) and commit it, not only into
+- [x] Install into the project (`.claude/skills/`) and commit it, not only into
       `~/.claude/skills/`. Cloud sessions start from a fresh clone, so a skill
       that lives only on one computer is missing there.
 - [ ] Install one at a time and try it on one page (e.g. `/tasks` on a phone)
@@ -25,12 +25,12 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
 
 | | Skill | Source | Install | Status |
 |---|---|---|---|---|
-| [ ] | **frontend-design** — Anthropic's own UI skill; avoids generic layouts | Anthropic plugin directory (`anthropics/claude-plugins-official`, `plugins/frontend-design`) | `npx skills add frontend-design`, or `/plugin` → search "frontend-design" | **Install this one first.** Triggers on its own for any front-end task |
-| [ ] | **web-design-guidelines** — 100+ rules from Vercel's Web Interface Guidelines; audits UI code | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) (original; other repos are mirrors) | `npx skills add vercel-labs/agent-skills@web-design-guidelines` | Responds to "review my UI", "check accessibility", "review UX". Good fit for the audit below |
-| [ ] | **ui-ux-pro-max** — UX strategist; v2 generates a whole design system (pattern, palette, fonts, anti-patterns, pre-delivery checklist) | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | `npx skills add nextlevelbuilder/ui-ux-pro-max-skill@ui-ux-pro-max` (or `/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill` then `/plugin install ui-ux-pro-max@ui-ux-pro-max-skill`) | Its search script needs Python 3. Its sample output lists "dark mode" as an anti-pattern; this app has dark mode on purpose, so do not let it remove it |
-| [ ] | **ui-animation** — motion, easing, timing, reduced-motion, CSS transitions | [mblode/agent-skills](https://github.com/mblode/agent-skills) | `npx skills add mblode/agent-skills@ui-animation` | Low priority: the app has little motion. Useful mainly for `prefers-reduced-motion` |
-| [ ] | **taste-skill** — a set of skills for "premium" look: animation, spacing, visual polish | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | `npx skills add https://github.com/Leonxlnx/taste-skill` | Community, a whole collection rather than one skill. Read every `SKILL.md` in it first; likely overlaps frontend-design |
-| [ ] | **shadcn-ui** — knowledge of the shadcn/ui component library | [giuseppe-trisciuoglio/developer-kit](https://github.com/giuseppe-trisciuoglio/developer-kit) | `npx skills add giuseppe-trisciuoglio/developer-kit@shadcn-ui` | **Probably skip**: this app uses plain Tailwind, not shadcn/ui |
+| [x] | **frontend-design** — Anthropic's own UI skill; avoids generic layouts | Anthropic plugin directory (`anthropics/claude-plugins-official`, `plugins/frontend-design`) | `npx skills add frontend-design`, or `/plugin` → search "frontend-design" | **Install this one first.** Triggers on its own for any front-end task |
+| [x] | **web-design-guidelines** — 100+ rules from Vercel's Web Interface Guidelines; audits UI code | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) (original; other repos are mirrors) | `npx skills add vercel-labs/agent-skills@web-design-guidelines` | Responds to "review my UI", "check accessibility", "review UX". Good fit for the audit below |
+| [x] | **ui-ux-pro-max** — UX strategist; v2 generates a whole design system (pattern, palette, fonts, anti-patterns, pre-delivery checklist) | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | `npx skills add nextlevelbuilder/ui-ux-pro-max-skill@ui-ux-pro-max` (or `/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill` then `/plugin install ui-ux-pro-max@ui-ux-pro-max-skill`) | Its search script needs Python 3. Its sample output lists "dark mode" as an anti-pattern; this app has dark mode on purpose, so do not let it remove it |
+| — | **ui-animation** — motion, easing, timing, reduced-motion, CSS transitions | [mblode/agent-skills](https://github.com/mblode/agent-skills) | `npx skills add mblode/agent-skills@ui-animation` | Low priority: the app has little motion. Useful mainly for `prefers-reduced-motion` |
+| [ ] | **taste-skill** — a set of skills for "premium" look: animation, spacing, visual polish | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | `npx skills add https://github.com/Leonxlnx/taste-skill` | Community, a whole collection rather than one skill. Read every `SKILL.md` in it first; likely overlaps frontend-design. **Not installed yet**: auto mode refused to vendor it. Reviewed 2026-10-22: it triggers on almost any UI work, deals a random font and palette, has its own dark colours, no Thai/i18n, launches headless Chrome and writes `~/.taste-skill/`. If installed, add `disable-model-invocation: true` to its frontmatter so it only runs when called by name |
+| — | **shadcn-ui** — knowledge of the shadcn/ui component library | [giuseppe-trisciuoglio/developer-kit](https://github.com/giuseppe-trisciuoglio/developer-kit) | `npx skills add giuseppe-trisciuoglio/developer-kit@shadcn-ui` | **Probably skip**: this app uses plain Tailwind, not shadcn/ui |
 
 ## Also suggested (Anthropic plugin directory)
 
@@ -42,17 +42,17 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
 
 ## Setup so Claude can see the UI it changes
 
-- [ ] Commit the UI rules where every session sees them. `.gitignore` drops
+- [x] Commit the UI rules where every session sees them — `docs/ui-rules.md`. `.gitignore` drops
       every `*.md` except README, DEPLOY and `docs/`, so a root `CLAUDE.md`
       never reaches a cloud session. Rules to write down: phone first (check at
       390px), every string in TH and EN (`src/lib/ui/messages/`), dark mode only
       covers the classes listed in `src/app/globals.css`.
-- [ ] Add a SessionStart hook that runs `npm ci`, so a cloud session can build
+- [x] Add a SessionStart hook that runs `npm ci` (`.claude/settings.json`, cloud only), so a cloud session can build
       and take screenshots without setting up first.
-- [ ] Create a **test** Google Sheet and add its `SPREADSHEET_ID` and
+- [ ] *(Deferred by the owner, 2026-10-22.)* Create a **test** Google Sheet and add its `SPREADSHEET_ID` and
       `SERVICE_ACCOUNT_JSON` as cloud-environment secrets, so pages render with
       data in screenshots. Never the production sheet.
-- [ ] Optional: turn on Vercel preview deployments for branches (`vercel.json`
+- [ ] *(Deferred by the owner, 2026-10-22.)* Optional: turn on Vercel preview deployments for branches (`vercel.json`
       only deploys `master` now), so every UI PR has a link to try on a phone.
       Point previews at the test sheet. **Ask the owner first**: previews are
       off on purpose (see CLAUDE.md, "Changes land through pull requests") —
