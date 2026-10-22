@@ -273,16 +273,142 @@ export default function Tracker({
     </div>
   );
 
+  const groupLabel = (round: TrackerRound, items: TrackerRow[]) => (
+    <span className="trk-group-label">
+      <b>{round.id ? round.name : t('tracker.unsorted')}</b>
+      <span>
+        {round.due
+          ? t('tracker.due', { date: formatDay(round.due, locale, true) })
+          : round.id
+            ? t('tracker.ownDates')
+            : t('tracker.unsortedNote')}
+      </span>
+      {round.id && round.id === nextRound?.id && <span className="trk-next">{t('tracker.nextRound')}</span>}
+      <span>· {t('tracker.count', { n: items.reduce((n, r) => n + 1 + shownSubs(r).length, 0) })}</span>
+    </span>
+  );
+
+  const assigneeList = (r: TrackerRow) =>
+    r.assigneeIds.length > 0 ? (
+      <div className="flex flex-col gap-1">
+        {r.assigneeIds.map((id) => (
+          <span key={id} className="flex items-center gap-1.5">
+            <Avatar person={person(id)} />
+            {person(id).name}
+          </span>
+        ))}
+      </div>
+    ) : (
+      nobody
+    );
+
+  const subsToggle = (r: TrackerRow) => {
+    const subs = r.parentId ? [] : subsOf(r);
+    if (subs.length === 0) return null;
+    const open = isOpen(r);
+    return (
+      <button
+        type="button"
+        className="trk-subs-toggle tap-exempt"
+        aria-expanded={open}
+        aria-label={t('tracker.toggleSubs', { title: r.title })}
+        onClick={(e) => {
+          // The row opens the project; this only folds it.
+          e.stopPropagation();
+          toggle(r.id);
+        }}
+      >
+        <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+        {t('tracker.subCount', { n: subs.length })}
+      </button>
+    );
+  };
+
+  const titleLine = (r: TrackerRow) => (
+    <div className="font-medium leading-snug">
+      {r.parentId && <span className="trk-sub-mark" aria-hidden="true">↳</span>}
+      <button
+        type="button"
+        className="tap-exempt text-left hover:underline focus-visible:underline"
+        onClick={() => setOpenId(r.id)}
+      >
+        {r.title}
+      </button>
+      <Tag tag={r.tag} />
+    </div>
+  );
+
+  /**
+   * The table view on a phone. Its columns cannot fit in 390px, so status,
+   * progress and time left sat off to the right where nobody scrolled to; each
+   * piece of work becomes a card that carries them all instead.
+   */
+  const cards = () => (
+    <>
+      {groups.length === 0 ? (
+        <div className="trk-wrap">{empty}</div>
+      ) : (
+        <div className="trk-cards">
+          {groups.map(({ round, items }) => (
+            <section key={round.id || 'unsorted'}>
+              <div className="trk-cards-head">{groupLabel(round, items)}</div>
+              <ul className="trk-cards-list">
+                {items.flatMap((r) => [r, ...(isOpen(r) ? shownSubs(r) : [])]).map((r) => (
+                  <li
+                    key={r.id}
+                    className={`trk-card trk-h-${tone(r)}`}
+                    data-sub={r.parentId ? '' : undefined}
+                    onClick={() => setOpenId(r.id)}
+                  >
+                    <div className="trk-card-top">
+                      <div className="min-w-0">
+                        {titleLine(r)}
+                        {healthLine(r)}
+                      </div>
+                      <span className="trk-pill" data-status={r.status}>
+                        {t(`tasks.status.${r.status}`)}
+                      </span>
+                    </div>
+                    <div className="trk-card-progress">
+                      {progressCell(r)}
+                      {leftCell(r)}
+                    </div>
+                    <div className="trk-card-foot">
+                      {assigneeList(r)}
+                      {subsToggle(r)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+      {legend('cards')}
+    </>
+  );
+
   const table = () => {
     const compact = view === 'timeline';
     const mid = compact ? 0 : 5;
     return (
       <>
         <div className="trk-wrap">
-          <table className="trk-table">
+          <table className="trk-table" data-compact={compact ? '' : undefined}>
             <thead>
               <tr>
-                <th className="trk-proj">{compact ? t('tracker.col.projectPeople') : t('tracker.col.project')}</th>
+                <th className="trk-proj">
+                  {compact ? (
+                    // Two unbreakable halves: in the narrow phone column a
+                    // single string broke as "ผู้รับผิด / ชอบ".
+                    <>
+                      <span className="whitespace-nowrap">{t('tracker.col.project')}</span> ·{' '}
+                      <span className="whitespace-nowrap">{t('tasks.assignees')}</span>
+                    </>
+                  ) : (
+                    t('tracker.col.project')
+                  )}
+                </th>
                 {!compact && (
                   <>
                     <th>{t('tasks.assignees')}</th>
@@ -326,22 +452,7 @@ export default function Tracker({
               {groups.map(({ round, items }) => (
                 <Fragment key={round.id || 'unsorted'}>
                   <tr className="trk-group">
-                    <td colSpan={1 + mid}>
-                      <span className="trk-group-label">
-                        <b>{round.id ? round.name : t('tracker.unsorted')}</b>
-                        <span>
-                          {round.due
-                            ? t('tracker.due', { date: formatDay(round.due, locale, true) })
-                            : round.id
-                              ? t('tracker.ownDates')
-                              : t('tracker.unsortedNote')}
-                        </span>
-                        {round.id && round.id === nextRound?.id && <span className="trk-next">{t('tracker.nextRound')}</span>}
-                        <span>
-                          · {t('tracker.count', { n: items.reduce((n, r) => n + 1 + shownSubs(r).length, 0) })}
-                        </span>
-                      </span>
-                    </td>
+                    <td colSpan={1 + mid}>{groupLabel(round, items)}</td>
                     <td className="trk-tlc">
                       <div className="trk-tl" style={{ width: W, '--mw': `${mw}px` } as React.CSSProperties}>
                         {guides()}
@@ -364,7 +475,7 @@ export default function Tracker({
             </tbody>
           </table>
         </div>
-        {legend}
+        {legend(compact ? 'timeline' : 'table')}
       </>
     );
   };
@@ -372,45 +483,17 @@ export default function Tracker({
   /** One row of the table: a project, or -- indented under it -- a sub-project. */
   const projectRow = (r: TrackerRow) => {
     const compact = view === 'timeline';
-    const sub = Boolean(r.parentId);
-    const subs = sub ? [] : subsOf(r);
-    const open = isOpen(r);
     return (
       <tr
         key={r.id}
         className={`trk-row trk-h-${tone(r)}`}
-        data-sub={sub ? '' : undefined}
+        data-sub={r.parentId ? '' : undefined}
         onClick={() => setOpenId(r.id)}
       >
         <td className="trk-proj">
-          <div className="font-medium leading-snug">
-            {sub && <span className="trk-sub-mark" aria-hidden="true">↳</span>}
-            <button
-              type="button"
-              className="tap-exempt text-left hover:underline focus-visible:underline"
-              onClick={() => setOpenId(r.id)}
-            >
-              {r.title}
-            </button>
-            <Tag tag={r.tag} />
-          </div>
+          {titleLine(r)}
           {healthLine(r)}
-          {subs.length > 0 && (
-            <button
-              type="button"
-              className="trk-subs-toggle tap-exempt"
-              aria-expanded={open}
-              aria-label={t('tracker.toggleSubs', { title: r.title })}
-              onClick={(e) => {
-                // The row opens the project; this only folds it.
-                e.stopPropagation();
-                toggle(r.id);
-              }}
-            >
-              <span aria-hidden="true">{open ? '▾' : '▸'}</span>
-              {t('tracker.subCount', { n: subs.length })}
-            </button>
-          )}
+          {subsToggle(r)}
           {compact && (
             <div className="mt-1 text-xs">
               {r.assigneeIds.length > 0 ? (
@@ -428,20 +511,7 @@ export default function Tracker({
         </td>
         {!compact && (
           <>
-            <td>
-              {r.assigneeIds.length > 0 ? (
-                <div className="flex flex-col gap-1">
-                  {r.assigneeIds.map((id) => (
-                    <span key={id} className="flex items-center gap-1.5">
-                      <Avatar person={person(id)} />
-                      {person(id).name}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                nobody
-              )}
-            </td>
+            <td>{assigneeList(r)}</td>
             <td>
               <span className="trk-pill" data-status={r.status}>
                 {t(`tasks.status.${r.status}`)}
@@ -463,18 +533,24 @@ export default function Tracker({
     );
   };
 
-  const legend = (
+  /** Only what the view on screen actually draws: the cards have no deadline lines, the timeline no ticks. */
+  const legend = (kind: 'table' | 'timeline' | 'cards') => (
     <div className="trk-legend">
-      <span>
-        <span className="trk-lg-tick" />
-        {t('tracker.legend.tick')}
-      </span>
-      <span>
-        <span className="trk-lg-dl" />
-        {t('tracker.legend.deadline')}
-      </span>
+      {kind !== 'timeline' && (
+        <span>
+          <span className="trk-lg-tick" />
+          {t('tracker.legend.tick')}
+        </span>
+      )}
+      {kind !== 'cards' && (
+        <span>
+          <span className="trk-lg-dl" />
+          {t('tracker.legend.deadline')}
+        </span>
+      )}
       <span>{t('tracker.legend.stale', { n: STALE_AFTER_DAYS })}</span>
-      <span>{t('tracker.legend.scroll')}</span>
+      {kind === 'table' && <span>{t('tracker.legend.scroll')}</span>}
+      <span>{t('tracker.legend.open')}</span>
     </div>
   );
 
@@ -547,7 +623,9 @@ export default function Tracker({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <label className="relative flex-1 sm:flex-none">
+            {/* A row of its own on a phone: sharing one with the buttons left
+                it so narrow that the placeholder read "Search pr". */}
+            <label className="relative w-full sm:w-auto">
               <span className="sr-only">{t('tracker.search')}</span>
               <svg
                 aria-hidden="true"
@@ -566,7 +644,7 @@ export default function Tracker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('tracker.search')}
-                className="w-full sm:w-64 pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+                className="w-full sm:w-80 pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
               />
             </label>
             <Link
@@ -650,7 +728,18 @@ export default function Tracker({
         </div>
       </div>
 
-      {view === 'subtasks' ? subtasks() : table()}
+      {view === 'subtasks' ? (
+        subtasks()
+      ) : view === 'timeline' ? (
+        table()
+      ) : (
+        // Both are rendered and CSS picks one, so the server's HTML is already
+        // the right one for the screen it lands on.
+        <>
+          <div className="sm:hidden">{cards()}</div>
+          <div className="hidden sm:block">{table()}</div>
+        </>
+      )}
 
       <Presence value={open}>
         {(open) => (
