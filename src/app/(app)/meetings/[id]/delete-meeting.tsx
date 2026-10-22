@@ -63,7 +63,7 @@ export default function DeleteMeeting({
             type="button"
             onClick={remove}
             disabled={isPending}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-60"
+            className="btn btn-danger btn-sm"
           >
             {isPending && <Spinner className="h-4 w-4" />}
             {t('meeting.deleteYes')}
@@ -72,7 +72,7 @@ export default function DeleteMeeting({
             type="button"
             onClick={() => setArmed(false)}
             disabled={isPending}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
+            className="btn btn-secondary btn-sm"
           >
             {t('common.cancel')}
           </button>

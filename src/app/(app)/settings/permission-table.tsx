@@ -124,7 +124,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
         <button
           type="button"
           onClick={start}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition"
+          className="btn btn-primary"
         >
           {t('perm.open')}
         </button>
@@ -262,7 +262,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
                     type="button"
                     onClick={() => setGrid(original)}
                     disabled={changes.length === 0 || isPending}
-                    className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                    className="btn btn-secondary"
                   >
                     {t('perm.reset')}
                   </button>
@@ -270,7 +270,7 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
                     type="button"
                     onClick={save}
                     disabled={changes.length === 0 || isPending}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                    className="btn btn-primary"
                   >
                     {isPending ? t('perm.saving') : t('perm.confirm')}
                   </button>

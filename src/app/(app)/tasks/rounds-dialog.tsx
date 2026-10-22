@@ -169,7 +169,7 @@ export default function RoundsDialog({
         <button
           type="button"
           onClick={add}
-          className="mt-3 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+          className="btn btn-secondary btn-sm mt-3"
         >
           {t('tracker.rounds.add')}
         </button>
@@ -193,7 +193,7 @@ export default function RoundsDialog({
             type="button"
             onClick={save}
             disabled={pending}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {pending ? t('common.saving') : t('tracker.rounds.save')}
           </button>

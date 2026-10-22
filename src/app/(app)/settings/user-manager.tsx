@@ -201,7 +201,7 @@ export default function UserManager({
           type="button"
           onClick={() => handleSaveName(u)}
           disabled={isPending}
-          className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
           {t('common.save')}
         </button>
@@ -246,7 +246,7 @@ export default function UserManager({
           type="button"
           onClick={() => handleSaveRole(u)}
           disabled={isPending}
-          className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
           {t('common.save')}
         </button>
@@ -445,7 +445,7 @@ export default function UserManager({
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium disabled:opacity-50"
+              className="btn btn-primary btn-sm"
             >
               {t('users.saveNew')}
             </button>
@@ -549,7 +549,7 @@ export default function UserManager({
                   type="button"
                   autoFocus
                   onClick={() => setDeleting(null)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition"
+                  className="btn btn-ghost"
                 >
                   {t('common.cancel')}
                 </button>
@@ -560,7 +560,7 @@ export default function UserManager({
                       setDeleting(null);
                       handleToggleActive(user);
                     }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium transition"
+                    className="btn btn-secondary"
                   >
                     {t('users.deactivateInstead')}
                   </button>
@@ -569,7 +569,7 @@ export default function UserManager({
                   type="button"
                   onClick={() => confirmDelete(user)}
                   disabled={!understood || isPending}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn btn-danger"
                 >
                   {t('users.deleteForever')}
                 </button>

@@ -63,7 +63,7 @@ export default function BusyTimeNudge({ week, canConnect }: { week: string; canC
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Link
           href="/meetings"
-          className="inline-flex items-center justify-center min-h-11 px-5 rounded-lg text-base font-semibold shadow-sm transition bg-blue-600 hover:bg-blue-700 text-white"
+          className="btn btn-primary btn-lg"
         >
           {t('busyNudge.go')}
         </Link>

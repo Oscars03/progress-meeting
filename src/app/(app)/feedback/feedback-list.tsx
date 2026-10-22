@@ -162,7 +162,7 @@ export default function FeedbackList({
                       onClick={() =>
                         act(row.id, () => deleteFeedbackAction(row.id, row.rowVersion), t('feedback.deleted'))
                       }
-                      className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+                      className="btn btn-danger btn-sm"
                     >
                       {t('meeting.deleteYes')}
                     </button>
@@ -170,7 +170,7 @@ export default function FeedbackList({
                       type="button"
                       disabled={isPending}
                       onClick={() => setArmedId(null)}
-                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      className="btn btn-secondary btn-sm"
                     >
                       {t('common.cancel')}
                     </button>

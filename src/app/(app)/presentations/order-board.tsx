@@ -285,7 +285,7 @@ export default function OrderBoard({
               resetForm();
               setAdding((open) => !open);
             }}
-            className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition whitespace-nowrap"
+            className="btn btn-primary ml-auto"
           >
             {t('topics.add')}
           </button>
@@ -360,14 +360,14 @@ export default function OrderBoard({
                 setAdding(false);
                 setEditingId(null);
               }}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium"
+              className="btn btn-ghost"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              className="btn btn-primary"
             >
               {t('topics.submit')}
             </button>
@@ -445,7 +445,7 @@ export default function OrderBoard({
                         onClick={() => move(index, -1)}
                         disabled={index === 0 || isPending}
                         aria-label={t('presentations.moveUp')}
-                        className="px-2 py-1 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+                        className="btn btn-secondary btn-sm"
                       >
                         ↑
                       </button>
@@ -454,7 +454,7 @@ export default function OrderBoard({
                         onClick={() => move(index, 1)}
                         disabled={index === order.length - 1 || isPending}
                         aria-label={t('presentations.moveDown')}
-                        className="px-2 py-1 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+                        className="btn btn-secondary btn-sm"
                       >
                         ↓
                       </button>
@@ -545,7 +545,7 @@ export default function OrderBoard({
               )
             }
             disabled={isPending || !dirty}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+            className="btn btn-primary"
           >
             {t('presentations.saveOrder')}
           </button>
@@ -563,7 +563,7 @@ export default function OrderBoard({
                 )
               }
               disabled={isPending}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="btn btn-secondary"
             >
               {t('presentations.resetOrder')}
             </button>

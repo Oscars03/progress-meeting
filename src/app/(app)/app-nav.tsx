@@ -405,7 +405,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
             setWhatsNewOpen(true);
           }}
           title={t('nav.whatsNew')}
-          className="shrink-0 flex items-center gap-3 px-3 py-2 md:collapsed:justify-center md:collapsed:px-0 rounded-md text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-600 transition"
+          className="btn btn-ghost shrink-0 gap-3 md:collapsed:justify-center md:collapsed:px-0"
         >
           <Icon
             className="h-4 w-4"
@@ -535,7 +535,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
                   autoFocus
                   onClick={() => setSignOutOpen(false)}
                   disabled={signingOut}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium disabled:opacity-50"
+                  className="btn btn-ghost"
                 >
                   {t('common.cancel')}
                 </button>
@@ -546,7 +546,7 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
                     signOut({ callbackUrl: '/' });
                   }}
                   disabled={signingOut}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  className="btn btn-danger"
                 >
                   {signingOut ? t('signout.working') : t('nav.signOut')}
                 </button>

@@ -231,7 +231,7 @@ export function SubtaskList({
             <button
               type="submit"
               disabled={pending || !adding.title.trim()}
-              className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              className="btn btn-primary"
             >
               {t('tracker.add')}
             </button>
@@ -468,7 +468,7 @@ export default function ProjectDrawer({
               <button
                 type="button"
                 onClick={onEdit}
-                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50"
+                className="btn btn-secondary btn-sm"
               >
                 {t('tracker.edit')}
               </button>
@@ -477,7 +477,7 @@ export default function ProjectDrawer({
               <button
                 type="button"
                 onClick={() => setConfirming(true)}
-                className="px-3 py-1.5 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                className="btn btn-danger-soft btn-sm"
               >
                 {t('common.delete')}
               </button>
@@ -502,14 +502,14 @@ export default function ProjectDrawer({
                 type="button"
                 disabled={pending}
                 onClick={() => run(() => deleteTask(row.id, row.rowVersion), () => onDeleted(row.title))}
-                className="px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                className="btn btn-danger btn-sm"
               >
                 {t('tracker.deleteNow')}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirming(false)}
-                className="px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-100"
+                className="btn btn-danger-soft btn-sm"
               >
                 {t('common.cancel')}
               </button>
@@ -659,7 +659,7 @@ export default function ProjectDrawer({
           {row.can.work && row.status !== 'done' && (
             <Link
               href="/tasks/weekly"
-              className="inline-block mt-3 px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50"
+              className="btn btn-secondary btn-sm mt-3"
             >
               {t('tracker.writeReport')}
             </Link>

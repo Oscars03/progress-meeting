@@ -74,7 +74,7 @@ export default function HostPicker({
           type="button"
           onClick={save}
           disabled={isPending || (confirmed && unchanged)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 whitespace-nowrap"
+          className="btn btn-primary"
         >
           {confirmed ? t('common.save') : t('rotation.confirm')}
         </button>

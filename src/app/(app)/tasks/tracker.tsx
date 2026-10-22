@@ -293,7 +293,7 @@ export default function Tracker({
           <button
             type="button"
             onClick={clearFilters}
-            className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="btn btn-secondary btn-sm"
           >
             {t('tracker.clearFilters')}
           </button>
@@ -702,7 +702,7 @@ export default function Tracker({
             </label>
             <Link
               href="/tasks/weekly"
-              className="text-sm px-3 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+              className="btn btn-secondary"
             >
               {t('weekly.title')}
             </Link>
@@ -710,7 +710,7 @@ export default function Tracker({
               <button
                 type="button"
                 onClick={() => setRoundsOpen(true)}
-                className="text-sm px-3 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                className="btn btn-secondary"
               >
                 {t('tracker.rounds')}
               </button>
@@ -719,7 +719,7 @@ export default function Tracker({
               <button
                 type="button"
                 onClick={() => setForm({ mode: 'new' })}
-                className="text-sm px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 whitespace-nowrap"
+                className="btn btn-primary"
               >
                 {canAssign ? t('tracker.addProject') : t('tracker.addMine')}
               </button>

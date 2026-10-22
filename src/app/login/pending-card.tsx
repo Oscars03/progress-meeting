@@ -41,7 +41,7 @@ export default function PendingCard({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm"
+        className="btn btn-primary w-full"
       >
         {t('waiting.checkAgain')}
       </button>

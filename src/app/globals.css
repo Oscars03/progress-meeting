@@ -85,7 +85,8 @@ body {
      btn-danger-soft  the delete button that asks first: outlined red
      btn-ghost        cancel, close: no box until hovered
 
-   and `btn-sm` where a row is dense. Colours are variables restated for the
+   and `btn-sm` where a row is dense, `btn-lg` for the one action a screen
+   exists for (the week's lead on the dashboard, say). Colours are variables restated for the
    dark theme below, rather than utilities on the remap list. In the
    components layer, so a utility on the element (w-full, ml-auto) still wins. */
 :root {
@@ -131,6 +132,7 @@ body {
   .btn:disabled,
   .btn[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
   .btn-sm { min-height: 2rem; padding: 0.3125rem 0.75rem; font-size: 0.8125rem; }
+  .btn-lg { min-height: 2.75rem; padding: 0.625rem 1.25rem; font-size: 1rem; font-weight: 600; }
   .btn-primary { background-color: var(--btn-primary); color: #ffffff; }
   .btn-primary:hover:not(:disabled) { background-color: var(--btn-primary-hover); }
   .btn-secondary { background-color: var(--btn-surface); color: var(--btn-ink); border-color: var(--btn-border); }

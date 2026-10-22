@@ -125,7 +125,7 @@ export default function MyFace({
         <button
           type="submit"
           disabled={isPending || unchanged}
-          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg transition text-sm font-medium h-[34px] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn btn-primary btn-sm"
         >
           {isPending && <Spinner className="h-4 w-4" />}
           {t('common.save')}

@@ -170,7 +170,7 @@ export default async function LogsSettingsPage(props: PageProps<'/settings/logs'
           </label>
           <button
             type="submit"
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100"
+            className="btn btn-secondary btn-sm"
           >
             {t('logs.filter.apply')}
           </button>

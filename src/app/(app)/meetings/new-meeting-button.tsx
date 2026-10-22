@@ -59,7 +59,7 @@ export default function NewMeetingButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center h-10 px-4 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition whitespace-nowrap"
+        className="btn btn-primary"
       >
         {t('meetings.new')}
       </button>
@@ -174,7 +174,7 @@ export default function NewMeetingButton() {
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                    className="btn btn-primary"
                   >
                     {isPending ? t('common.saving') : t('meetings.save')}
                   </button>

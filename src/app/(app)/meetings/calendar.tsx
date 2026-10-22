@@ -850,14 +850,14 @@ export default function CalendarView({
                   <button
                     type="button"
                     onClick={() => setCreateModalOpen(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition"
+                    className="btn btn-ghost"
                   >
                     {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition disabled:opacity-50"
+                    className="btn btn-primary"
                   >
                     {isPending ? t('settings.saving') : t('common.save')}
                   </button>
@@ -895,14 +895,14 @@ export default function CalendarView({
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => setDeleteModalOpen(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition cursor-pointer"
+                    className="btn btn-ghost"
                   >
                     {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleDeleteSubmit}
                     disabled={isPending}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition disabled:opacity-50 cursor-pointer"
+                    className="btn btn-danger"
                   >
                     {isPending ? t('settings.deleting') : t('common.delete')}
                   </button>
@@ -957,7 +957,7 @@ export default function CalendarView({
                 <div className="flex flex-wrap justify-end gap-2 mt-4">
                   <button
                     onClick={() => setDetailModalOpen(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md font-medium transition cursor-pointer"
+                    className="btn btn-ghost"
                   >
                     ปิด
                   </button>
@@ -972,7 +972,7 @@ export default function CalendarView({
                       href={selectedEventInfo.meetLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 font-medium transition"
+                      className="btn btn-secondary"
                     >
                       {t('meetings.join')}
                     </a>
@@ -984,7 +984,7 @@ export default function CalendarView({
                         setDetailModalOpen(false);
                         router.push(`/meetings/${selectedEventInfo.id}`);
                       }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition cursor-pointer"
+                      className="btn btn-primary"
                     >
                       ดูรายละเอียด
                     </button>
@@ -1018,7 +1018,7 @@ export default function CalendarView({
                           setDetailModalOpen(false);
                           setCreateModalOpen(true);
                         }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition cursor-pointer"
+                        className="btn btn-primary"
                       >
                         {t('topics.edit')}
                       </button>
@@ -1030,7 +1030,7 @@ export default function CalendarView({
                           setSelectedEventRowVer(selectedEventInfo.rowVersion || 0);
                           setDeleteModalOpen(true);
                         }}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium transition cursor-pointer"
+                        className="btn btn-danger"
                       >
                         ลบเวลาไม่ว่าง
                       </button>

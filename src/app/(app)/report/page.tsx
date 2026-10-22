@@ -19,7 +19,7 @@ export default async function ReportPage() {
             href={sheetUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium"
+            className="btn btn-primary"
           >
             {t('report.openSheet')}
           </a>
