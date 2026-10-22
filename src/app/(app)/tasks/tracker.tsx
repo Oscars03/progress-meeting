@@ -8,16 +8,20 @@ import { useToast } from '@/lib/ui/toast';
 import {
   HEALTHS,
   STALE_AFTER_DAYS,
+  TRACKER_SORTS,
   daysBetween,
   elapsedPct,
   formatDay,
   monthName,
   monthOffset,
   monthStart,
+  sortWork,
   timelineWindow,
   yearLabel,
   type Health,
+  type TrackerSort,
 } from '@/lib/tracker';
+import { TASK_STATUSES, type TaskStatus } from './statuses';
 import type { TrackerPerson, TrackerRound, TrackerRow } from './tracker-model';
 import { Avatar, Tag } from './tracker-ui';
 import ProjectDrawer, { SubtaskList } from './tracker-drawer';
@@ -30,6 +34,8 @@ type FormState = { mode: 'new'; parentId?: string } | { mode: 'edit'; id: string
 
 /** Rows in no round, or in one since deleted, gather under this. */
 const UNSORTED: TrackerRound = { id: '', name: '', due: '', rowVersion: 0 };
+/** The round filter's value for that group: '' already means every round. */
+const UNSORTED_FILTER = '-';
 
 export default function Tracker({
   rows,
@@ -58,7 +64,11 @@ export default function Tracker({
   const [view, setView] = useState<View>('table');
   const [health, setHealth] = useState<Health | null>(null);
   const [query, setQuery] = useState('');
-  const [mine, setMine] = useState(false);
+  const [sort, setSort] = useState<TrackerSort>('due');
+  // '' for everyone; otherwise the one person whose work is shown.
+  const [who, setWho] = useState('');
+  const [status, setStatus] = useState<TaskStatus | ''>('');
+  const [roundFilter, setRoundFilter] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(null);
   const [roundsOpen, setRoundsOpen] = useState(false);
@@ -69,12 +79,14 @@ export default function Tracker({
     byId.get(id) ?? { id, name: t('common.deletedUser'), role: '', tone: 5, color: '', nickname: '' };
   const names = (ids: string[]) => ids.map((id) => person(id).name).join(', ');
 
-  // Sub-projects are drawn under their project, which can fold them away.
+  // Sub-projects are drawn under their project, which can fold them away, in
+  // the same order as the projects themselves.
   const kids = useMemo(() => {
     const byParent = new Map<string, TrackerRow[]>();
     for (const r of rows) if (r.parentId) byParent.set(r.parentId, [...(byParent.get(r.parentId) ?? []), r]);
+    for (const [id, list] of byParent) byParent.set(id, sortWork(list, sort));
     return byParent;
-  }, [rows]);
+  }, [rows, sort]);
   const subsOf = (r: TrackerRow) => kids.get(r.id) ?? [];
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const toggle = (id: string) =>
@@ -88,27 +100,41 @@ export default function Tracker({
   const q = query.trim().toLowerCase();
   const matches = (r: TrackerRow) => {
     if (health && r.health !== health) return false;
-    if (mine && !r.assigneeIds.includes(me)) return false;
+    if (who && !r.assigneeIds.includes(who)) return false;
+    if (status && r.status !== status) return false;
     if (!q) return true;
     return [r.title, r.tag, names(r.assigneeIds)]
       .join(' ')
       .toLowerCase()
       .includes(q);
   };
-  const filtering = Boolean(health || mine || q);
+  const filtering = Boolean(health || who || status || q);
+  // A subtask sits in its project's round, so the round is asked of projects.
+  const inRound = (r: TrackerRow) => !roundFilter || (r.roundId || UNSORTED_FILTER) === roundFilter;
   /**
    * Projects, each kept while it or one of its sub-projects is let through: a
    * sub-project that matches is shown where it lives, under its project.
    */
-  const visible = rows.filter((r) => !r.parentId && (matches(r) || subsOf(r).some(matches)));
+  const visible = sortWork(
+    rows.filter((r) => !r.parentId && inRound(r) && (matches(r) || subsOf(r).some(matches))),
+    sort
+  );
   const shownSubs = (r: TrackerRow) => (filtering ? subsOf(r).filter(matches) : subsOf(r));
   // Folded unless opened -- or unless a filter found something inside.
   const isOpen = (r: TrackerRow) => expanded.has(r.id) || (filtering && shownSubs(r).length > 0);
   const clearFilters = () => {
     setHealth(null);
-    setMine(false);
+    setWho('');
+    setStatus('');
+    setRoundFilter('');
     setQuery('');
   };
+  // The people anything is assigned to, so no choice in the list leads to an
+  // empty board. Yourself first, as "mine", then everybody else by name.
+  const assignees = [...new Set(rows.flatMap((r) => r.assigneeIds))]
+    .filter((id) => id !== me)
+    .map(person)
+    .sort((a, b) => a.name.localeCompare(b.name, 'th'));
 
   const counts = Object.fromEntries(HEALTHS.map((h) => [h, 0])) as Record<Health, number>;
   for (const r of rows) counts[r.health]++;
@@ -533,6 +559,30 @@ export default function Tracker({
     );
   };
 
+  /**
+   * One dropdown of the filter bar, its name above it. A filter that is set
+   * is marked, so a board showing less than everything says why at a glance;
+   * the order is never "set", only chosen.
+   */
+  const filterSelect = (
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    options: { value: string; label: string }[],
+    marks = true
+  ) => (
+    <label className="trk-filter">
+      <span>{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} data-set={marks && value ? '' : undefined}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
   /** Only what the view on screen actually draws: the cards have no deadline lines, the timeline no ticks. */
   const legend = (kind: 'table' | 'timeline' | 'cards') => (
     <div className="trk-legend">
@@ -702,7 +752,7 @@ export default function Tracker({
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="trk-seg" role="group" aria-label={t('tracker.views')}>
           {(['table', 'timeline', 'subtasks'] as const).map((v) => (
             <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>
@@ -710,21 +760,29 @@ export default function Tracker({
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          {filtering && (
-            <button type="button" onClick={clearFilters} className="hover:underline">
+        <div className="trk-filters">
+          {filterSelect(t('tracker.sortBy'), sort, (v) => setSort(v as TrackerSort), [
+            ...TRACKER_SORTS.map((v) => ({ value: v, label: t(`tracker.sort.${v}`) })),
+          ], false)}
+          {filterSelect(t('tasks.assignees'), who, setWho, [
+            { value: '', label: t('tracker.filter.everyone') },
+            { value: me, label: t('tracker.filter.mine') },
+            ...assignees.map((p) => ({ value: p.id, label: p.name })),
+          ])}
+          {filterSelect(t('tracker.col.status'), status, (v) => setStatus(v as TaskStatus | ''), [
+            { value: '', label: t('tracker.filter.anyStatus') },
+            ...TASK_STATUSES.map((v) => ({ value: v, label: t(`tasks.status.${v}`) })),
+          ])}
+          {filterSelect(t('tracker.rounds'), roundFilter, setRoundFilter, [
+            { value: '', label: t('tracker.filter.anyRound') },
+            ...rounds.map((r) => ({ value: r.id, label: r.name })),
+            { value: UNSORTED_FILTER, label: t('tracker.unsorted') },
+          ])}
+          {(filtering || roundFilter) && (
+            <button type="button" onClick={clearFilters} className="trk-filters-clear">
               {t('tracker.clearFilters')}
             </button>
           )}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="trk-check h-4 w-4"
-              checked={mine}
-              onChange={(e) => setMine(e.target.checked)}
-            />
-            {t('weekly.onlyMine')}
-          </label>
         </div>
       </div>
 

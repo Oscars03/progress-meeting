@@ -1116,6 +1116,19 @@ body {
 .trk-seg button { border: 0; background: transparent; padding: 5px 16px; border-radius: 7px; color: var(--trk-ink-2); cursor: pointer; font-size: 13.5px; white-space: nowrap; }
 .trk-seg button[aria-pressed='true'] { background: var(--trk-accent); color: #ffffff; font-weight: 500; }
 
+/* The filter bar: a name over each dropdown; two to a row on a phone. */
+.trk-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; }
+.trk-filter { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.trk-filter > span { font-size: 12px; color: var(--trk-ink-2); }
+.trk-filter select { max-width: 200px; padding: 6px 28px 6px 10px; font-size: 13.5px; color: var(--trk-ink); background-color: var(--trk-surface); border: 1px solid var(--trk-border); border-radius: 8px; cursor: pointer; }
+.trk-filter select[data-set] { border-color: var(--trk-accent); background-color: var(--trk-accent-soft); color: var(--trk-accent-ink); font-weight: 500; }
+.trk-filters-clear { justify-self: start; padding: 6px 4px; font-size: 13.5px; color: var(--trk-accent-ink); white-space: nowrap; text-align: left; }
+.trk-filters-clear:hover { text-decoration: underline; }
+@media (max-width: 639px) {
+  .trk-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .trk-filter select { max-width: none; width: 100%; }
+}
+
 /* Table and timeline */
 .trk-wrap { overflow-x: auto; border: 1px solid var(--trk-border); border-radius: 12px; background: var(--trk-surface); }
 .trk-table { border-collapse: separate; border-spacing: 0; min-width: 100%; font-size: 13.5px; color: var(--trk-ink); }
