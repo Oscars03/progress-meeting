@@ -141,7 +141,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
               <div className="pt-2">
                 <Link
                   href="/tasks/weekly"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition tap"
+                  className="btn btn-primary"
                 >
                   {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
                 </Link>

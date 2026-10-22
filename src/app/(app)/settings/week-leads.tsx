@@ -102,7 +102,7 @@ function WeekRow({ row, students }: { row: WeekLeadRow; students: RotationStuden
       onClick={() => save('')}
       disabled={isPending}
       title={t('weekLeads.clearHint')}
-      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+      className="btn btn-secondary btn-sm"
     >
       {t('weekLeads.clear')}
     </button>
@@ -161,7 +161,7 @@ function WeekRow({ row, students }: { row: WeekLeadRow; students: RotationStuden
                 type="button"
                 onClick={() => save(choice)}
                 disabled={isPending}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                className="btn btn-primary btn-sm"
               >
                 {isPending ? t('common.saving') : t('common.save')}
               </button>

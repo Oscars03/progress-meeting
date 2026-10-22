@@ -174,7 +174,7 @@ export default function PollGrid({
           <button
             onClick={checkCalendars}
             disabled={isPending}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="btn btn-secondary btn-sm"
           >
             {checkingCalendars ? t('polls.checking') : t('polls.checkCalendar')}
           </button>
@@ -302,7 +302,7 @@ export default function PollGrid({
                       run(() => confirmSlotAction(pollId, pollRowVersion, slot.id));
                     }}
                     disabled={isPending}
-                    className="ml-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                    className="btn btn-primary btn-sm ml-auto"
                   >
                     {t('polls.confirmThis')}
                   </button>
@@ -326,7 +326,7 @@ export default function PollGrid({
               run(() => closePollAction(pollId, pollRowVersion, closed ? 'open' : 'closed'))
             }
             disabled={isPending}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="btn btn-secondary btn-sm"
           >
             {closed ? t('polls.reopen') : t('polls.close')}
           </button>

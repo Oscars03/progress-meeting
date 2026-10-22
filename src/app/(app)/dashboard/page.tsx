@@ -43,11 +43,10 @@ import type {
 /**
  * The lead's buttons. Big enough to hit on a tablet (44px) and a clear step
  * apart: the one thing to do next is solid, anything after it is outlined.
- * Every colour here is one globals.css already remaps for the dark theme.
+ * The shared button classes, at their large size -- see globals.css.
  */
-const ACTION = 'inline-flex items-center justify-center min-h-11 px-5 rounded-lg text-base font-semibold shadow-sm transition';
-const PRIMARY_ACTION = `${ACTION} bg-blue-600 hover:bg-blue-700 text-white`;
-const SECONDARY_ACTION = `${ACTION} border-2 border-blue-300 bg-white text-blue-700 hover:bg-blue-100`;
+const PRIMARY_ACTION = 'btn btn-primary btn-lg';
+const SECONDARY_ACTION = 'btn btn-secondary btn-lg';
 
 export default async function DashboardPage() {
   // Started with everything else so it rides in the same batched read, rather
@@ -337,7 +336,7 @@ export default async function DashboardPage() {
                 <div className="pt-2">
                   <Link
                     href="/tasks/weekly"
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition tap"
+                    className="btn btn-primary"
                   >
                     {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
                   </Link>

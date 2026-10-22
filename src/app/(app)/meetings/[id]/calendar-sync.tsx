@@ -104,7 +104,7 @@ export default function CalendarSync({
           <button
             onClick={() => run(() => pushMeetingAction(meetingId))}
             disabled={isPending}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+            className="btn btn-primary btn-sm"
           >
             {isPending ? t('sync.syncing') : linked ? t('sync.pushChanges') : t('sync.pushInvite')}
           </button>
@@ -114,7 +114,7 @@ export default function CalendarSync({
           <button
             onClick={() => run(() => pullMeetingAction(meetingId))}
             disabled={isPending}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="btn btn-secondary btn-sm"
           >
             {t('sync.pull')}
           </button>

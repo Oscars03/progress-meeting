@@ -252,7 +252,7 @@ function LoginForm({
         <button
           type="submit"
           disabled={busy}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn btn-primary w-full"
         >
           {loading && <Spinner />}
           {loading ? t('login.submitting') : t('login.submit')}
@@ -319,7 +319,7 @@ function LoginForm({
         <button
           type="submit"
           disabled={busy}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn btn-primary w-full"
         >
           {loading && <Spinner />}
           {loading ? t('register.submitting') : t('register.submit')}
@@ -388,7 +388,7 @@ function LoginForm({
             // times".
             window.setTimeout(() => setGoogleLoading(false), 6000);
           }}
-          className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-lg transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn btn-secondary w-full"
         >
           {googleLoading ? (
             <Spinner />

@@ -60,7 +60,7 @@ export default function PendingUsers({ users }: { users: PendingUser[] }) {
             type="button"
             onClick={() => approve(user)}
             disabled={isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-primary"
           >
             {busyId === user.id && <Spinner className="h-3.5 w-3.5" />}
             {busyId === user.id ? t('pending.approving') : t('pending.approve')}

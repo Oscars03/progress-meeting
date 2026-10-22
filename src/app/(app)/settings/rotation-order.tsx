@@ -181,7 +181,7 @@ export default function RotationOrder({ students }: { students: RotationStudent[
                   onClick={() => move(index, -1)}
                   disabled={index === 0 || isPending}
                   aria-label={t('presentations.moveUp')}
-                  className="px-2 py-1 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+                  className="btn btn-secondary btn-sm"
                 >
                   ↑
                 </button>
@@ -190,7 +190,7 @@ export default function RotationOrder({ students }: { students: RotationStudent[
                   onClick={() => move(index, 1)}
                   disabled={index === order.length - 1 || isPending}
                   aria-label={t('presentations.moveDown')}
-                  className="px-2 py-1 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-40"
+                  className="btn btn-secondary btn-sm"
                 >
                   ↓
                 </button>
@@ -205,7 +205,7 @@ export default function RotationOrder({ students }: { students: RotationStudent[
           type="button"
           onClick={save}
           disabled={isPending || !dirty}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+          className="btn btn-primary"
         >
           {isPending ? t('common.saving') : t('rotationOrder.save')}
         </button>

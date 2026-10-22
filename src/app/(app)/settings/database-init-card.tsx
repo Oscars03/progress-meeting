@@ -137,7 +137,7 @@ export default function DatabaseInitCard({
               {!showClearForm ? (
                 <button
                   onClick={() => setShowClearForm(true)}
-                  className="text-sm px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg font-medium transition"
+                  className="btn btn-danger-soft btn-sm"
                 >
                   ล้างข้อมูลทั้งหมดเพื่อปลดล็อก db:init
                 </button>
@@ -184,7 +184,7 @@ export default function DatabaseInitCard({
                     <button
                       onClick={handleClearDatabase}
                       disabled={isPending}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                      className="btn btn-danger btn-sm"
                     >
                       {isPending ? 'กำลังลบ...' : 'ยืนยันล้างข้อมูล'}
                     </button>
@@ -194,7 +194,7 @@ export default function DatabaseInitCard({
                         setClearPassword('');
                         setClearConfirm('');
                       }}
-                      className="px-3 py-1.5 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-medium transition"
+                      className="btn btn-secondary btn-sm"
                     >
                       ยกเลิก
                     </button>

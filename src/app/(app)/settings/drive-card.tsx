@@ -63,7 +63,7 @@ export default function DriveCard({ status }: { status: DriveStatus }) {
               setConnecting(true);
               signIn('google', { callbackUrl: '/settings/lab' }, driveAuthParams());
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition disabled:opacity-50"
+            className="btn btn-primary"
           >
             {connecting && <Spinner className="h-4 w-4" />}
             {status.connected ? t('drive.reconnect') : t('drive.connect')}

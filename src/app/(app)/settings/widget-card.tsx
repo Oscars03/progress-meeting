@@ -172,9 +172,7 @@ export default function WidgetCard({
       type="button"
       onClick={() => copy(id, text)}
       className={
-        primary
-          ? 'shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium'
-          : 'shrink-0 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50'
+        primary ? 'btn btn-primary btn-sm shrink-0' : 'btn btn-secondary btn-sm shrink-0'
       }
     >
       {copied === id ? t('widget.copied') : label}
@@ -209,7 +207,7 @@ export default function WidgetCard({
           href={store.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+          className="btn btn-primary btn-sm"
         >
           {t(store.label)} ↗
         </a>
@@ -299,7 +297,7 @@ export default function WidgetCard({
           type="button"
           onClick={create}
           disabled={isPending}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
+          className="btn btn-primary btn-sm"
         >
           {isPending && <Spinner />}
           {isPending ? t('widget.working') : status ? t('widget.replace') : t('widget.create')}
@@ -309,7 +307,7 @@ export default function WidgetCard({
             type="button"
             onClick={revoke}
             disabled={isPending}
-            className="px-4 py-1.5 rounded-lg border border-red-300 text-red-700 text-sm font-medium hover:bg-red-50 disabled:opacity-50"
+            className="btn btn-danger-soft btn-sm"
           >
             {t('widget.revoke')}
           </button>

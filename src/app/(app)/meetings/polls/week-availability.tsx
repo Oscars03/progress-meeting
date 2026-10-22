@@ -343,7 +343,7 @@ export default function WeekAvailabilityGrid({
             type="button"
             onClick={() => loadWeek()}
             disabled={isPending}
-            className="h-8 px-3 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            className="btn btn-secondary btn-sm"
           >
             {t('avail.thisWeek')}
           </button>
@@ -601,14 +601,14 @@ export default function WeekAvailabilityGrid({
                         <button
                           type="submit"
                           disabled={isPending}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                          className="btn btn-primary"
                         >
                           {t('avail.editSave')}
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditing(false)}
-                          className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+                          className="btn btn-secondary"
                         >
                           {t('avail.editCancel')}
                         </button>
@@ -618,7 +618,7 @@ export default function WeekAvailabilityGrid({
                     <button
                       type="button"
                       onClick={() => startEditing(selected.meeting!)}
-                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-100"
+                      className="btn btn-secondary btn-sm"
                     >
                       {t('avail.editTime')}
                     </button>
@@ -794,7 +794,7 @@ export default function WeekAvailabilityGrid({
                     type="button"
                     onClick={() => ask(selected, chosen)}
                     disabled={isPending}
-                    className="w-full sm:w-auto min-h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-base font-semibold shadow-sm transition disabled:opacity-50"
+                    className="btn btn-primary btn-lg w-full sm:w-auto"
                   >
                     {asking ? t('avail.asking') : t('avail.ask')}
                   </button>
