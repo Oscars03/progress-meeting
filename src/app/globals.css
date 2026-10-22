@@ -71,7 +71,76 @@ body {
    `scale` rather than `transform`, which some of these already use; the
    buttons' own `transition` utility already animates it. */
 @media (prefers-reduced-motion: no-preference) {
-  :is(button, a):is(.bg-blue-600, .bg-red-600, .bg-green-600, .bg-indigo-600):not(:disabled):active { scale: 0.97; }
+  :is(button, a):is(.bg-blue-600, .bg-red-600, .bg-green-600, .bg-indigo-600, .btn-primary, .btn-danger):not(:disabled):active { scale: 0.97; }
+}
+
+/* Buttons: one look everywhere. Every page used to spell its own -- px-3 or
+   px-4, py-1.5 or py-2, rounded-md or rounded-lg, 30px tall here and 40px
+   there -- so the same action looked like four different things. A button
+   takes `btn` and one kind:
+
+     btn-primary      the one thing the screen is for
+     btn-secondary    any other action: outlined
+     btn-danger       deleting, once confirmed: solid red
+     btn-danger-soft  the delete button that asks first: outlined red
+     btn-ghost        cancel, close: no box until hovered
+
+   and `btn-sm` where a row is dense. Colours are variables restated for the
+   dark theme below, rather than utilities on the remap list. In the
+   components layer, so a utility on the element (w-full, ml-auto) still wins. */
+:root {
+  --btn-primary: #2563eb;
+  --btn-primary-hover: #1d4ed8;
+  --btn-surface: #ffffff;
+  --btn-surface-hover: #f3f4f6;
+  --btn-ink: #374151;
+  --btn-border: #d1d5db;
+  --btn-danger: #dc2626;
+  --btn-danger-hover: #b91c1c;
+  --btn-danger-ink: #dc2626;
+  --btn-danger-border: #fecaca;
+  --btn-danger-soft-hover: #fef2f2;
+}
+:root[data-theme='dark'] {
+  --btn-surface: #1c1c1e;
+  --btn-surface-hover: #2a2a2f;
+  --btn-ink: #e4e4e7;
+  --btn-border: #3f3f46;
+  --btn-danger-ink: #f87171;
+  --btn-danger-border: #5a2428;
+  --btn-danger-soft-hover: #2a1416;
+}
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    white-space: nowrap;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .btn:disabled,
+  .btn[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { min-height: 2rem; padding: 0.3125rem 0.75rem; font-size: 0.8125rem; }
+  .btn-primary { background-color: var(--btn-primary); color: #ffffff; }
+  .btn-primary:hover:not(:disabled) { background-color: var(--btn-primary-hover); }
+  .btn-secondary { background-color: var(--btn-surface); color: var(--btn-ink); border-color: var(--btn-border); }
+  .btn-secondary:hover:not(:disabled) { background-color: var(--btn-surface-hover); }
+  .btn-danger { background-color: var(--btn-danger); color: #ffffff; }
+  .btn-danger:hover:not(:disabled) { background-color: var(--btn-danger-hover); }
+  .btn-danger-soft { background-color: transparent; color: var(--btn-danger-ink); border-color: var(--btn-danger-border); }
+  .btn-danger-soft:hover:not(:disabled) { background-color: var(--btn-danger-soft-hover); }
+  .btn-ghost { background-color: transparent; color: var(--btn-ink); }
+  .btn-ghost:hover:not(:disabled) { background-color: var(--btn-surface-hover); }
 }
 
 /* Touch targets: 44px on a finger, as the platform guidelines ask.

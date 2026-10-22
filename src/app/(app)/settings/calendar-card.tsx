@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { disconnectCalendarAction, type ConnectionStatus } from '../calendar-actions';
 import Spinner from '@/lib/ui/spinner';
+import { useConfirm } from '@/lib/ui/confirm';
 import { calendarAuthParams } from '@/lib/google/scopes';
 
 export default function CalendarCard({
@@ -15,6 +16,7 @@ export default function CalendarCard({
   googleEnabled: boolean;
 }) {
   const router = useRouter();
+  const ask = useConfirm();
   const [isPending, startTransition] = useTransition();
   // Google takes the browser away, so this is never cleared: the button stays
   // spent while the redirect is in flight rather than inviting a second press.
@@ -105,8 +107,14 @@ export default function CalendarCard({
             )}
           </dl>
           <button
-            onClick={() => {
-              if (!confirm('ยกเลิกการเชื่อมปฏิทิน? ระบบจะเลิกเห็นเวลาว่างของคุณ')) return;
+            onClick={async () => {
+              if (
+                !(await ask('ยกเลิกการเชื่อมปฏิทิน? ระบบจะเลิกเห็นเวลาว่างของคุณ', {
+                  danger: true,
+                  confirmLabel: 'ยกเลิกการเชื่อม',
+                }))
+              )
+                return;
               setError('');
               startTransition(async () => {
                 try {

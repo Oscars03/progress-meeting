@@ -6,6 +6,7 @@ import { createWidgetKeyAction, revokeWidgetKeyAction } from './widget-actions';
 import { kwgtFormulas, kwgtImageUrl, pageUrl } from '@/lib/widget-scripts';
 import { readWidgetSize, type WidgetSize } from '@/lib/widget-svg';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useConfirm } from '@/lib/ui/confirm';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import Spinner from '@/lib/ui/spinner';
 import { PhoneArt, type StepArt } from './widget-illustrations';
@@ -115,6 +116,7 @@ export default function WidgetCard({
   preview: { light: string; dark: string };
 }) {
   const { t } = usePrefs();
+  const ask = useConfirm();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -136,8 +138,8 @@ export default function WidgetCard({
     }
   };
 
-  const create = () => {
-    if (status && !window.confirm(t('widget.replaceConfirm'))) return;
+  const create = async () => {
+    if (status && !(await ask(t('widget.replaceConfirm')))) return;
     setMessage(null);
     startTransition(async () => {
       const res = await createWidgetKeyAction();
@@ -150,8 +152,8 @@ export default function WidgetCard({
     });
   };
 
-  const revoke = () => {
-    if (!window.confirm(t('widget.revokeConfirm'))) return;
+  const revoke = async () => {
+    if (!(await ask(t('widget.revokeConfirm'), { danger: true }))) return;
     setMessage(null);
     startTransition(async () => {
       const res = await revokeWidgetKeyAction();

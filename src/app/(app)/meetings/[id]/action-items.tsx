@@ -8,6 +8,7 @@ import {
   setActionItemStatusAction,
 } from './actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useConfirm } from '@/lib/ui/confirm';
 import type { ActionResult } from '@/lib/action-result';
 
 export type Item = {
@@ -53,6 +54,7 @@ export default function ActionItems({
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? '—';
   const taskTitleOf = (id: string) => openTasks.find((t) => t.id === id)?.title;
   const { t } = usePrefs();
+  const ask = useConfirm();
 
   const run = (work: () => Promise<ActionResult | void>) => {
     setError('');
@@ -163,8 +165,8 @@ export default function ActionItems({
                   )}
                   {canDelete && (
                     <button
-                      onClick={() => {
-                        if (!confirm(t('items.confirmDelete', { title: item.title }))) return;
+                      onClick={async () => {
+                        if (!(await ask(t('items.confirmDelete', { title: item.title }), { danger: true }))) return;
                         run(() => deleteActionItemAction(meetingId, item.id, item.row_version));
                       }}
                       disabled={isPending}

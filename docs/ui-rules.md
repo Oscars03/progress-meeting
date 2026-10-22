@@ -47,6 +47,16 @@ decorative motion.
 - `text-white` and `bg-black` are deliberately not remapped.
 - Check every change in light **and** dark.
 
+## Buttons and questions
+
+- A button is `btn` plus one kind -- `btn-primary`, `btn-secondary`,
+  `btn-danger`, `btn-danger-soft`, `btn-ghost` -- and `btn-sm` in a dense row.
+  Defined once in `src/app/globals.css`, dark mode included. Do not spell a
+  button's padding, radius and colours out in utilities again.
+- Ask "are you sure?" with `useConfirm()` from `src/lib/ui/confirm.tsx`, never
+  the browser's `confirm()` or `alert()`: those are drawn by Chrome, titled
+  with the site's address, and ignore the theme and the language.
+
 ## Copy
 
 - Empty states must not congratulate. "Nothing matches this view" is not

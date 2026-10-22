@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { initDbAction, clearDatabaseAction } from './actions';
+import { useConfirm } from '@/lib/ui/confirm';
 
 type Message = { type: 'success' | 'error'; text: string };
 
@@ -28,6 +29,7 @@ export default function DatabaseInitCard({
   populatedTabs?: string[];
 }) {
   const router = useRouter();
+  const ask = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<Message | null>(null);
   const [showClearForm, setShowClearForm] = useState(false);
@@ -48,9 +50,9 @@ export default function DatabaseInitCard({
 
   const alreadyPopulated = populatedTabs.length > 0;
 
-  const handleInitDb = () => {
+  const handleInitDb = async () => {
     if (alreadyPopulated) return;
-    if (!confirm('ต้องการติดตั้งโครงสร้างฐานข้อมูลและเพิ่มข้อมูลทดสอบเริ่มต้นใช่หรือไม่?')) return;
+    if (!(await ask('ต้องการติดตั้งโครงสร้างฐานข้อมูลและเพิ่มข้อมูลทดสอบเริ่มต้นใช่หรือไม่?'))) return;
     run(async () => {
       const res = await initDbAction();
       setMessage({
@@ -60,7 +62,7 @@ export default function DatabaseInitCard({
     });
   };
 
-  const handleClearDatabase = () => {
+  const handleClearDatabase = async () => {
     if (clearConfirm !== CLEAR_CONFIRM_PHRASE) {
       setMessage({ type: 'error', text: `กรุณาพิมพ์ "${CLEAR_CONFIRM_PHRASE}" ให้ตรงเพื่อยืนยัน` });
       return;
@@ -69,7 +71,7 @@ export default function DatabaseInitCard({
       setMessage({ type: 'error', text: 'กรุณากรอกรหัสผ่านของคุณ' });
       return;
     }
-    if (!confirm('ลบข้อมูลทั้งหมดถาวร กู้คืนไม่ได้ ยืนยันหรือไม่?')) return;
+    if (!(await ask('ลบข้อมูลทั้งหมดถาวร กู้คืนไม่ได้ ยืนยันหรือไม่?', { danger: true }))) return;
 
     run(async () => {
       const res = await clearDatabaseAction(clearPassword);

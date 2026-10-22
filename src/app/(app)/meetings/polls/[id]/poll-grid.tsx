@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { closePollAction, confirmSlotAction, deletePollAction, voteAction } from '../actions';
 import { slotConflictsAction, type SlotBusy } from '../../../calendar-actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useConfirm } from '@/lib/ui/confirm';
 import { LAB_TIME_ZONE } from '@/lib/lab-time';
 import type { ActionFailure } from '@/lib/action-result';
 
@@ -88,6 +89,7 @@ export default function PollGrid({
   alreadyConfirmed: boolean;
 }) {
   const { t } = usePrefs();
+  const ask = useConfirm();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
@@ -291,8 +293,8 @@ export default function PollGrid({
 
                 {canManage && !alreadyConfirmed && (
                   <button
-                    onClick={() => {
-                      if (!confirm(t('polls.confirmSlot', { range: formatRange(slot.startAt, slot.endAt) })))
+                    onClick={async () => {
+                      if (!(await ask(t('polls.confirmSlot', { range: formatRange(slot.startAt, slot.endAt) }))))
                         return;
                       // Returned, not just awaited: `run` reads the refusal
                       // out of the value, and a swallowed result is a refusal
@@ -329,8 +331,8 @@ export default function PollGrid({
             {closed ? t('polls.reopen') : t('polls.close')}
           </button>
           <button
-            onClick={() => {
-              if (!confirm(t('polls.confirmDelete'))) return;
+            onClick={async () => {
+              if (!(await ask(t('polls.confirmDelete'), { danger: true }))) return;
               run(async () => {
                 const result = await deletePollAction(pollId, pollRowVersion);
                 // Only leave the page if it actually went; navigating away

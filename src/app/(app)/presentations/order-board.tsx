@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useConfirm } from '@/lib/ui/confirm';
 import { useToast } from '@/lib/ui/toast';
 import { slideOffset, useFlip } from '@/lib/ui/flip';
 import { addTopic, deleteTopic, setTopicOrder, clearTopicOrder, updateTopic } from './actions';
@@ -90,6 +91,7 @@ export default function OrderBoard({
   readOnly?: boolean;
 }) {
   const { t } = usePrefs();
+  const ask = useConfirm();
   const toast = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -491,8 +493,8 @@ export default function OrderBoard({
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                if (!confirm(t('topics.confirmDelete'))) return;
+                              onClick={async () => {
+                                if (!(await ask(t('topics.confirmDelete'), { danger: true }))) return;
                                 run(() => deleteTopic(topic.id, topic.row_version), t('topics.deleted'));
                               }}
                               disabled={isPending}
