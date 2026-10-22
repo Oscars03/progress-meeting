@@ -6,6 +6,7 @@ import PreviewBanner from './preview-banner';
 import { requireSession } from '@/lib/auth-guard';
 import { NavDepth } from '@/lib/ui/back-link';
 import { ToastProvider } from '@/lib/ui/toast';
+import { ConfirmProvider } from '@/lib/ui/confirm';
 import { UsageBeacon } from '@/lib/ui/usage-beacon';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { UserRecord } from '@/lib/db/schema';
@@ -41,6 +42,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // with it.
   return (
     <ToastProvider>
+      <ConfirmProvider>
       <div className="h-dvh flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
         <NavDepth />
         <UsageBeacon />
@@ -59,6 +61,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <div className="p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
       </div>
+      </ConfirmProvider>
     </ToastProvider>
   );
 }

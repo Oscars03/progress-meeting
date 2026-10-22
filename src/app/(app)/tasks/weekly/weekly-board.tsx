@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteWeeklyUpdateAction, saveWeeklyUpdateAction } from '../update-actions';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useConfirm } from '@/lib/ui/confirm';
 import { useToast } from '@/lib/ui/toast';
 import type { TranslationKey, TranslationVars } from '@/lib/ui/i18n';
 
@@ -59,6 +60,7 @@ export default function WeeklyBoard({
   people: { id: string; name: string }[];
 }) {
   const { t } = usePrefs();
+  const ask = useConfirm();
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -94,9 +96,9 @@ export default function WeeklyBoard({
     });
   };
 
-  const removeReport = (row: TaskRow) => {
+  const removeReport = async (row: TaskRow) => {
     if (!row.current) return;
-    if (!confirm(t('weekly.confirmDeleteReport'))) return;
+    if (!(await ask(t('weekly.confirmDeleteReport'), { danger: true }))) return;
     setError(null);
     startTransition(async () => {
       try {

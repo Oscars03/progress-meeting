@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useConfirm } from '@/lib/ui/confirm';
 import { addTermBreakAction, deleteTermBreakAction } from './actions';
 import type { TermBreakRecord } from '@/lib/db/schema';
 import Spinner from '@/lib/ui/spinner';
@@ -9,6 +10,7 @@ import { useToast } from '@/lib/ui/toast';
 
 export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
   const { t } = usePrefs();
+  const ask = useConfirm();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   // Errors only; a success is a toast. A delete used to report "saved".
@@ -34,8 +36,8 @@ export default function TermBreaks({ breaks }: { breaks: TermBreakRecord[] }) {
     });
   };
 
-  const removeBreak = (id: string, breakName: string, rowVersion: number) => {
-    if (!confirm(t('common.confirmDelete'))) return;
+  const removeBreak = async (id: string, breakName: string, rowVersion: number) => {
+    if (!(await ask(t('common.confirmDelete'), { danger: true }))) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteTermBreakAction(id, rowVersion);

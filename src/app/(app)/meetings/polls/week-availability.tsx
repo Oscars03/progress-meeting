@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
+import { useConfirm } from '@/lib/ui/confirm';
 import { Presence } from '@/lib/ui/presence';
 import { ModalScope } from '@/lib/ui/modal';
 import { addDays, type CellMeeting } from '@/lib/availability-grid';
@@ -106,6 +107,7 @@ export default function WeekAvailabilityGrid({
   isAdmin: boolean;
 }) {
   const { t, locale } = usePrefs();
+  const confirmFirst = useConfirm();
   const router = useRouter();
   const [data, setData] = useState(initial);
   /**
@@ -193,7 +195,7 @@ export default function WeekAvailabilityGrid({
    * meeting is. So opening a free block lists the hours inside it, and asking
    * is pressing one of them.
    */
-  const ask = (run: AvailabilityRun, slot: { start: string; end: string }) => {
+  const ask = async (run: AvailabilityRun, slot: { start: string; end: string }) => {
     const day = run.start.slice(0, 10);
     const offset = run.start.slice(19);
     // An end of 00:00 belongs to the next day, which is the one case where the
@@ -207,7 +209,7 @@ export default function WeekAvailabilityGrid({
     const when = whenLabel(span);
     const message =
       run.state === 'free' ? t('avail.askConfirm', { when }) : t('avail.askNotAllFree', { when });
-    if (!confirm(message)) return;
+    if (!(await confirmFirst(message))) return;
 
     setError('');
     setAsking(true);
