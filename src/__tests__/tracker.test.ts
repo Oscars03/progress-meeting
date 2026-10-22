@@ -6,6 +6,7 @@ import {
   isDay,
   monthOffset,
   projectHealth,
+  sortWork,
   timelineWindow,
   MAX_MONTHS,
   MIN_MONTHS,
@@ -104,5 +105,34 @@ describe('formatDay', () => {
     expect(formatDay('2026-10-31', 'th')).toBe('31 ต.ค. 69');
     expect(formatDay('2026-10-31', 'th', true)).toBe('31 ต.ค. 2569');
     expect(formatDay('2026-10-31', 'en', true)).toBe('31 Oct 2026');
+  });
+});
+
+describe('sortWork', () => {
+  const work = (title: string, due: string, status = 'in_progress', progress = 0) => ({ title, due, status, progress });
+  const items = [
+    work('later', '2026-11-30'),
+    work('no date', ''),
+    work('handed in', '2026-09-01', 'done', 100),
+    work('overdue', '2026-09-10', 'in_progress', 60),
+    work('soon', '2026-09-25', 'not_started', 20),
+  ];
+  const titles = (list: { title: string }[]) => list.map((w) => w.title);
+
+  it('puts the nearest deadline first, then undated work, then delivered work', () => {
+    expect(titles(sortWork(items, 'due'))).toEqual(['overdue', 'soon', 'later', 'no date', 'handed in']);
+  });
+
+  it('reads the newest first, the least done first, or by name', () => {
+    expect(titles(sortWork(items, 'added'))).toEqual(['soon', 'overdue', 'handed in', 'no date', 'later']);
+    expect(titles(sortWork(items, 'progress'))).toEqual(['later', 'no date', 'soon', 'overdue', 'handed in']);
+    expect(titles(sortWork(items, 'title'))).toEqual(['handed in', 'later', 'no date', 'overdue', 'soon']);
+  });
+
+  it('keeps ties in the order they came, and leaves the input alone', () => {
+    const twins = [work('a', '2026-10-01'), work('b', '2026-10-01')];
+    expect(titles(sortWork(twins, 'due'))).toEqual(['a', 'b']);
+    sortWork(items, 'title');
+    expect(items[0].title).toBe('later');
   });
 });

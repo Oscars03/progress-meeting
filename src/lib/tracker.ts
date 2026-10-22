@@ -111,6 +111,43 @@ export function projectHealth(input: HealthInput, today: string): Health {
   return 'ok';
 }
 
+/** The orders the board can be read in; the first is the one it opens in. */
+export const TRACKER_SORTS = ['due', 'added', 'progress', 'title'] as const;
+export type TrackerSort = (typeof TRACKER_SORTS)[number];
+
+export function isTrackerSort(value: string): value is TrackerSort {
+  return (TRACKER_SORTS as readonly string[]).includes(value);
+}
+
+type Sortable = { status: string; due: string; progress: number; title: string };
+
+/**
+ * The same work, in the order asked for. Stable, so anything the order cannot
+ * tell apart stays in the order it came in -- the sheet's, which is the order
+ * it was added in.
+ *
+ * - `due`: the nearest deadline first, overdue work leading because its date
+ *   is the earliest. Work with no deadline follows, and delivered work goes
+ *   last whatever its date: a project handed in yesterday is not more urgent
+ *   than one due next week.
+ * - `added`: newest first.
+ * - `progress`: least done first.
+ * - `title`: alphabetical, Thai collation.
+ */
+export function sortWork<T extends Sortable>(items: readonly T[], sort: TrackerSort): T[] {
+  const indexed = items.map((item, i) => ({ item, i }));
+  const rank = (r: Sortable) => (r.status === 'done' ? 2 : isDay(r.due) ? 0 : 1);
+  const by: Record<TrackerSort, (a: (typeof indexed)[number], b: (typeof indexed)[number]) => number> = {
+    due: (a, b) =>
+      rank(a.item) - rank(b.item) ||
+      (isDay(a.item.due) && isDay(b.item.due) ? daysBetween(b.item.due, a.item.due) : 0),
+    added: (a, b) => b.i - a.i,
+    progress: (a, b) => a.item.progress - b.item.progress,
+    title: (a, b) => a.item.title.localeCompare(b.item.title, 'th'),
+  };
+  return indexed.sort((a, b) => by[sort](a, b) || a.i - b.i).map(({ item }) => item);
+}
+
 /** The later of two optional lab days. */
 export function laterDay(a: string | null, b: string | null): string | null {
   if (!a) return b;
