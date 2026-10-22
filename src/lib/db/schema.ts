@@ -373,21 +373,6 @@ export type AttachmentRecord = BaseRecord & {
 };
 
 /**
- * A remark left on something else -- a meeting, a topic, a piece of work.
- *
- * The tab has been in the schema from the start, but nothing in the app writes
- * it yet; /api/widget/comments is its only reader. `entity_type` names the
- * kind of thing (`meeting`, `topic`, `task`) and `entity_id` its row.
- */
-export type CommentRecord = BaseRecord & {
-  entity_type: string;
-  entity_id: string;
-  body: string;
-  author_id: string;
-  mention_ids: string[] | string;
-};
-
-/**
  * One thing that happened while somebody used the app: an error, a refusal, a
  * sign-in, a page opened. See lib/app-log.ts, which is the only writer.
  *
