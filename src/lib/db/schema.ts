@@ -24,7 +24,7 @@ export const SCHEMAS = {
   // read or written correctly.
   meta: [...COMMON_COLUMNS, 'key', 'value'],
   personal_events: [...COMMON_COLUMNS, 'user_id', 'title', 'start_at', 'end_at', 'color', 'category'],
-  topics: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'week_key', 'meeting_id', 'present_order', 'status'],
+  topics: [...COMMON_COLUMNS, 'title', 'details', 'owner_id', 'week_key', 'meeting_id', 'present_order', 'status', 'task_id'],
   week_leads: [...COMMON_COLUMNS, 'week_key', 'user_id'],
   term_breaks: [...COMMON_COLUMNS, 'name', 'start_date', 'end_date'],
   feedback: [...COMMON_COLUMNS, 'body', 'category', 'status'],
@@ -274,6 +274,11 @@ export type TopicRecord = BaseRecord & {
   /** Position in the running order, 1-based. Empty while the order is only suggested. */
   present_order: number | string;
   status: string;
+  /**
+   * The piece of work (tasks.id) this topic reports on, when it was picked
+   * from the tracker; '' for a topic typed freehand. Schema 18.
+   */
+  task_id?: string;
 };
 
 /**

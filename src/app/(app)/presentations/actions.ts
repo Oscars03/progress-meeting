@@ -10,7 +10,7 @@ import {
   type SessionUser,
 } from '@/lib/auth-guard';
 import { actsAsWeekLead, agendaWeekKey } from '@/lib/rotation';
-import type { MeetingRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
+import type { MeetingRecord, TaskRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { weekKey } from '@/lib/week';
@@ -38,6 +38,19 @@ async function assertWeekOpen(actor: SessionUser, key: string): Promise<void> {
   if (isPastWeek(key, agendaWeekKey(meetings, breaks))) throw new UserError('topics.pastWeekLocked');
 }
 
+/**
+ * The piece of work a topic was picked from, checked to still exist: '' when
+ * none was. A topic says what it is about in its own title as well, so it
+ * reads the same if the work is deleted later -- only the link goes.
+ */
+async function cleanTaskId(value: string | undefined): Promise<string> {
+  const id = value?.trim() ?? '';
+  if (!id) return '';
+  const task = await SheetRepo.findOne<TaskRecord>('tasks', id);
+  if (!task) throw new UserError('topics.taskMissing');
+  return id;
+}
+
 function cleanWeek(value: string | undefined): string {
   const key = value?.trim() || weekKey();
   if (!/^\d{4}-W\d{2}$/.test(key)) throw new UserError('error.invalidValue', { value: key });
@@ -53,6 +66,7 @@ export async function addTopic(data: {
   title: string;
   details?: string;
   week_key?: string;
+  task_id?: string;
 }): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireRole('student');
@@ -64,6 +78,7 @@ export async function addTopic(data: {
 
     const week = cleanWeek(data.week_key);
     await assertWeekOpen(actor, week);
+    const taskId = await cleanTaskId(data.task_id);
 
     await SheetRepo.insert(
       'topics',
@@ -75,6 +90,7 @@ export async function addTopic(data: {
         meeting_id: '',
         present_order: '',
         status: 'planned',
+        task_id: taskId,
       },
       actor.id,
     );
@@ -92,7 +108,7 @@ export async function addTopic(data: {
  */
 export async function updateTopic(
   topicId: string,
-  data: { title: string; details?: string },
+  data: { title: string; details?: string; task_id?: string },
   rowVersion: number,
 ): Promise<ActionResult> {
   return toResult(async () => {
@@ -109,10 +125,15 @@ export async function updateTopic(
     if (!title) throw new UserError('topics.titleRequired');
     if (title.length > MAX_TITLE) throw new UserError('topics.titleTooLong', { n: MAX_TITLE });
 
+    // The link is changed only when one is sent -- '' to remove it. A caller
+    // that says nothing about it leaves it as it was.
+    const fields: Partial<TopicRecord> = { title, details: data.details?.trim() ?? '' };
+    if (data.task_id !== undefined) fields.task_id = await cleanTaskId(data.task_id);
+
     await SheetRepo.update(
       'topics',
       topicId,
-      { title, details: data.details?.trim() ?? '' },
+      fields,
       rowVersion,
       actor.id,
     );

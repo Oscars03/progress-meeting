@@ -7,6 +7,7 @@ import OrderBoard from './order-board';
 import type {
   AuditRecord,
   MeetingRecord,
+  TaskRecord,
   TermBreakRecord,
   TopicRecord,
   UserRecord,
@@ -17,18 +18,22 @@ import { breakForWeek } from '@/lib/term-breaks';
 import { autoAssignWeekLead } from '../meetings/actions';
 import { can } from '@/lib/permissions';
 import { isPastWeek } from '@/lib/meeting-history';
+import { taskTitles } from '@/lib/task-title';
+import { rollUpProgress } from '@/lib/tracker';
+import { assigneesOf } from '../tasks/tracker-model';
 
 export default async function PresentationsPage(props: {
   searchParams: Promise<{ week?: string }>;
 }) {
   const { week } = await props.searchParams;
-  const [actor, users, meetings, allTopics, initialLeads, breaks, t] = await Promise.all([
+  const [actor, users, meetings, allTopics, initialLeads, breaks, tasks, t] = await Promise.all([
     requirePageSession(),
     SheetRepo.find<UserRecord>('users'),
     SheetRepo.find<MeetingRecord>('meetings'),
     SheetRepo.find<TopicRecord>('topics'),
     SheetRepo.find<WeekLeadRecord>('week_leads'),
     SheetRepo.find<TermBreakRecord>('term_breaks').catch(() => []),
+    SheetRepo.find<TaskRecord>('tasks').catch(() => [] as TaskRecord[]),
     getT(),
   ]);
 
@@ -51,6 +56,32 @@ export default async function PresentationsPage(props: {
   const arrangedById = custom
     ? lastArrangedBy(await SheetRepo.find<AuditRecord>('audit_log'), ordered)
     : null;
+
+  // The work a topic can be picked from, and how far along each piece is --
+  // a project with subtasks as their average, as the tracker shows it.
+  const titleOf = taskTitles(tasks);
+  const taskById = new Map(tasks.map((task) => [task.id, task] as const));
+  const progressOf = (task: TaskRecord) =>
+    rollUpProgress(
+      tasks
+        .filter((s) => s.parent_id === task.id)
+        .map((s) => ({ status: s.status, progress: Number(s.progress_pct) || 0 }))
+    ) ?? Math.round(Number(task.progress_pct) || 0);
+  const linkOf = (topic: TopicRecord) => {
+    const task = topic.task_id ? taskById.get(topic.task_id) : undefined;
+    return task ? { id: task.id, title: titleOf(task), progress: progressOf(task) } : null;
+  };
+  // Your own unfinished work, and whatever this week's topics already point
+  // at, so editing a topic about work since finished still shows its link.
+  const linked = new Set(ordered.map((topic) => topic.task_id).filter(Boolean));
+  const workOptions = tasks
+    .filter(
+      (task) =>
+        linked.has(task.id) ||
+        (task.status !== 'done' && (task.owner_id === actor.id || assigneesOf(task).includes(actor.id)))
+    )
+    .map((task) => ({ id: task.id, title: titleOf(task) }))
+    .sort((a, b) => a.title.localeCompare(b.title, 'th'));
 
   return (
     <div className="space-y-6">
@@ -83,6 +114,7 @@ export default async function PresentationsPage(props: {
         readOnly={locked}
         arrangedBy={arrangedById ? nameOf(arrangedById) : null}
         currentUserId={actor.id}
+        workOptions={workOptions}
         topics={ordered.map((topic) => ({
           id: topic.id,
           title: topic.title,
@@ -90,6 +122,7 @@ export default async function PresentationsPage(props: {
           owner_id: topic.owner_id,
           owner_name: nameOf(topic.owner_id),
           row_version: topic.row_version,
+          task: linkOf(topic),
         }))}
       />
     </div>

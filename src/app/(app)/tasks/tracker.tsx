@@ -48,6 +48,7 @@ export default function Tracker({
   canAdd,
   canAssign,
   canManageRounds,
+  initialOpen,
 }: {
   rows: TrackerRow[];
   rounds: TrackerRound[];
@@ -59,6 +60,8 @@ export default function Tracker({
   canAdd: boolean;
   canAssign: boolean;
   canManageRounds: boolean;
+  /** A piece of work to open on arrival, from `?open=` in the address. */
+  initialOpen?: string;
 }) {
   const { t, locale } = usePrefs();
   const [view, setView] = useState<View>('table');
@@ -69,7 +72,7 @@ export default function Tracker({
   const [who, setWho] = useState('');
   const [status, setStatus] = useState<TaskStatus | ''>('');
   const [roundFilter, setRoundFilter] = useState('');
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpen ?? null);
   const [form, setForm] = useState<FormState>(null);
   const [roundsOpen, setRoundsOpen] = useState(false);
   const showNotice = useToast();

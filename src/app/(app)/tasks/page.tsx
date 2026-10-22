@@ -14,7 +14,8 @@ import { labMembers, pollVoters } from '@/lib/members';
 import Tracker from './tracker';
 import { toPeople, toRounds, toRows } from './tracker-model';
 
-export default async function TasksPage() {
+export default async function TasksPage(props: { searchParams: Promise<{ open?: string }> }) {
+  const { open } = await props.searchParams;
   const actor = await requirePageSession();
   const [tasks, users, leads, rounds, updates] = await Promise.all([
     SheetRepo.find<TaskRecord>('tasks'),
@@ -26,10 +27,14 @@ export default async function TasksPage() {
 
   const today = labDay(new Date());
   const members = labMembers(users);
+  const rows = toRows({ actor, tasks, rounds, updates, leads, thisWeek: weekKey(), today });
 
   return (
     <Tracker
-      rows={toRows({ actor, tasks, rounds, updates, leads, thisWeek: weekKey(), today })}
+      rows={rows}
+      // Arriving from a link to one piece of work -- a presentation topic's,
+      // say -- opens it. An id that is not on the board opens nothing.
+      initialOpen={rows.some((r) => r.id === open) ? open : undefined}
       rounds={toRounds(rounds)}
       // Everybody, for names on rows that point at an account since removed
       // from the lab; the pickers use the narrower lists below.

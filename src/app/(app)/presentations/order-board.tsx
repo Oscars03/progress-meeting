@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { useToast } from '@/lib/ui/toast';
@@ -15,6 +16,8 @@ export type BoardTopic = {
   owner_id: string;
   owner_name: string;
   row_version: number;
+  /** The work it was picked from, still on the tracker; null for none. */
+  task: { id: string; title: string; progress: number } | null;
 };
 
 /** A presenter and everything they are bringing, in their own order. */
@@ -67,6 +70,7 @@ export default function OrderBoard({
   canEditAny,
   arrangedBy,
   currentUserId,
+  workOptions,
   readOnly = false,
 }: {
   weekKey: string;
@@ -80,6 +84,8 @@ export default function OrderBoard({
   /** Who arranged the stored order, already resolved to a name. */
   arrangedBy: string | null;
   currentUserId: string;
+  /** Work a topic can be picked from: your own unfinished pieces, by name. */
+  workOptions: { id: string; title: string }[];
   /** A week that is over: even your own topics stay as they were presented. */
   readOnly?: boolean;
 }) {
@@ -106,7 +112,24 @@ export default function OrderBoard({
 
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
+  const [taskId, setTaskId] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const workTitle = (id: string) => workOptions.find((w) => w.id === id)?.title ?? '';
+  /**
+   * Picking a piece of work names the topic after it -- unless something of
+   * your own is already typed there, which is kept. Picking another piece
+   * replaces a name the last pick filled in, since that one was never yours.
+   */
+  const pickWork = (id: string) => {
+    if (id && (!title.trim() || title === workTitle(taskId))) setTitle(workTitle(id));
+    setTaskId(id);
+  };
+  const resetForm = () => {
+    setTitle('');
+    setDetails('');
+    setTaskId('');
+  };
 
   const flat = order.flatMap((block) => block.topics);
   const dirty = flat.some((topic, i) => topics[i]?.id !== topic.id);
@@ -201,11 +224,10 @@ export default function OrderBoard({
       const topic = flat.find((x) => x.id === editingId);
       if (!topic) return;
       run(async () => {
-        const res = await updateTopic(editingId, { title, details }, topic.row_version);
+        const res = await updateTopic(editingId, { title, details, task_id: taskId }, topic.row_version);
         if (res.ok) {
           setEditingId(null);
-          setTitle('');
-          setDetails('');
+          resetForm();
           setAdding(false);
         }
         return res;
@@ -214,10 +236,9 @@ export default function OrderBoard({
     }
 
     run(async () => {
-      const res = await addTopic({ title, details, week_key: weekKey });
+      const res = await addTopic({ title, details, week_key: weekKey, task_id: taskId });
       if (res.ok) {
-        setTitle('');
-        setDetails('');
+        resetForm();
         setAdding(false);
       }
       return res;
@@ -228,6 +249,7 @@ export default function OrderBoard({
     setEditingId(topic.id);
     setTitle(topic.title);
     setDetails(topic.details);
+    setTaskId(topic.task?.id ?? '');
     setAdding(true);
   };
 
@@ -258,8 +280,7 @@ export default function OrderBoard({
             type="button"
             onClick={() => {
               setEditingId(null);
-              setTitle('');
-              setDetails('');
+              resetForm();
               setAdding((open) => !open);
             }}
             className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition whitespace-nowrap"
@@ -277,6 +298,30 @@ export default function OrderBoard({
           <h3 className="font-semibold text-gray-900">
             {editingId ? t('topics.edit') : t('topics.addTitle')}
           </h3>
+
+          {/* Picked from the tracker or typed freehand: the work, when there
+              is some, names the topic and links back to it. */}
+          {workOptions.length > 0 && (
+            <div>
+              <label className="block text-sm text-gray-600 mb-1" htmlFor="topic-task">
+                {t('topics.fromWork')}
+              </label>
+              <select
+                id="topic-task"
+                value={taskId}
+                onChange={(e) => pickWork(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
+              >
+                <option value="">{t('topics.noWork')}</option>
+                {workOptions.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.title}
+                  </option>
+                ))}
+              </select>
+              {taskId && <p className="text-xs text-gray-500 mt-1">{t('topics.fromWorkHint')}</p>}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm text-gray-600 mb-1" htmlFor="topic-title">
@@ -458,6 +503,16 @@ export default function OrderBoard({
                           </span>
                         )}
                       </div>
+
+                      {topic.task && (
+                        <Link
+                          href={`/tasks?open=${encodeURIComponent(topic.task.id)}`}
+                          className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-md bg-blue-50 px-2 py-0.5 text-xs text-blue-700 hover:underline"
+                        >
+                          <span className="truncate">{t('topics.linkedWork', { title: topic.task.title })}</span>
+                          <span className="shrink-0 tabular-nums font-medium">{topic.task.progress}%</span>
+                        </Link>
+                      )}
 
                       {topic.details && (
                         <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line break-words">
