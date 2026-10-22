@@ -17,7 +17,7 @@ import { UserError } from '@/lib/user-error';
 import { labDay, labInstant } from '@/lib/lab-time';
 import { breakForWeek } from '@/lib/term-breaks';
 import { ABILITIES, serializeOverrides, storedJson, type Overrides } from '@/lib/permissions';
-import { MAX_NICKNAME, isAvatarColor } from '@/lib/avatar-face';
+import { MAX_NICKNAME, isAvatarColor, takenColors } from '@/lib/avatar-face';
 
 const ASSIGNABLE_ROLES: Role[] = ['admin', 'professor', 'student'];
 
@@ -491,6 +491,15 @@ export async function updateMyFaceAction(nickname: string, color: string): Promi
     if (!me) throw new UserError('error.notFound');
     if ((me.nickname ?? '') === nick && (me.avatar_color ?? '') === color) return;
 
+    // One person to a colour: the colour is how the calendar and the board
+    // say whose a block is. Read fresh, so two people choosing the same one
+    // in the same minute do not both get it.
+    if (isAvatarColor(color) && color !== me.avatar_color) {
+      const users = await SheetRepo.find<UserRecord>('users', { fresh: true });
+      const holder = takenColors(users, actor.id)[color];
+      if (holder) throw new UserError('myFace.error.colorTaken', { name: holder });
+    }
+
     await SheetRepo.update<UserRecord>(
       'users',
       actor.id,
@@ -502,5 +511,6 @@ export async function updateMyFaceAction(nickname: string, color: string): Promi
     revalidatePath('/settings', 'layout');
     revalidatePath('/meetings', 'layout');
     revalidatePath('/tasks', 'layout');
+    revalidatePath('/presentations');
   });
 }

@@ -10,11 +10,25 @@ import Spinner from '@/lib/ui/spinner';
 import { AVATAR_COLORS, MAX_NICKNAME, type AvatarFace } from '@/lib/avatar-face';
 
 /**
- * Your avatar, chosen by you: a nickname for its letter and one of twelve
- * colours. The preview is the real Avatar, ring and all, so what is saved is
- * what the lab will see.
+ * Your avatar, chosen by you: a nickname for its letter and a colour of the
+ * set. The preview is the real Avatar, ring and all, so what is saved is what
+ * the lab will see.
+ *
+ * A colour somebody else chose is theirs and cannot be pressed: it is how the
+ * calendar and the board tell people apart.
  */
-export default function MyFace({ face }: { face: AvatarFace }) {
+export default function MyFace({
+  face,
+  autoColor,
+  taken,
+}: {
+  /** `color` here is what they chose, '' for automatic. */
+  face: AvatarFace;
+  /** The colour automatic gives them. */
+  autoColor: string;
+  /** Colours other people chose, each with the name of who chose it. */
+  taken: Partial<Record<string, string>>;
+}) {
   const { t } = usePrefs();
   const router = useRouter();
   const toast = useToast();
@@ -24,7 +38,7 @@ export default function MyFace({ face }: { face: AvatarFace }) {
   const [error, setError] = useState<string | null>(null);
 
   const unchanged = nickname.trim() === face.nickname && color === face.color;
-  const preview = { ...face, nickname: nickname.trim(), color };
+  const preview = { ...face, nickname: nickname.trim(), color: color || autoColor };
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,16 +54,17 @@ export default function MyFace({ face }: { face: AvatarFace }) {
     });
   };
 
-  const swatch = (value: string, label: string, fill: string) => (
+  const swatch = (value: string, label: string, fill: string, holder?: string) => (
     <button
       key={value || 'auto'}
       type="button"
       onClick={() => setColor(value)}
       aria-pressed={color === value}
-      aria-label={label}
-      title={label}
+      disabled={Boolean(holder)}
+      aria-label={holder ? t('myFace.colorTaken', { color: label, name: holder }) : label}
+      title={holder ? t('myFace.colorTaken', { color: label, name: holder }) : label}
       className={`h-8 w-8 rounded-full grid place-items-center text-[10px] font-semibold transition ${
-        color === value ? '' : 'hover:scale-110'
+        holder ? 'opacity-30 cursor-not-allowed' : color === value ? '' : 'hover:scale-110'
       }`}
       // The selected ring is drawn with the theme's own surface and accent, so
       // the gap round it is the card's colour in dark mode as well as light.
@@ -59,7 +74,7 @@ export default function MyFace({ face }: { face: AvatarFace }) {
         boxShadow: color === value ? '0 0 0 2px var(--trk-surface), 0 0 0 4px var(--trk-accent)' : undefined,
       }}
     >
-      {value ? '' : 'A'}
+      {value ? (holder ? '✕' : '') : 'A'}
     </button>
   );
 
@@ -101,9 +116,10 @@ export default function MyFace({ face }: { face: AvatarFace }) {
         <div>
           <span className="block text-xs font-medium text-gray-700 mb-2">{t('myFace.color')}</span>
           <div role="group" aria-label={t('myFace.color')} className="flex flex-wrap gap-2.5">
-            {swatch('', t('myFace.auto'), `trk-av${face.tone}`)}
-            {AVATAR_COLORS.map((c) => swatch(c, t('myFace.colorName', { color: c }), `av-${c}`))}
+            {swatch('', t('myFace.auto'), autoColor ? `av-${autoColor}` : `trk-av${face.tone}`)}
+            {AVATAR_COLORS.map((c) => swatch(c, t('myFace.colorName', { color: c }), `av-${c}`, taken[c]))}
           </div>
+          <p className="text-xs text-gray-500 mt-2">{t('myFace.colorHint')}</p>
         </div>
 
         <button

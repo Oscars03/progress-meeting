@@ -20,7 +20,7 @@ import {
   type PersonAvailability,
 } from '@/lib/availability-grid';
 import { labInstant, labWallClock } from '@/lib/lab-time';
-import { faceOf, type AvatarFace } from '@/lib/avatar-face';
+import { facesOf, type AvatarFace } from '@/lib/avatar-face';
 import { usualMeetingTime, type UsualTime } from '@/lib/availability-runs';
 import { actsAsWeekLead, leadForWeek } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
@@ -218,7 +218,11 @@ export async function weekAvailabilityAction(requestedWeek?: string): Promise<We
     readCount,
     leadName,
     usual: usualMeetingTime(meetings, (at) => labWallClock(at).toISOString().slice(11, 16)),
-    faces: Object.fromEntries(active.map((u) => [u.name, faceOf(u)])),
+    // Coloured over everybody, as everywhere else, then cut to who is shown.
+    faces: (() => {
+      const all = facesOf(users);
+      return Object.fromEntries(active.map((u) => [u.name, all.get(u.id)!]));
+    })(),
   };
 }
 

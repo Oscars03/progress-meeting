@@ -200,6 +200,9 @@ export const common = defineMessages({
     'myFace.color': 'สี',
     'myFace.auto': 'อัตโนมัติ',
     'myFace.colorName': 'สี {color}',
+    'myFace.colorTaken': '{color} ({name} เลือกแล้ว)',
+    'myFace.colorHint': 'สีนี้ใช้แทนตัวคุณในหน้างานและปฏิทิน คนละสีกันทุกคน สีที่มีคนเลือกแล้วจะเลือกซ้ำไม่ได้',
+    'myFace.error.colorTaken': '{name} เลือกสีนี้แล้ว ลองเลือกสีอื่น',
     'myFace.error.nicknameTooLong': 'ชื่อเล่นยาวเกินไป (ไม่เกิน {max} ตัวอักษร)',
 
     // The screen the person who is waiting sees. `pending.*` above is the
@@ -454,6 +457,9 @@ export const common = defineMessages({
     'myFace.color': 'Colour',
     'myFace.auto': 'Automatic',
     'myFace.colorName': '{color}',
+    'myFace.colorTaken': '{color} (taken by {name})',
+    'myFace.colorHint': 'This colour stands for you on Tasks and the calendar. Everyone has their own; a colour someone has chosen cannot be chosen again.',
+    'myFace.error.colorTaken': '{name} has already chosen this colour; pick another',
     'myFace.error.nicknameTooLong': 'That nickname is too long ({max} characters at most)',
 
     'waiting.title': 'Waiting for approval',

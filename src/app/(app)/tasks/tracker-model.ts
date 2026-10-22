@@ -16,7 +16,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import { labDay } from '@/lib/lab-time';
-import { faceOf } from '@/lib/avatar-face';
+import { facesOf } from '@/lib/avatar-face';
 import { canAddSubproject, canEditDetails, canEditWork, canRemoveWork } from '@/lib/task-rights';
 import {
   isDay,
@@ -33,7 +33,7 @@ export type TrackerPerson = {
   role: string;
   /** The automatic avatar colour: 0 for an advisor, 1-5 for everyone else. */
   tone: number;
-  /** The colour they chose, '' for the automatic one -- see lib/avatar-face.ts. */
+  /** The colour they are drawn in, chosen or assigned -- see lib/avatar-face.ts. */
   color: string;
   nickname: string;
 };
@@ -103,7 +103,8 @@ function dayOf(iso: unknown): string | null {
 }
 
 export function toPeople(users: UserRecord[]): TrackerPerson[] {
-  return users.map((u) => ({ id: u.id, ...faceOf(u) }));
+  const faces = facesOf(users);
+  return users.map((u) => ({ id: u.id, ...faces.get(u.id)! }));
 }
 
 /** Dated rounds by deadline, then the ones without a date in the order made. */

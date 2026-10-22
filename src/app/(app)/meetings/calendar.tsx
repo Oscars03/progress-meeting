@@ -16,12 +16,9 @@ import {
   deletePersonalEventAction,
   updatePersonalEventAction,
 } from '../settings/schedule-actions';
-import {
-  EVENT_CATEGORIES,
-  EVENT_COLORS,
-  colorFor,
-  googleColor,
-} from '@/lib/event-colors';
+import { EVENT_CATEGORIES, isEventCategory } from '@/lib/event-colors';
+import { Avatar } from '@/lib/ui/avatar';
+import type { AvatarFace } from '@/lib/avatar-face';
 import type { EventInput, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import type { DateClickArg } from '@fullcalendar/interaction';
 import type { MappedMeeting, MappedPersonalEvent } from './page';
@@ -70,7 +67,8 @@ type GoogleEvent = {
   owner_name?: string;
   /** Whose calendar it came off. The name is for reading, this is for filtering. */
   owner_id?: string;
-  colorId?: string;
+  /** Its owner's colour, from lib/avatar-face.ts. */
+  owner_color?: string;
 };
 
 function escapeHtml(text: string): string {
@@ -92,14 +90,17 @@ export default function CalendarView({
   googleEvents = [],
   currentUserId = '',
   termBreaks = [],
-  weekPlan = []
-}: { 
+  weekPlan = [],
+  people = []
+}: {
   meetings: MappedMeeting[],
   personalEvents?: MappedPersonalEvent[],
   googleEvents?: GoogleEvent[],
   currentUserId?: string,
   termBreaks?: TermBreakRecord[],
-  weekPlan?: WeekLeadPlan[]
+  weekPlan?: WeekLeadPlan[],
+  /** Everybody whose blocks can appear, each with their colour, for the key. */
+  people?: (AvatarFace & { id: string })[]
 }) {
   const router = useRouter();
   const { locale, t } = usePrefs();
@@ -130,7 +131,6 @@ export default function CalendarView({
   const [createEndDate, setCreateEndDate] = useState('');
   const [createEndTime, setCreateEndTime] = useState('');
   const [createTitle, setCreateTitle] = useState('');
-  const [createColor, setCreateColor] = useState('');
   const [createCategory, setCreateCategory] = useState('');
   /** Set while the create dialog is editing an existing block rather than
       making a new one -- the fields are identical, so it is the same form. */
@@ -196,16 +196,15 @@ export default function CalendarView({
       title: pe.user_name ? `[${pe.user_name}] ${pe.title}` : pe.title,
       start: pe.start_at,
       end: pe.end_at,
-      // Colour by class, not inline: an inline hex cannot follow the theme, and
-      // a wall of saturated red for "somebody is busy" read as a page full of
-      // errors rather than a page full of ordinary commitments.
-      // The chosen colour, else the kind's, else the default. cal-ev-mine /
-      // -theirs still decide what is clickable and how loud it is; the colour
-      // class only supplies the palette.
+      // Colour by class, not inline: an inline hex cannot follow the theme.
+      // The block is its owner's colour, so whose it is reads before the
+      // title does; the strip down its left edge is its kind's. cal-ev-mine /
+      // -theirs still decide what is clickable and how loud it is.
       classNames: [
         'cal-ev',
         isMine ? 'cal-ev-mine' : 'cal-ev-theirs',
-        `cal-c-${colorFor(pe.color ?? '', pe.category ?? '')}`,
+        ...(pe.user_color ? [`cal-p-${pe.user_color}`] : []),
+        ...(isEventCategory(pe.category ?? '') ? [`cal-k-${pe.category}`] : []),
       ],
       extendedProps: {
         type: 'personal',
@@ -225,12 +224,12 @@ export default function CalendarView({
       title: ge.owner_name ? `[${ge.owner_name}] ${ge.title}` : ge.title,
       start: ge.start,
       end: ge.end,
-      // Google sends a colour only when its owner set one by hand; the rest
-      // keep the neutral import look rather than guessing.
+      // In its owner's colour like their own blocks: the calendar is coloured
+      // by person, wherever the hours were written down.
       classNames: [
         'cal-ev',
         'cal-ev-google',
-        ...(googleColor(ge.colorId) ? [`cal-c-${googleColor(ge.colorId)}`] : []),
+        ...(ge.owner_color ? [`cal-p-${ge.owner_color}`] : []),
       ],
       extendedProps: { type: 'google' }
     });
@@ -384,7 +383,6 @@ export default function CalendarView({
 
     setError('');
     setCreateTitle('');
-    setCreateColor('');
     setCreateCategory('');
     setEditingEvent(null);
     
@@ -422,7 +420,6 @@ export default function CalendarView({
       title: createTitle,
       start_at: `${createStartDate}T${createStartTime}`,
       end_at: `${createEndDate}T${createEndTime}`,
-      color: createColor,
       category: createCategory,
     };
 
@@ -680,6 +677,34 @@ export default function CalendarView({
         />
       </div>
 
+      {/* The key: whose colour is whose, and what each strip means. The
+          colours carry the calendar now, so they are explained on it. */}
+      {people.length > 0 && (
+        <div className="space-y-2 px-1">
+          <ul className="flex flex-wrap gap-x-3 gap-y-1.5" aria-label={t('events.peopleKey')}>
+            {people.map((p) => (
+              <li key={p.id} className="flex items-center gap-1.5 text-xs text-gray-700">
+                <Avatar person={p} />
+                {p.name}
+              </li>
+            ))}
+          </ul>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+            <span>{t('events.stripKey')}</span>
+            {EVENT_CATEGORIES.map((k) => (
+              <span key={k} className="flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-3.5 w-1.5 rounded-sm"
+                  style={{ background: `var(--kind-${k})` }}
+                />
+                {t(`events.category.${k}` as 'events.category.teaching')}
+              </span>
+            ))}
+          </p>
+        </div>
+      )}
+
       {/* Create Modal */}
       {/* editingEvent rides along so the title does not flip to "add" while
           the modal is still fading out after a save cleared it. */}
@@ -737,8 +762,8 @@ export default function CalendarView({
                   />
                 </div>
 
-                {/* Kind first, colour second: picking a kind already colours the
-                    block, so most people never touch the swatches. */}
+                {/* The block is drawn in your colour; its kind is the strip
+                    down its left edge. */}
                 <div>
                   <p id="pe-category" className="block text-gray-700 font-medium mb-1">
                     {t('events.category')}
@@ -762,37 +787,6 @@ export default function CalendarView({
                   </div>
                 </div>
 
-                <div>
-                  <p id="pe-colour" className="block text-gray-700 font-medium mb-1">
-                    {t('events.color')}
-                  </p>
-                  <div role="group" aria-labelledby="pe-colour" className="flex flex-wrap items-center gap-2">
-                    {EVENT_COLORS.map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setCreateColor(createColor === value ? '' : value)}
-                        aria-label={t(`events.colour.${value}` as 'events.colour.rose')}
-                        aria-pressed={createColor === value}
-                        className={`cal-c-${value} w-7 h-7 rounded-full border-2 transition ${
-                          createColor === value
-                            ? 'ring-2 ring-offset-1 ring-blue-500 border-white'
-                            : 'border-white'
-                        }`}
-                        style={{ backgroundColor: 'var(--ev-edge)' }}
-                      />
-                    ))}
-                    {createColor && (
-                      <button
-                        type="button"
-                        onClick={() => setCreateColor('')}
-                        className="text-xs text-gray-500 hover:underline"
-                      >
-                        {t('events.colorAuto')}
-                      </button>
-                    )}
-                  </div>
-                </div>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-gray-700 font-medium mb-1" htmlFor="pe-start-date">
@@ -1008,7 +1002,6 @@ export default function CalendarView({
 
                           setError('');
                           setCreateTitle(source?.title ?? selectedEventInfo.title);
-                          setCreateColor(source?.color ?? '');
                           setCreateCategory(source?.category ?? '');
                           if (selectedEventInfo.start) {
                             setCreateStartDate(toDate(selectedEventInfo.start));

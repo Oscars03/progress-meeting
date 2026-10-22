@@ -275,9 +275,11 @@ body {
   color: var(--ev-ink);
 }
 .cal-ev-meeting {
-  --ev-bg: #dbeafe;
-  --ev-ink: #1e3a8a;
-  --ev-edge: #2563eb;
+  /* Solid, where everything else is a tint: with every person in a colour of
+     their own, a pale blue meeting read as one more person's busy hours. */
+  --ev-bg: #1d4ed8;
+  --ev-ink: #ffffff;
+  --ev-edge: #1e3a8a;
 }
 .cal-ev-mine {
   --ev-bg: #fee2e2;
@@ -295,45 +297,41 @@ body {
   --ev-edge: #94a3b8;
 }
 
-/* The chosen palette. A stored colour is a name -- `rose`, `sky` -- so each
-   theme renders it as it needs, rather than a light-theme hex frozen into the
-   spreadsheet. Keys come from lib/event-colors.ts; every one needs a pair here
-   and a pair in the dark block below. */
-.cal-c-rose {
-  --ev-bg: #fee2e2;
-  --ev-ink: #7f1d1d;
-  --ev-edge: #dc2626;
-}
-.cal-c-amber {
-  --ev-bg: #fef3c7;
-  --ev-ink: #78350f;
-  --ev-edge: #d97706;
-}
-.cal-c-emerald {
-  --ev-bg: #d1fae5;
-  --ev-ink: #065f46;
-  --ev-edge: #059669;
-}
-.cal-c-sky {
-  --ev-bg: #e0f2fe;
-  --ev-ink: #075985;
-  --ev-edge: #0284c7;
-}
-.cal-c-violet {
-  --ev-bg: #ede9fe;
-  --ev-ink: #5b21b6;
-  --ev-edge: #7c3aed;
-}
-.cal-c-slate {
-  --ev-bg: #e2e8f0;
-  --ev-ink: #334155;
-  --ev-edge: #64748b;
-}
+/* Whose it is: every block in its owner's colour -- the colour their avatar
+   wears (lib/avatar-face.ts), so the two read as one. The --av-* pairs already
+   have a light and a dark version, so these need no dark restatement. Four
+   classes deep, so they win over .cal-ev-mine / -theirs in either theme. */
+.fc .fc-event.cal-ev.cal-p-red { --ev-bg: var(--av-red-bg); --ev-ink: var(--av-red-ink); --ev-edge: var(--av-red-ink); }
+.fc .fc-event.cal-ev.cal-p-orange { --ev-bg: var(--av-orange-bg); --ev-ink: var(--av-orange-ink); --ev-edge: var(--av-orange-ink); }
+.fc .fc-event.cal-ev.cal-p-amber { --ev-bg: var(--av-amber-bg); --ev-ink: var(--av-amber-ink); --ev-edge: var(--av-amber-ink); }
+.fc .fc-event.cal-ev.cal-p-lime { --ev-bg: var(--av-lime-bg); --ev-ink: var(--av-lime-ink); --ev-edge: var(--av-lime-ink); }
+.fc .fc-event.cal-ev.cal-p-green { --ev-bg: var(--av-green-bg); --ev-ink: var(--av-green-ink); --ev-edge: var(--av-green-ink); }
+.fc .fc-event.cal-ev.cal-p-teal { --ev-bg: var(--av-teal-bg); --ev-ink: var(--av-teal-ink); --ev-edge: var(--av-teal-ink); }
+.fc .fc-event.cal-ev.cal-p-cyan { --ev-bg: var(--av-cyan-bg); --ev-ink: var(--av-cyan-ink); --ev-edge: var(--av-cyan-ink); }
+.fc .fc-event.cal-ev.cal-p-blue { --ev-bg: var(--av-blue-bg); --ev-ink: var(--av-blue-ink); --ev-edge: var(--av-blue-ink); }
+.fc .fc-event.cal-ev.cal-p-indigo { --ev-bg: var(--av-indigo-bg); --ev-ink: var(--av-indigo-ink); --ev-edge: var(--av-indigo-ink); }
+.fc .fc-event.cal-ev.cal-p-violet { --ev-bg: var(--av-violet-bg); --ev-ink: var(--av-violet-ink); --ev-edge: var(--av-violet-ink); }
+.fc .fc-event.cal-ev.cal-p-pink { --ev-bg: var(--av-pink-bg); --ev-ink: var(--av-pink-ink); --ev-edge: var(--av-pink-ink); }
+.fc .fc-event.cal-ev.cal-p-fuchsia { --ev-bg: var(--av-fuchsia-bg); --ev-ink: var(--av-fuchsia-ink); --ev-edge: var(--av-fuchsia-ink); }
+.fc .fc-event.cal-ev.cal-p-brown { --ev-bg: var(--av-brown-bg); --ev-ink: var(--av-brown-ink); --ev-edge: var(--av-brown-ink); }
+.fc .fc-event.cal-ev.cal-p-slate { --ev-bg: var(--av-slate-bg); --ev-ink: var(--av-slate-ink); --ev-edge: var(--av-slate-ink); }
 
-/* Somebody else's hours are shown faintly whatever colour they chose: it is
-   their calendar, and on a shared week it should not shout over your own. */
+/* What it is for: the strip down the left edge, in its kind's colour, wider
+   than the plain edge so it reads as a mark of its own. */
+.fc .fc-event.cal-ev.cal-k-teaching,
+.fc .fc-event.cal-ev.cal-k-study,
+.fc .fc-event.cal-ev.cal-k-meeting,
+.fc .fc-event.cal-ev.cal-k-personal { border-left-width: 5px; }
+.fc .fc-event.cal-ev.cal-k-teaching { --ev-edge: var(--kind-teaching); }
+.fc .fc-event.cal-ev.cal-k-study { --ev-edge: var(--kind-study); }
+.fc .fc-event.cal-ev.cal-k-meeting { --ev-edge: var(--kind-meeting); }
+.fc .fc-event.cal-ev.cal-k-personal { --ev-edge: var(--kind-personal); }
+
+/* Somebody else's hours are shown a little fainter: on a shared week they
+   should not shout over your own. Only a little -- their colour is how you
+   tell whose they are, and at 0.6 the tints washed into one another. */
 .fc .fc-event.cal-ev-theirs {
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
 /**
@@ -662,9 +660,9 @@ body {
    but the words in it were not. Every pair below now clears 7:1 against its
    own fill. */
 :root[data-theme='dark'] .cal-ev-meeting {
-  --ev-bg: #243b63;
-  --ev-ink: #dbeafe;
-  --ev-edge: #60a5fa;
+  --ev-bg: #2563eb;
+  --ev-ink: #ffffff;
+  --ev-edge: #93c5fd;
 }
 :root[data-theme='dark'] .cal-ev-mine {
   --ev-bg: #5a2424;
@@ -677,39 +675,6 @@ body {
   --ev-edge: #ef4444;
 }
 :root[data-theme='dark'] .cal-ev-google {
-  --ev-bg: #303036;
-  --ev-ink: #e8eaee;
-  --ev-edge: #94a3b8;
-}
-
-/* Same six, restated for a dark ground. Each pair clears 7:1 against its fill,
-   the bar the rest of this calendar is held to. */
-:root[data-theme='dark'] .cal-c-rose {
-  --ev-bg: #5a2424;
-  --ev-ink: #fee2e2;
-  --ev-edge: #f87171;
-}
-:root[data-theme='dark'] .cal-c-amber {
-  --ev-bg: #4a3410;
-  --ev-ink: #fef3c7;
-  --ev-edge: #f59e0b;
-}
-:root[data-theme='dark'] .cal-c-emerald {
-  --ev-bg: #113828;
-  --ev-ink: #d1fae5;
-  --ev-edge: #10b981;
-}
-:root[data-theme='dark'] .cal-c-sky {
-  --ev-bg: #12354d;
-  --ev-ink: #e0f2fe;
-  --ev-edge: #38bdf8;
-}
-:root[data-theme='dark'] .cal-c-violet {
-  --ev-bg: #33245c;
-  --ev-ink: #ede9fe;
-  --ev-edge: #a78bfa;
-}
-:root[data-theme='dark'] .cal-c-slate {
   --ev-bg: #303036;
   --ev-ink: #e8eaee;
   --ev-edge: #94a3b8;
@@ -999,6 +964,15 @@ body {
   --av-violet-ink: #5b21b6;
   --av-pink-bg: #fce7f3;
   --av-pink-ink: #9d174d;
+  /* The strip colour of each kind of blocked-out time (lib/event-colors.ts). */
+  --kind-teaching: #d97706;
+  --kind-study: #0284c7;
+  --kind-meeting: #7c3aed;
+  --kind-personal: #dc2626;
+  --av-fuchsia-bg: #fae8ff;
+  --av-fuchsia-ink: #86198f;
+  --av-brown-bg: #efe4d6;
+  --av-brown-ink: #6b3f1d;
   --av-slate-bg: #e2e8f0;
   --av-slate-ink: #334155;
   --role-professor: #d4a017;
@@ -1072,6 +1046,14 @@ body {
   --av-violet-ink: #c4b5fd;
   --av-pink-bg: #4a1a33;
   --av-pink-ink: #f9a8d4;
+  --kind-teaching: #f59e0b;
+  --kind-study: #38bdf8;
+  --kind-meeting: #a78bfa;
+  --kind-personal: #f87171;
+  --av-fuchsia-bg: #3f1846;
+  --av-fuchsia-ink: #f0abfc;
+  --av-brown-bg: #3a2a1d;
+  --av-brown-ink: #e6c7a4;
   --av-slate-bg: #2a313b;
   --av-slate-ink: #cbd5e1;
   --role-professor: #fbbf24;
