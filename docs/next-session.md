@@ -31,7 +31,7 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
 | [x] | **web-design-guidelines** — 100+ rules from Vercel's Web Interface Guidelines; audits UI code | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) (original; other repos are mirrors) | `npx skills add vercel-labs/agent-skills@web-design-guidelines` | Responds to "review my UI", "check accessibility", "review UX". Good fit for the audit below |
 | [x] | **ui-ux-pro-max** — UX strategist; v2 generates a whole design system (pattern, palette, fonts, anti-patterns, pre-delivery checklist) | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | `npx skills add nextlevelbuilder/ui-ux-pro-max-skill@ui-ux-pro-max` (or `/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill` then `/plugin install ui-ux-pro-max@ui-ux-pro-max-skill`) | Its search script needs Python 3. Its sample output lists "dark mode" as an anti-pattern; this app has dark mode on purpose, so do not let it remove it |
 | — | **ui-animation** — motion, easing, timing, reduced-motion, CSS transitions | [mblode/agent-skills](https://github.com/mblode/agent-skills) | `npx skills add mblode/agent-skills@ui-animation` | Low priority: the app has little motion. Useful mainly for `prefers-reduced-motion` |
-| [ ] | **taste-skill** — a set of skills for "premium" look: animation, spacing, visual polish | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | `npx skills add https://github.com/Leonxlnx/taste-skill` | Community, a whole collection rather than one skill. Read every `SKILL.md` in it first; likely overlaps frontend-design. **Not installed yet**: auto mode refused to vendor it. Reviewed 2026-10-22: it triggers on almost any UI work, deals a random font and palette, has its own dark colours, no Thai/i18n, launches headless Chrome and writes `~/.taste-skill/`. If installed, add `disable-model-invocation: true` to its frontmatter so it only runs when called by name |
+| — | **taste-skill** — a set of skills for "premium" look: animation, spacing, visual polish | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) | `npx skills add https://github.com/Leonxlnx/taste-skill` | **Dropped by the owner, 2026-10-22.** Auto mode had refused to vendor it. Reviewed 2026-10-22: it triggers on almost any UI work, deals a random font and palette, has its own dark colours, no Thai/i18n, launches headless Chrome and writes `~/.taste-skill/`. If installed, add `disable-model-invocation: true` to its frontmatter so it only runs when called by name |
 | — | **shadcn-ui** — knowledge of the shadcn/ui component library | [giuseppe-trisciuoglio/developer-kit](https://github.com/giuseppe-trisciuoglio/developer-kit) | `npx skills add giuseppe-trisciuoglio/developer-kit@shadcn-ui` | **Probably skip**: this app uses plain Tailwind, not shadcn/ui |
 
 ## Also suggested (Anthropic plugin directory)
@@ -41,6 +41,12 @@ on it, since the skill has to end up in this repo's `.claude/skills/`.
 - [ ] **ux-ui-audit** (community): browser checks for contrast, tap targets and focus rings, plus a
       check that the TH and EN versions of each page match
 - [ ] **VectorLab UI/UX Skills** (community): forms, empty states, errors, loaders, spacing
+
+      **The owner installs these two**, from the install card in claude.ai or
+      `/plugin` → Discover. Neither is in `anthropics/claude-plugins-official`
+      and no GitHub repo carries either name, so their source cannot be
+      traced from a session and they cannot be vendored like the skills above.
+      Once installed, have a session read their `SKILL.md` files before use.
 
 ## Setup so Claude can see the UI it changes
 
