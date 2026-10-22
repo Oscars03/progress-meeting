@@ -14,9 +14,10 @@ import type { PersonalEventRecord, UserRecord, TermBreakRecord, WeekLeadRecord }
 import { leadsCurrentOrLater, planWeekLeads } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
 import { logError } from '@/lib/app-log';
+import { facesOf } from '@/lib/avatar-face';
 
 export type MappedMeeting = MeetingRecord & { owner_name?: string };
-export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string };
+export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string; user_color?: string };
 
 export default async function MeetingsPage() {
   const actor = await requirePageSession();
@@ -46,6 +47,10 @@ export default async function MeetingsPage() {
   const schedules = canSchedule || leadsCurrentOrLater(actor, weekLeads);
 
   const userMap = new Map(users.map(u => [u.id, u.name]));
+  // Each person's colour, worked out over everybody so it is the same colour
+  // their avatar wears on Tasks and in the free-time grid.
+  const faces = facesOf(users);
+  const colorOf = (id: string) => faces.get(id)?.color ?? '';
 
   // The calendar is the lab's week. An admin is the account that administers
   // the app rather than somebody the week has to accommodate, so its personal
@@ -63,7 +68,8 @@ export default async function MeetingsPage() {
     .filter((pe) => showsOnCalendar(pe.user_id))
     .map(pe => ({
       ...pe,
-      user_name: userMap.get(pe.user_id) || 'Unknown'
+      user_name: userMap.get(pe.user_id) || 'Unknown',
+      user_color: colorOf(pe.user_id),
     }));
 
   const isCalendarSynced = Boolean(storedToken);
@@ -79,7 +85,7 @@ export default async function MeetingsPage() {
 
   // owner_id as well as the name: the calendar's "only mine" filter has to
   // compare ids, and a display name is not an identity.
-  const allGoogleEvents: (GoogleEvent & { owner_name?: string; owner_id?: string })[] = [];
+  const allGoogleEvents: (GoogleEvent & { owner_name?: string; owner_id?: string; owner_color?: string })[] = [];
   
   await Promise.all(
     Array.from(connectedUserIds).filter(showsOnCalendar).map(async (uId) => {
@@ -88,7 +94,7 @@ export default async function MeetingsPage() {
         if (uId === actor.id) {
           // Own events: full titles visible
           const events = await myEvents(uId, timeMin.toISOString(), timeMax.toISOString());
-          events.forEach(e => { allGoogleEvents.push({ ...e, owner_name: userName, owner_id: uId }); });
+          events.forEach(e => { allGoogleEvents.push({ ...e, owner_name: userName, owner_id: uId, owner_color: colorOf(uId) }); });
         } else {
           // Others: freebusy only — no titles, no privacy leak
           const intervals = await busyTimes(uId, timeMin.toISOString(), timeMax.toISOString());
@@ -100,6 +106,7 @@ export default async function MeetingsPage() {
               end: b.end,
               owner_name: userName,
               owner_id: uId,
+              owner_color: colorOf(uId),
             });
           });
         }
@@ -178,6 +185,9 @@ export default async function MeetingsPage() {
         currentUserId={actor.id} 
         termBreaks={termBreaks}
         weekPlan={weekPlan}
+        people={users
+          .filter((u) => showsOnCalendar(u.id))
+          .map((u) => ({ id: u.id, ...faces.get(u.id)! }))}
       />
     </div>
   );
