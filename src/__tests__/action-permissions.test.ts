@@ -1727,6 +1727,47 @@ describe('what an advisor may do to a topic', () => {
 });
 
 /**
+ * A topic can be picked from a piece of work on the tracker, and remembers
+ * which one. The link has to point at work that exists, and is only changed
+ * when the caller says something about it.
+ */
+describe('a topic picked from a piece of work', () => {
+  duringWeek();
+
+  beforeEach(() => {
+    tables['tasks'] = [{ id: 'w1', title: 'Module vibration', parent_id: '', row_version: 1 }];
+    tables['topics'] = [
+      { id: 't1', title: 'A', details: '', owner_id: 'stu', week_key: WEEK, status: 'planned', task_id: 'w1', row_version: 1 },
+    ];
+  });
+
+  it('stores the work it was picked from', async () => {
+    signedInAs('stu');
+    const result = await addTopic({ title: 'Module vibration', week_key: WEEK, task_id: 'w1' });
+
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith('topics', expect.objectContaining({ task_id: 'w1' }), 'stu');
+  });
+
+  it('refuses work that is not there, and writes nothing', async () => {
+    signedInAs('stu');
+    const result = await addTopic({ title: 'Gone', week_key: WEEK, task_id: 'nope' });
+
+    expect(result).toMatchObject({ ok: false, error: 'topics.taskMissing' });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('keeps the link when an edit says nothing about it, and drops it when told to', async () => {
+    signedInAs('stu');
+    await updateTopic('t1', { title: 'Reworded' }, 1);
+    expect(update).toHaveBeenLastCalledWith('topics', 't1', { title: 'Reworded', details: '' }, 1, 'stu');
+
+    await updateTopic('t1', { title: 'Reworded', task_id: '' }, 1);
+    expect(update).toHaveBeenLastCalledWith('topics', 't1', { title: 'Reworded', details: '', task_id: '' }, 1, 'stu');
+  });
+});
+
+/**
  * A week that is over is a record everybody reads and only admin corrects.
  * Topics could otherwise be reworded or dropped long after they were
  * presented, and the history would say something that never happened.
