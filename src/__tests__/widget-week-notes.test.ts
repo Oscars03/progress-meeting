@@ -232,30 +232,44 @@ describe('GET /api/widget/week-notes', () => {
     expect(body.minutes[0].recorded_by_name).toBeNull();
   });
 
-  it("gives this week's reports in full, for open work, and only the summary for done work", async () => {
+  it("gives the week's reports in full, for open and done work alike", async () => {
     const body = await notes(`?week=${WEEK}`);
     const byTask = new Map(body.task_updates.map((u: { task_id: string }) => [u.task_id, u]));
     expect([...byTask.keys()]).toEqual(['k-done', 'k-other', 'k-thesis', 'k-chapter']);
 
     expect(byTask.get('k-chapter')).toMatchObject({ task_title: 'Thesis › Chapter 2', author_name: 'Gone', risks: 'risks of up-chapter-39' });
     expect(byTask.get('k-other')).toMatchObject({ author_name: null, next_plan: 'plan of up-other-39' });
-    // Done work is off the weekly page; the tracker shows its summary and figure only.
-    expect(byTask.get('k-done')).toMatchObject({ summary: 'summary of up-done-39', risks: null, next_plan: null });
+    // Off the weekly page once done, but the debrief still wants what was said.
+    expect(byTask.get('k-done')).toMatchObject({
+      summary: 'summary of up-done-39',
+      risks: 'risks of up-done-39',
+      next_plan: 'plan of up-done-39',
+    });
     // A report on work since deleted is shown nowhere.
     expect(byTask.has('k-ghost')).toBe(false);
   });
 
-  it("gives a past week's reports as the tracker shows them: the summary of the newest three, no risks or plan", async () => {
+  it("gives a past week's reports in full too, the debrief often runs the week after", async () => {
     const last = await notes('?week=2026-W38');
     expect(last.minutes.map((m: { content: string }) => m.content)).toEqual(['Last week we said']);
     expect(last.task_updates).toEqual([
-      expect.objectContaining({ task_id: 'k-thesis', summary: 'summary of up-thesis-38', risks: null, next_plan: null }),
+      expect.objectContaining({
+        task_id: 'k-thesis',
+        summary: 'summary of up-thesis-38',
+        risks: 'risks of up-thesis-38',
+        next_plan: 'plan of up-thesis-38',
+      }),
     ]);
 
-    // W39, W38, W37 are the three the tracker shows; W36 and W35 are not on any page.
-    expect((await notes('?week=2026-W37')).task_updates).toHaveLength(1);
-    expect((await notes('?week=2026-W36')).task_updates).toEqual([]);
-    expect((await notes('?week=2026-W35')).task_updates).toEqual([]);
+    // The tracker shows only a task's newest three (W39, W38, W37); the week
+    // asked for comes back regardless.
+    for (const week of ['2026-W37', '2026-W36', '2026-W35']) {
+      const body = await notes(`?week=${week}`);
+      expect(body.task_updates.map((u: { week_key: string; risks: string }) => [u.week_key, u.risks]), week).toEqual([
+        [week, `risks of up-thesis-${week.slice(-2)}`],
+      ]);
+    }
+    expect((await notes('?week=2026-W34')).task_updates).toEqual([]);
   });
 
   it("never carries an email or anybody's id, only names", async () => {

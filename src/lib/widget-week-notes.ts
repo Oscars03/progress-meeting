@@ -11,7 +11,7 @@ import type { MeetingRecord, MinutesRecord, TaskRecord, TaskUpdateRecord, UserRe
  * Read-only, like the rest of the widget. It goes out with the same key and so
  * to the same person, which is why it carries no more than that person can
  * already read in the app -- see `minutesOf` and `reportsOf` for exactly what
- * that is. People are named, never identified: no emails, no user ids.
+ * that is, and the one place it goes further. People are named, never identified: no emails, no user ids.
  */
 export type WeekMinutes = {
   meeting_id: string;
@@ -32,10 +32,8 @@ export type WeekTaskUpdate = {
   week_key: string;
   progress_pct: number;
   summary: string;
-  /** null where the app no longer shows it -- see `reportsOf`. */
-  risks: string | null;
-  /** null where the app no longer shows it -- see `reportsOf`. */
-  next_plan: string | null;
+  risks: string;
+  next_plan: string;
   /** Who wrote the report, by name; null for an account since removed. */
   author_name: string | null;
   updated_at: string;
@@ -118,51 +116,34 @@ function minutesOf(
 }
 
 /**
- * The week's progress reports, field by field as the app shows them.
+ * The week's progress reports, every field of each.
  *
- * Two pages show a report, to anybody signed in, for anybody's work:
+ * Every report is shown to anybody signed in, for anybody's work: the tracker
+ * (tasks/page.tsx, tracker-model.ts `log`) lists a task's newest three --
+ * week, figure, summary -- and the weekly page (tasks/weekly/page.tsx) shows
+ * this calendar week's in full, risks and next plan too, for work not done.
  *
- * - The tracker (tasks/page.tsx, tracker-model.ts `log`) shows every task's
- *   three newest reports -- the week, the figure and the summary. Not the
- *   risks or the plan.
- * - The weekly page (tasks/weekly/page.tsx) shows all of a report -- summary,
- *   risks, next plan, figure -- but only this calendar week's, and only for
- *   work that is not done. "Only mine" there is a filter the reader can turn
- *   off, not a limit.
- *
- * So a report of the week comes back when either page shows it, carrying the
- * fields that page shows: risks and next_plan are null unless the week is
- * this calendar week and the work is still open. A report on a task that no
- * longer exists is shown nowhere and is left out.
+ * This goes a step past those two pages, by the owner's decision (2026-10-23):
+ * the week asked for comes back whole -- risks and next plan included -- even
+ * once the week is over, the work is done, or the report has fallen out of
+ * the tracker's three. The debrief often runs the week after, when the weekly
+ * page has already moved on. Nothing the app would not show to some reader on
+ * some day goes out: no emails, no ids, and no report on work since deleted,
+ * which no page shows at all.
  */
 function reportsOf(
   sources: { tasks: TaskRecord[]; updates: TaskUpdateRecord[] },
   week: string,
   nameOf: (id: string) => string | null,
-  now: Date,
 ): WeekTaskUpdate[] {
-  const thisWeek = weekKey(now);
   const tasks = new Map(sources.tasks.map((task) => [task.id, task] as const));
   const titleOf = taskTitles(sources.tasks);
-
-  // The tracker's three, per task: newest week first, as tracker-model sorts.
-  const onTracker = new Set<TaskUpdateRecord>();
-  const byTask = new Map<string, TaskUpdateRecord[]>();
-  for (const update of sources.updates) {
-    byTask.set(update.task_id, [...(byTask.get(update.task_id) ?? []), update]);
-  }
-  for (const reports of byTask.values()) {
-    reports.sort((a, b) => (a.week_key < b.week_key ? 1 : -1));
-    for (const report of reports.slice(0, 3)) onTracker.add(report);
-  }
 
   return sources.updates
     .filter((update) => update.week_key === week)
     .flatMap((update) => {
       const task = tasks.get(update.task_id);
       if (!task) return [];
-      const onWeekly = week === thisWeek && task.status !== 'done';
-      if (!onWeekly && !onTracker.has(update)) return [];
       return [
         {
           task_id: task.id,
@@ -170,8 +151,8 @@ function reportsOf(
           week_key: update.week_key,
           progress_pct: Math.round(Number(update.progress_pct) || 0),
           summary: String(update.summary ?? ''),
-          risks: onWeekly ? String(update.risks ?? '') : null,
-          next_plan: onWeekly ? String(update.next_plan ?? '') : null,
+          risks: String(update.risks ?? ''),
+          next_plan: String(update.next_plan ?? ''),
           author_name: nameOf(update.updated_by || update.created_by),
           updated_at: update.updated_at || update.created_at,
         },
@@ -189,7 +170,6 @@ export function buildWeekNotes(
     updates: TaskUpdateRecord[];
   },
   week: string,
-  now: Date = new Date(),
 ): WeekNotes {
   const names = new Map(sources.users.map((user) => [user.id, user.name] as const));
   const nameOf = (id: string) => (id && names.get(id)) || null;
@@ -197,6 +177,6 @@ export function buildWeekNotes(
   return {
     week,
     minutes: minutesOf(sources, week, nameOf),
-    task_updates: reportsOf(sources, week, nameOf, now),
+    task_updates: reportsOf(sources, week, nameOf),
   };
 }
