@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requireRole, requireSession } from '@/lib/auth-guard';
+import { requireRole, requireSession, type SessionUser } from '@/lib/auth-guard';
+import { canAssignWork } from '@/lib/task-rights';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import { actsAsWeekLead } from '@/lib/rotation';
@@ -55,20 +56,38 @@ function revalidate(meetingId: string) {
  *
  * Everybody still reads all three. Only writing is narrowed.
  */
-async function assertRunsTheMeeting(
+async function runsTheMeeting(
   actor: { id: string; role: string; previewingLead?: boolean },
   meetingId: string
-): Promise<void> {
-  if (actor.role === 'admin') return;
+): Promise<boolean> {
+  if (actor.role === 'admin') return true;
 
   const meeting = await SheetRepo.findOne<MeetingRecord>('meetings', meetingId);
   if (!meeting) throw new UserError('error.notFound');
 
   const start = labInstant(meeting.start_at);
   const leads = await SheetRepo.find<WeekLeadRecord>('week_leads');
-  if (!start || !actsAsWeekLead(actor, leads, weekKey(start))) {
-    throw new UserError('avail.leadOnly');
-  }
+  return start ? actsAsWeekLead(actor, leads, weekKey(start)) : false;
+}
+
+async function assertRunsTheMeeting(
+  actor: { id: string; role: string; previewingLead?: boolean },
+  meetingId: string
+): Promise<void> {
+  if (!(await runsTheMeeting(actor, meetingId))) throw new UserError('avail.leadOnly');
+}
+
+/**
+ * Who may put an action item on somebody else's list: the same people who may
+ * give work on the Tasks page -- the advisors and admin -- and whoever runs
+ * this meeting, because handing out what was agreed is part of running it.
+ *
+ * Anybody may write down one for themselves. Until this, any member could
+ * fill anybody's list, which is the one thing the Tasks page had already
+ * stopped.
+ */
+async function mayAssignOthers(actor: SessionUser, meetingId: string): Promise<boolean> {
+  return canAssignWork(actor) || (await runsTheMeeting(actor, meetingId));
 }
 
 /**
@@ -125,12 +144,18 @@ export async function addActionItemAction(input: {
     if (!title) throw new UserError('items.titleRequired');
     requireMeetingId(input.meetingId);
 
+    // Nobody named is the same as naming yourself for somebody who may only
+    // ever name themselves; for anybody else it stays "not yet decided".
+    const others = await mayAssignOthers(actor, input.meetingId);
+    const ownerId = others ? input.ownerId : input.ownerId || actor.id;
+    if (ownerId !== actor.id && !others) throw new UserError('items.ownOnly');
+
     await SheetRepo.insert(
       'action_items',
       {
         meeting_id: input.meetingId,
         title,
-        owner_id: input.ownerId,
+        owner_id: ownerId,
         due_date: input.dueDate,
         status: 'open',
         source_task_id: input.sourceTaskId,
@@ -151,6 +176,15 @@ export async function setActionItemStatusAction(
   return toResult(async () => {
     const actor = await requireRole('student');
     assertItemStatus(status);
+
+    // Ticking an item off is its owner's, as with work on the Tasks page --
+    // or whoever may hand items out in the first place. The meeting is the
+    // item's own, not whichever the caller named.
+    const item = await SheetRepo.findOne<ActionItemRecord>('action_items', itemId);
+    if (!item) throw new UserError('error.notFound');
+    if (item.owner_id !== actor.id && !(await mayAssignOthers(actor, item.meeting_id))) {
+      throw new UserError('items.ownOnly');
+    }
 
     await SheetRepo.update<ActionItemRecord>(
       'action_items',
