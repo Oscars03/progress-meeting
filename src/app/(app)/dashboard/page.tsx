@@ -1,3 +1,4 @@
+import InfoTip from '@/lib/ui/info-tip';
 import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
@@ -589,8 +590,10 @@ export default async function DashboardPage() {
         <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <div>
-              <h3 className="font-semibold text-gray-900">{t('dashboard.myTasks')}</h3>
-              <p className="text-sm text-gray-500">{t('dashboard.myTasksHint')}</p>
+              <div className="flex items-center gap-1.5">
+                <h3 className="font-semibold text-gray-900">{t('dashboard.myTasks')}</h3>
+                <InfoTip>{t('dashboard.myTasksHint')}</InfoTip>
+              </div>
             </div>
             <Link href="/tasks" className="text-sm text-blue-600 hover:underline">
               {t('dashboard.total')}
@@ -670,8 +673,10 @@ export default async function DashboardPage() {
         <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <div>
-              <h3 className="font-semibold text-gray-900">{t('dashboard.today')}</h3>
-              <p className="text-sm text-gray-500">{t('dashboard.todayHint')}</p>
+              <div className="flex items-center gap-1.5">
+                <h3 className="font-semibold text-gray-900">{t('dashboard.today')}</h3>
+                <InfoTip>{t('dashboard.todayHint')}</InfoTip>
+              </div>
             </div>
             <Link href="/meetings" className="text-sm text-blue-600 hover:underline">
               {t('dashboard.openCalendar')}
@@ -709,9 +714,9 @@ export default async function DashboardPage() {
           it is not something to do -- it is somewhere to go back to. */}
       {answered.length > 0 && (
         <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-          <div>
+          <div className="flex items-center gap-1.5">
             <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.answeredPolls')}</h3>
-            <p className="text-sm text-gray-500">{t('dashboard.answeredHint')}</p>
+            <InfoTip>{t('dashboard.answeredHint')}</InfoTip>
           </div>
 
           <ul className="space-y-2">

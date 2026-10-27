@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateMyFaceAction } from './actions';
@@ -85,8 +86,10 @@ export default function MyFace({
           <Avatar person={preview} large />
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900">{t('myFace.title')}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{t('myFace.hint')}</p>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-lg font-semibold text-gray-900">{t('myFace.title')}</h3>
+            <InfoTip>{t('myFace.hint')}</InfoTip>
+          </div>
         </div>
       </div>
 

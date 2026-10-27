@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -117,9 +118,9 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-1.5">
           <h3 className="text-lg font-semibold text-gray-900">{t('perm.title')}</h3>
-          <p className="text-sm text-gray-500">{t('perm.intro')}</p>
+          <InfoTip>{t('perm.intro')}</InfoTip>
         </div>
         <button
           type="button"

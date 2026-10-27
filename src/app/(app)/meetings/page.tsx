@@ -1,3 +1,4 @@
+import InfoTip from '@/lib/ui/info-tip';
 import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
@@ -128,14 +129,16 @@ export default async function MeetingsPage() {
           connected, and the way to the availability grid. A wrapped
           description and a status pill on its own line once cost about 300px
           before the calendar began, on the page whose whole point is the
-          calendar. The descriptive line waits for a wide screen; the rest
-          shrinks rather than disappearing. */}
+          calendar. What the page is for sits behind an ⓘ, on every screen
+          without costing a line; the rest shrinks rather than disappearing. */}
       <PageHeader
         title={t('meetings.title')}
         // Connected is a dot and a word on a phone, the whole sentence on a
         // desktop. Not connected keeps its button at every width, because
         // that is the one part of it anybody can act on.
-        aside={isCalendarSynced ? (
+        aside={<>
+        <InfoTip>{t('meetings.hint')}</InfoTip>
+        {isCalendarSynced ? (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -154,8 +157,7 @@ export default async function MeetingsPage() {
             <span className="hidden lg:inline">Google Calendar: {t('calcard.notConnected')}</span>
             <ConnectGoogleButton />
           </span>
-        )}
-        description={<p className="hidden lg:block">{t('meetings.hint')}</p>}
+        )}</>}
         actions={
           <>
           <Link

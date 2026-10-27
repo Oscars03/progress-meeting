@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -360,9 +361,9 @@ export default function UserManager({
 
       <div className="p-4 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0 flex-1 basis-60">
+          <div className="min-w-0 flex-1 basis-60 flex items-center gap-1.5">
             <h3 className="text-lg font-semibold text-gray-900">{t('users.title')}</h3>
-            <p className="text-sm text-gray-500">{t('users.hint')}</p>
+            <InfoTip>{t('users.hint')}</InfoTip>
           </div>
           <button
             type="button"

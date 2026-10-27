@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -106,11 +107,11 @@ export default function RoundsDialog({
         className="motion-dialog bg-white rounded-2xl shadow-xl w-full max-w-3xl p-5 sm:p-7 overflow-y-auto max-h-[92dvh]"
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="flex items-center gap-1.5">
             <h3 id="trk-rounds-title" className="text-lg font-semibold text-gray-900">
               {t('tracker.rounds.title')}
             </h3>
-            <p className="text-sm text-gray-500 mt-0.5">{t('tracker.rounds.intro')}</p>
+            <InfoTip>{t('tracker.rounds.intro')}</InfoTip>
           </div>
           <button
             type="button"

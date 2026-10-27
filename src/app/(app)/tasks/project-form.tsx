@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -211,9 +212,12 @@ export default function ProjectForm({
           </div>
 
           <div>
-            <span id="trk-f-people" className="block text-gray-600 mb-1">
-              {t('tasks.assignees')} <span className="text-red-600">*</span>
-            </span>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span id="trk-f-people" className="text-gray-600">
+                {t('tasks.assignees')} <span className="text-red-600">*</span>
+              </span>
+              <InfoTip>{canAssign ? t('tracker.form.peopleHint') : t('tracker.form.peopleSelf')}</InfoTip>
+            </div>
             <div role="group" aria-labelledby="trk-f-people" className="flex flex-wrap gap-1.5">
               {canAssign ? (
                 pickable.map((p) => (
@@ -241,9 +245,6 @@ export default function ProjectForm({
                 <span className="text-gray-500">{t('tracker.form.noPeople')}</span>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1.5">
-              {canAssign ? t('tracker.form.peopleHint') : t('tracker.form.peopleSelf')}
-            </p>
             {errors.people && <p className="text-xs text-red-600 mt-1">{errors.people}</p>}
           </div>
 
@@ -337,9 +338,12 @@ export default function ProjectForm({
           {/* A new project only: a subtask has no subtasks of its own. */}
           {!row && !parent && (
             <div>
-              <label htmlFor="trk-f-subtasks" className="block text-gray-600 mb-1">
-                {t('tracker.form.subtasks')}
-              </label>
+              <div className="flex items-center gap-1.5 mb-1">
+                <label htmlFor="trk-f-subtasks" className="text-gray-600">
+                  {t('tracker.form.subtasks')}
+                </label>
+                <InfoTip>{t('tracker.form.subtasksHint')}</InfoTip>
+              </div>
               <textarea
                 id="trk-f-subtasks"
                 rows={3}
@@ -347,7 +351,6 @@ export default function ProjectForm({
                 onChange={(e) => setLines(e.target.value)}
                 className={field}
               />
-              <p className="text-xs text-gray-500 mt-1">{t('tracker.form.subtasksHint')}</p>
             </div>
           )}
 

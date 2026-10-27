@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createWidgetKeyAction, revokeWidgetKeyAction } from './widget-actions';
@@ -252,9 +253,9 @@ export default function WidgetCard({
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-5">
-      <div>
+      <div className="flex items-center gap-1.5">
         <h3 className="text-lg font-semibold text-gray-900">{t('widget.title')}</h3>
-        <p className="text-sm text-gray-500 mt-1">{t('widget.hint')}</p>
+        <InfoTip>{t('widget.hint')}</InfoTip>
       </div>
 
       {/* What it will look like. Sample data, so it is the same picture for
