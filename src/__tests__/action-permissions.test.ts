@@ -83,6 +83,7 @@ const { saveMinutesAction, setAgendaAction, deleteActionItemAction, addActionIte
   '../app/(app)/meetings/[id]/actions'
 );
 const { pushMeetingAction, pullMeetingAction } = await import('../app/(app)/calendar-actions');
+const { createCalendarShareAction, revokeCalendarShareAction } = await import('../app/(app)/meetings/share-actions');
 
 /** Monday of an ISO week far enough out that no test depends on today. */
 const WEEK = '2026-W40';
@@ -2173,5 +2174,67 @@ describe('the week lead removing work', () => {
 
     expect(result).toMatchObject({ ok: false });
     expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A link to a week of busy hours. Anybody in the lab may make one, but only of
+ * people who are on the calendar anyway, and only the one who made it -- or
+ * admin -- may withdraw it.
+ */
+describe('sharing a week of busy hours', () => {
+  beforeEach(() => {
+    tables['users'] = [
+      { id: 'a', name: 'A', role: 'student', active: true, row_version: 1 },
+      { id: 'b', name: 'B', role: 'professor', active: true, row_version: 1 },
+      { id: 'boss', name: 'Boss', role: 'admin', active: true, row_version: 1 },
+    ];
+    tables['calendar_shares'] = [
+      { id: 'sh1', token_hash: 'x', week_key: WEEK, user_ids: ['a'], expires_at: '2099-01-01T00:00:00Z', revoked_at: '', created_by: 'a', row_version: 1 },
+    ];
+  });
+
+  it('lets a member make one, storing the hash and not the token', async () => {
+    signedInAs('a');
+    const result = await createCalendarShareAction({ weekKey: WEEK, userIds: ['a', 'b'] });
+
+    expect(result.ok).toBe(true);
+    const token = (result as { token: string }).token;
+    const [, row] = insert.mock.calls[0];
+    expect(row).toMatchObject({ week_key: WEEK, user_ids: ['a', 'b'], revoked_at: '' });
+    expect(JSON.stringify(row)).not.toContain(token);
+  });
+
+  it('drops anybody who is not on the calendar, and refuses when nobody is left', async () => {
+    signedInAs('a');
+    await createCalendarShareAction({ weekKey: WEEK, userIds: ['a', 'boss', 'stranger'] });
+    expect(insert.mock.calls[0][1]).toMatchObject({ user_ids: ['a'] });
+
+    insert.mockClear();
+    await expect(createCalendarShareAction({ weekKey: WEEK, userIds: ['boss'] })).resolves.toMatchObject({
+      ok: false,
+      error: 'share.pickSomeone',
+    });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses a week that is not a week', async () => {
+    signedInAs('a');
+    await expect(createCalendarShareAction({ weekKey: 'next tuesday', userIds: ['a'] })).resolves.toMatchObject({ ok: false });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('refuses somebody else withdrawing it', async () => {
+    signedInAs('b', 'professor');
+    await expect(revokeCalendarShareAction('sh1', 1)).resolves.toMatchObject({ ok: false, error: 'error.forbidden' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('lets whoever made it, or admin, withdraw it', async () => {
+    signedInAs('a');
+    await expect(revokeCalendarShareAction('sh1', 1)).resolves.toMatchObject({ ok: true });
+    signedInAs('boss', 'admin');
+    await expect(revokeCalendarShareAction('sh1', 1)).resolves.toMatchObject({ ok: true });
+    expect(update).toHaveBeenCalledWith('calendar_shares', 'sh1', { revoked_at: expect.any(String) }, 1, 'boss');
   });
 });

@@ -3,19 +3,23 @@ import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { MeetingRecord } from '@/lib/db/schema';
-import { getT } from '@/lib/ui/server-i18n';
+import { getLocale, getT } from '@/lib/ui/server-i18n';
 import CalendarView from './calendar';
 import NewMeetingButton from './new-meeting-button';
 import ConnectGoogleButton from './connect-google-button';
 import MeetingsTabs from './meetings-tabs';
+import ShareCalendar from './share-calendar';
 
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requirePageSession } from '@/lib/auth-guard';
 import { labMembers } from '@/lib/members';
 import { myEvents, busyTimes, type GoogleEvent } from '@/lib/google/calendar';
-import type { PersonalEventRecord, UserRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
+import type { CalendarShareRecord, PersonalEventRecord, UserRecord, TermBreakRecord, WeekLeadRecord } from '@/lib/db/schema';
 import { leadsCurrentOrLater, planWeekLeads } from '@/lib/rotation';
-import { weekKey } from '@/lib/week';
+import { nextWeekKey, weekKey } from '@/lib/week';
+import { formatLabTime } from '@/lib/lab-time';
+import { weekRange } from '@/lib/meeting-history';
+import { SHARE_TTL_DAYS, shareIsLive } from '@/lib/calendar-share';
 import { logError } from '@/lib/app-log';
 import { facesOf } from '@/lib/avatar-face';
 
@@ -24,15 +28,39 @@ export type MappedPersonalEvent = PersonalEventRecord & { user_name?: string; us
 
 export default async function MeetingsPage() {
   const actor = await requirePageSession();
-  const [meetings, t, storedToken, allPersonalEvents, users, termBreaks, weekLeads] = await Promise.all([
-    SheetRepo.find<MeetingRecord>('meetings'), 
+  const [meetings, t, locale, storedToken, allPersonalEvents, users, termBreaks, weekLeads, allShares] = await Promise.all([
+    SheetRepo.find<MeetingRecord>('meetings'),
     getT(),
+    getLocale(),
     getStoredToken(actor.id).catch(() => null),
     SheetRepo.find<PersonalEventRecord>('personal_events').catch(() => []),
     SheetRepo.find<UserRecord>('users').catch(() => []),
     SheetRepo.find<TermBreakRecord>('term_breaks').catch(() => []),
     SheetRepo.find<WeekLeadRecord>('week_leads').catch(() => []),
+    // Before the sheet has this tab, sharing just has nothing to list.
+    SheetRepo.find<CalendarShareRecord>('calendar_shares').catch(() => []),
   ]);
+
+  // Sharing a week: last week to two ahead, and the links still working that
+  // this person may withdraw -- their own, or everybody's for admin.
+  const thisWeek = weekKey();
+  const aWeekAgo = new Date();
+  aWeekAgo.setDate(aWeekAgo.getDate() - 7);
+  const shareWeeks = [
+    { key: weekKey(aWeekAgo), label: t('share.weekLast') },
+    { key: thisWeek, label: t('share.weekThis') },
+    { key: nextWeekKey(thisWeek), label: t('share.weekNext') },
+    { key: nextWeekKey(nextWeekKey(thisWeek)), label: t('share.weekAfter') },
+  ].map((w) => ({ ...w, range: weekRange(w.key, locale) }));
+  const liveShares = allShares
+    .filter((s) => shareIsLive(s) && (s.created_by === actor.id || actor.role === 'admin'))
+    .map((s) => ({
+      id: s.id,
+      week: weekRange(s.week_key, locale),
+      people: Array.isArray(s.user_ids) ? s.user_ids.length : 0,
+      until: formatLabTime(s.expires_at, locale),
+      rowVersion: s.row_version,
+    }));
 
   // Whose week it is, for as far ahead as anybody plans: a term's worth past
   // today, and a few weeks back so paging to last week still says who ran it.
@@ -167,6 +195,14 @@ export default async function MeetingsPage() {
           >
             {schedules ? t('meetings.findTime') : t('meetings.freeTimeSummary')}
           </Link>
+
+          <ShareCalendar
+            weeks={shareWeeks}
+            thisWeek={thisWeek}
+            people={labMembers(users).map((u) => ({ id: u.id, ...faces.get(u.id)! }))}
+            shares={liveShares}
+            days={SHARE_TTL_DAYS}
+          />
 
           {/* Booking outright is the admin's escape hatch around the poll, and
               rare. It is not worth a row of a phone screen, so it waits for a
