@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -29,9 +30,12 @@ export default function RolePreview({ current }: { current: string }) {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-      <div>
+      <div className="flex items-center gap-1.5">
         <h3 className="text-lg font-semibold text-gray-900">{t('preview.title')}</h3>
-        <p className="text-sm text-gray-500 mt-1">{t('preview.subtitle')}</p>
+        <InfoTip>
+          <p>{t('preview.subtitle')}</p>
+          <p className="mt-1">{t('preview.note')}</p>
+        </InfoTip>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -68,9 +72,6 @@ export default function RolePreview({ current }: { current: string }) {
         ))}
 
         {isPending && <Spinner className="h-4 w-4 self-center" />}
-      </div>
-
-      <p className="text-xs text-gray-500">{t('preview.note')}</p>
-    </div>
+      </div>    </div>
   );
 }

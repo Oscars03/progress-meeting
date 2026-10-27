@@ -145,9 +145,9 @@ export default function PermissionTable({ users }: { users: SafeUser[] }) {
           >
             <div className="motion-dialog flex max-h-[90vh] w-full flex-col rounded-t-2xl bg-white shadow-xl sm:max-w-4xl sm:rounded-2xl">
               <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4 sm:p-5">
-                <div>
+                <div className="flex items-center gap-1.5">
                   <h4 className="font-semibold text-gray-900">{t('perm.title')}</h4>
-                  <p className="text-xs text-gray-500">{t('perm.intro')}</p>
+                  <InfoTip>{t('perm.intro')}</InfoTip>
                 </div>
                 <button
                   type="button"

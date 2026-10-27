@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveMyCalendarsAction } from '../calendar-actions';
@@ -36,10 +37,10 @@ export default function MyCalendars({ calendars, counted }: { calendars: OwnCale
 
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-medium text-gray-900">ปฏิทินที่นับว่าไม่ว่าง</legend>
-      <p className="text-xs text-gray-500">
-        ติ๊กปฏิทินที่มีนัดซึ่งทำให้คุณไม่ว่าง เช่น สอน TA หรือเรียน ปฏิทินหลักนับเสมอ
-      </p>
+      <legend className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+        ปฏิทินที่นับว่าไม่ว่าง
+        <InfoTip>ติ๊กปฏิทินที่มีนัดซึ่งทำให้คุณไม่ว่าง เช่น สอน TA หรือเรียน ปฏิทินหลักนับเสมอ</InfoTip>
+      </legend>
       <ul className="space-y-1.5">
         {calendars.map((c) => (
           <li key={c.id}>

@@ -492,31 +492,9 @@ export default function CalendarView({
 
   return (
     <div className="space-y-2">
-      {/* Hint and toggle on one line, at every width. Two rows -- one of which
-          wrapped to three lines on a phone -- were most of what stood between
-          the nav bar and the calendar on the page whose point is the calendar.
-          The hint truncates rather than wrapping: three lines of instruction
-          above a grid is worse than one line finished on a wider screen. */}
-      <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
-        <p className="text-gray-500 flex items-center gap-1.5 min-w-0">
-          <svg
-            className="w-3.5 h-3.5 shrink-0 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span className="truncate sm:hidden">แตะค้างแล้วลากเพื่อเพิ่มเวลาที่ไม่ว่าง</span>
-          <span className="hidden sm:inline">
-            คลิกหรือลากคลุมช่วงเวลาบนปฏิทิน เพื่อเพิ่มช่วงเวลาที่คุณไม่ว่าง
-          </span>
-        </p>
+      {/* How to add busy time lives in the ⓘ beside the page title now, with
+          the rest of what the page does; this row keeps only the toggle. */}
+      <div className="flex items-center justify-end gap-3 text-xs sm:text-sm">
 
         {/* Stated as what it does rather than what it hides: "only mine" is
             one idea, while "show other members' personal schedules too" asked

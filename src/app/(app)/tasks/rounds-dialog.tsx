@@ -111,7 +111,10 @@ export default function RoundsDialog({
             <h3 id="trk-rounds-title" className="text-lg font-semibold text-gray-900">
               {t('tracker.rounds.title')}
             </h3>
-            <InfoTip>{t('tracker.rounds.intro')}</InfoTip>
+            <InfoTip>
+              <p>{t('tracker.rounds.intro')}</p>
+              <p className="mt-1">{t('tracker.rounds.hint')}</p>
+            </InfoTip>
           </div>
           <button
             type="button"
@@ -174,8 +177,6 @@ export default function RoundsDialog({
         >
           {t('tracker.rounds.add')}
         </button>
-        <p className="text-xs text-gray-500 mt-3">{t('tracker.rounds.hint')}</p>
-
         {error && (
           <div role="alert" className="mt-3 p-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-200">
             {error}

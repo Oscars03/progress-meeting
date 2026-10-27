@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePrefs } from './prefs';
 
 /** Space kept between the bubble and the edge of the screen. */
@@ -52,8 +53,12 @@ export default function InfoTip({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(null);
+    // Caught on the way down and stopped there: inside a dialog, Escape with
+    // a bubble open closes the bubble, not the dialog and whatever had been
+    // typed into it. Dialogs listen on document, which this never reaches.
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.stopPropagation();
         close();
         buttonRef.current?.focus();
       }
@@ -62,12 +67,12 @@ export default function InfoTip({ children }: { children: React.ReactNode }) {
       const target = e.target as Node;
       if (!buttonRef.current?.contains(target) && !bubbleRef.current?.contains(target)) close();
     };
-    document.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     document.addEventListener('pointerdown', onPointer);
     window.addEventListener('scroll', close, true);
     window.addEventListener('resize', close);
     return () => {
-      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
       document.removeEventListener('pointerdown', onPointer);
       window.removeEventListener('scroll', close, true);
       window.removeEventListener('resize', close);
@@ -99,16 +104,22 @@ export default function InfoTip({ children }: { children: React.ReactNode }) {
           <circle cx="12" cy="7.75" r="0.6" fill="currentColor" />
         </svg>
       </button>
-      {open && (
-        <div
-          ref={bubbleRef}
-          id={id}
-          role="tooltip"
-          className="fixed z-[80] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal text-gray-700 shadow-lg"
-        >
-          {children}
-        </div>
-      )}
+      {/* Rendered into <body>, not beside the icon: the ⓘ sits inside
+          paragraphs, headings and legends, where a block of text is not
+          allowed to go -- a <div> inside a <p> is a hydration error -- and
+          the bubble may itself hold paragraphs. */}
+      {open &&
+        createPortal(
+          <div
+            ref={bubbleRef}
+            id={id}
+            role="tooltip"
+            className="fixed z-[80] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal text-gray-700 shadow-lg"
+          >
+            {children}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

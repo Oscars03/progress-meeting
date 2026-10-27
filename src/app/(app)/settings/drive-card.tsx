@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -28,9 +29,12 @@ export default function DriveCard({ status }: { status: DriveStatus }) {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-      <div>
+      <div className="flex items-center gap-1.5">
         <h3 className="text-lg font-semibold text-gray-900">{t('drive.title')}</h3>
-        <p className="text-sm text-gray-500 mt-1">{t('drive.subtitle')}</p>
+        <InfoTip>
+          <p>{t('drive.subtitle')}</p>
+          <p className="mt-1">{t('drive.chooseAccountHint')}</p>
+        </InfoTip>
       </div>
 
       {!status.account ? (
@@ -68,8 +72,6 @@ export default function DriveCard({ status }: { status: DriveStatus }) {
             {connecting && <Spinner className="h-4 w-4" />}
             {status.connected ? t('drive.reconnect') : t('drive.connect')}
           </button>
-
-          <p className="text-xs text-gray-500">{t('drive.chooseAccountHint')}</p>
         </>
       )}
     </div>

@@ -12,7 +12,7 @@ import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import { settingsMenuOpen, type MenuToggle } from '@/lib/ui/settings-menu';
 
-type IconName = 'dashboard' | 'tasks' | 'meetings' | 'presentations' | 'report' | 'feedback' | 'settings';
+type IconName = 'dashboard' | 'tasks' | 'meetings' | 'history' | 'presentations' | 'report' | 'feedback' | 'settings';
 
 /**
  * Tasks and Report are not part of the current workflow, so they are off the
@@ -23,6 +23,7 @@ const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
   { href: '/dashboard', key: 'nav.dashboard', icon: 'dashboard' },
   { href: '/tasks', key: 'nav.tasks', icon: 'tasks' },
   { href: '/meetings', key: 'nav.meetings', icon: 'meetings' },
+  { href: '/meetings/history', key: 'nav.history', icon: 'history' },
   { href: '/presentations', key: 'nav.presentations', icon: 'presentations' },
   { href: '/feedback', key: 'nav.feedback', icon: 'feedback' },
   { href: '/settings', key: 'nav.settings', icon: 'settings' },
@@ -91,6 +92,13 @@ function NavIcon({ name }: { name: IconName }) {
           <path d="M16 3v4M8 3v4M3 10h18" />
         </Icon>
       );
+    case 'history':
+      return (
+        <Icon>
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+          <path d="M3 3v5h5M12 7v5l3 2" />
+        </Icon>
+      );
     case 'presentations':
       return <Icon d="M4 6h6M4 12h10M4 18h7M17 5l3 3-3 3" />;
     case 'report':
@@ -137,6 +145,10 @@ const isDrawer = () => window.matchMedia(DRAWER_QUERY).matches;
 export default function AppNav({ userName, isAdmin }: { userName: string; isAdmin: boolean }) {
   const { t, locale, sidebar, setSidebar } = usePrefs();
   const pathname = usePathname();
+  // The menu entry for this page: the longest href the path falls under.
+  const activeHref = LINKS.map((l) => l.href)
+    .filter((href) => pathname === href || pathname.startsWith(href + '/'))
+    .sort((a, b) => b.length - a.length)[0];
   // Open on every Settings page, closed elsewhere; the arrow overrides that
   // for the page it is pressed on -- see lib/ui/settings-menu.ts.
   const [settingsToggle, setSettingsToggle] = useState<MenuToggle>(null);
@@ -305,7 +317,9 @@ export default function AppNav({ userName, isAdmin }: { userName: string; isAdmi
             it, which would push the footer off again. */}
         <div className="flex min-h-0 flex-1 flex-col gap-1 mt-2 overflow-y-auto">
           {LINKS.map(({ href, key, icon }) => {
-            const active = pathname === href || pathname.startsWith(href + '/');
+            // The most specific link wins: /meetings/history lights up the
+            // history, not the calendar it sits under.
+            const active = href === activeHref;
             const tone = active ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100';
 
             if (href !== '/settings') {
