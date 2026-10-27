@@ -238,7 +238,7 @@ export default function ProjectForm({
                 )
               )}
               {canAssign && pickable.length === 0 && (
-                <span className="text-gray-500">{t('tracker.form.noStudents')}</span>
+                <span className="text-gray-500">{t('tracker.form.noPeople')}</span>
               )}
             </div>
             <p className="text-xs text-gray-500 mt-1.5">

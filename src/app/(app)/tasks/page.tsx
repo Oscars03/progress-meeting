@@ -10,7 +10,7 @@ import { weekKey } from '@/lib/week';
 import { labDay } from '@/lib/lab-time';
 import { requirePageSession } from '@/lib/auth-guard';
 import { canAddOwnWork, canAssignWork, canManageRounds } from '@/lib/task-rights';
-import { labMembers, pollVoters } from '@/lib/members';
+import { labMembers } from '@/lib/members';
 import Tracker from './tracker';
 import { toPeople, toRounds, toRows } from './tracker-model';
 
@@ -39,9 +39,13 @@ export default async function TasksPage(props: { searchParams: Promise<{ open?: 
       // Everybody, for names on rows that point at an account since removed
       // from the lab; the pickers use the narrower lists below.
       people={toPeople(users)}
-      // Who work can be given to: the students. An advisor sets work rather
-      // than doing it, and admin is a system account.
-      assignable={pollVoters(users).map((u) => u.id)}
+      // Who work can be given to: everybody in the lab, professors included --
+      // one professor hands work to another as well as to students. Students
+      // come first, being who most of it is for. Admin is a system account.
+      assignable={[
+        ...members.filter((u) => u.role !== 'professor'),
+        ...members.filter((u) => u.role === 'professor'),
+      ].map((u) => u.id)}
       professors={members.filter((u) => u.role === 'professor').map((u) => u.id)}
       me={actor.id}
       today={today}
