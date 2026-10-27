@@ -7,6 +7,7 @@ import { getT } from '@/lib/ui/server-i18n';
 import CalendarView from './calendar';
 import NewMeetingButton from './new-meeting-button';
 import ConnectGoogleButton from './connect-google-button';
+import MeetingsTabs from './meetings-tabs';
 
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requirePageSession } from '@/lib/auth-guard';
@@ -179,8 +180,9 @@ export default async function MeetingsPage() {
           </>
         }
       />
+      <MeetingsTabs current="calendar" />
 
-      <CalendarView 
+      <CalendarView
         meetings={mappedMeetings} 
         personalEvents={mappedPersonalEvents} 
         googleEvents={allGoogleEvents} 

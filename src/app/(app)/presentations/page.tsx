@@ -94,7 +94,7 @@ export default async function PresentationsPage(props: {
           </span>
         }
         actions={
-          <Link href="/presentations/history" className="btn btn-secondary btn-sm">
+          <Link href="/meetings/history" className="btn btn-secondary btn-sm">
             {t('history.link')}
           </Link>
         }

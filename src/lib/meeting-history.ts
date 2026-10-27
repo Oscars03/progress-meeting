@@ -1,4 +1,4 @@
-import type { MeetingRecord, MinutesRecord, TopicRecord, WeekLeadRecord } from './db/schema';
+import type { ActionItemRecord, MeetingRecord, MinutesRecord, TopicRecord, WeekLeadRecord } from './db/schema';
 import { effectiveTopicOrder, topicsForWeek } from './presentation-order';
 import { labInstant } from './lab-time';
 import { weekKey, weekStartDate } from './week';
@@ -16,6 +16,8 @@ import { weekKey, weekStartDate } from './week';
 export type PastMeeting = {
   meeting: MeetingRecord;
   minutes: MinutesRecord | null;
+  /** What the meeting handed out, in the order it was written down. */
+  items: ActionItemRecord[];
 };
 
 export type PastWeek = {
@@ -50,6 +52,7 @@ export function pastWeeks(
   data: {
     meetings: MeetingRecord[];
     minutes: MinutesRecord[];
+    actionItems?: ActionItemRecord[];
     topics: TopicRecord[];
     leads: WeekLeadRecord[];
   },
@@ -84,6 +87,7 @@ export function pastWeeks(
         .map((meeting) => ({
           meeting,
           minutes: data.minutes.find((m) => m.meeting_id === meeting.id) ?? null,
+          items: (data.actionItems ?? []).filter((item) => item.meeting_id === meeting.id),
         })),
     }));
 }
