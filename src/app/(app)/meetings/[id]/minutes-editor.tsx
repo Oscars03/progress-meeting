@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveMinutesAction } from './actions';
@@ -85,7 +86,7 @@ export default function MinutesEditor({
             >
               {isPending ? t('common.saving') : t('common.save')}
             </button>
-            <p className="text-xs text-gray-500">{t('minutes.oneRecord')}</p>
+            <InfoTip>{t('minutes.oneRecord')}</InfoTip>
           </div>
         </>
       ) : content ? (

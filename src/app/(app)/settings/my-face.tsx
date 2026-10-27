@@ -117,13 +117,14 @@ export default function MyFace({
         </div>
 
         <div>
-          <span className="block text-xs font-medium text-gray-700 mb-2">{t('myFace.color')}</span>
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-xs font-medium text-gray-700">{t('myFace.color')}</span>
+            <InfoTip>{t('myFace.colorHint')}</InfoTip>
+          </div>
           <div role="group" aria-label={t('myFace.color')} className="flex flex-wrap gap-2.5">
             {swatch('', t('myFace.auto'), autoColor ? `av-${autoColor}` : `trk-av${face.tone}`)}
             {AVATAR_COLORS.map((c) => swatch(c, t('myFace.colorName', { color: c }), `av-${c}`, taken[c]))}
-          </div>
-          <p className="text-xs text-gray-500 mt-2">{t('myFace.colorHint')}</p>
-        </div>
+          </div>        </div>
 
         <button
           type="submit"

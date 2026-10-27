@@ -432,9 +432,9 @@ export default async function DashboardPage() {
       {awaitingApproval.length > 0 && (
         <section className="p-5 sm:p-6 bg-purple-100 border border-gray-200 rounded-xl space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <div>
+            <div className="flex items-center gap-1.5">
               <h3 className="font-semibold text-purple-700">{t('pending.title')}</h3>
-              <p className="text-sm text-gray-600">{t('pending.hint')}</p>
+              <InfoTip>{t('pending.hint')}</InfoTip>
             </div>
             <Link href="/settings/users" className="text-sm text-blue-600 hover:underline">
               {t('pending.manage')}
@@ -635,11 +635,11 @@ export default async function DashboardPage() {
       {openFeedback > 0 && (
         <section className="p-5 sm:p-6 bg-white border border-gray-100 shadow-sm rounded-xl">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <div>
+            <div className="flex items-center gap-1.5">
               <h3 className="font-semibold text-gray-900">
                 {t('dashboard.feedbackWaiting')} ({openFeedback})
               </h3>
-              <p className="text-sm text-gray-500">{t('dashboard.feedbackWaitingHint')}</p>
+              <InfoTip>{t('dashboard.feedbackWaitingHint')}</InfoTip>
             </div>
             <Link href="/feedback" className="text-sm text-blue-600 hover:underline">
               {t('dashboard.feedbackOpen')}

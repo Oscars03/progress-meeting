@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
@@ -50,11 +51,15 @@ export default function CalendarCard({
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-1.5">
           <h3 className="text-lg font-semibold text-gray-900">Google Calendar</h3>
-          <p className="text-sm text-gray-500">
-            เชื่อมแล้วระบบจะเห็นเวลาที่คุณไม่ว่าง และลงนัดในปฏิทินของคุณได้
-          </p>
+          <InfoTip>
+            <p>เชื่อมแล้วระบบจะเห็นเวลาที่คุณไม่ว่าง และลงนัดในปฏิทินของคุณได้</p>
+            <p className="mt-1">
+              ระบบอ่านเฉพาะช่วงเวลาที่ไม่ว่าง ไม่เห็นหัวข้อหรือรายละเอียดนัดของคุณ
+              และคนที่ยังไม่เชื่อมจะยังได้รับคำเชิญทางอีเมลตามปกติ
+            </p>
+          </InfoTip>
         </div>
         {broken ? (
           <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800">
@@ -161,13 +166,6 @@ export default function CalendarCard({
           {connecting ? 'กำลังเชื่อมต่อ...' : 'เชื่อมบัญชี Google Calendar'}
         </button>
       )}
-
-      <div className="pt-3 border-t border-gray-100">
-        <p className="text-xs text-gray-500">
-          ระบบอ่านเฉพาะช่วงเวลาที่ไม่ว่าง ไม่เห็นหัวข้อหรือรายละเอียดนัดของคุณ
-          และคนที่ยังไม่เชื่อมจะยังได้รับคำเชิญทางอีเมลตามปกติ
-        </p>
-      </div>
     </section>
   );
 }

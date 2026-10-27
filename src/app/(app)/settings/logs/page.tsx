@@ -1,3 +1,4 @@
+import InfoTip from '@/lib/ui/info-tip';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requirePageSession } from '@/lib/auth-guard';
@@ -71,8 +72,10 @@ export default async function LogsSettingsPage(props: PageProps<'/settings/logs'
 
   const header = (
     <div className="space-y-1">
-      <h3 className="text-lg font-semibold text-gray-900">{t('logs.title')}</h3>
-      <p className="text-sm text-gray-600">{t('logs.subtitle')}</p>
+      <div className="flex items-center gap-1.5">
+        <h3 className="text-lg font-semibold text-gray-900">{t('logs.title')}</h3>
+        <InfoTip>{t('logs.subtitle')}</InfoTip>
+      </div>
       <p className="text-xs text-gray-500">
         {t('logs.retention', { info: KEEP_DAYS.info, other: KEEP_DAYS.error })}{' '}
         <a

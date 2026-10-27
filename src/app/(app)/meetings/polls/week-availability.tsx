@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -378,6 +379,7 @@ export default function WeekAvailabilityGrid({
               {t('avail.weekNoLead')}
             </span>
           )}
+          <InfoTip>{t('avail.pickHint')}</InfoTip>
           {isPending && !asking && <span className="text-xs text-gray-500">{t('avail.loading')}</span>}
         </p>
         <ul className="flex flex-wrap items-center gap-3 text-xs">
@@ -483,8 +485,6 @@ export default function WeekAvailabilityGrid({
         </div>
       </div>
 
-
-      <p className="text-xs text-gray-500">{t('avail.pickHint')}</p>
 
       {/* A dialog, not a panel under the grid.
 

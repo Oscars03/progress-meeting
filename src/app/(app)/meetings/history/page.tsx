@@ -4,7 +4,6 @@ import InfoTip from '@/lib/ui/info-tip';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import { weekRange } from '@/lib/meeting-history';
-import MeetingsTabs from '../meetings-tabs';
 import { loadHistory } from './load';
 
 /**
@@ -25,8 +24,7 @@ export default async function MeetingHistoryPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t('history.tabHistory')} aside={<InfoTip>{t('history.listHint')}</InfoTip>} />
-      <MeetingsTabs current="history" />
+      <PageHeader title={t('nav.history')} aside={<InfoTip>{t('history.listHint')}</InfoTip>} />
 
       {weeks.length === 0 ? (
         <div className="p-6 text-center bg-gray-50 rounded-xl border border-gray-100">

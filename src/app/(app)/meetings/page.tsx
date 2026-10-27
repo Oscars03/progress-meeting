@@ -7,7 +7,6 @@ import { getLocale, getT } from '@/lib/ui/server-i18n';
 import CalendarView from './calendar';
 import NewMeetingButton from './new-meeting-button';
 import ConnectGoogleButton from './connect-google-button';
-import MeetingsTabs from './meetings-tabs';
 import ShareCalendar from './share-calendar';
 import AutoRefresh from '@/lib/ui/auto-refresh';
 
@@ -167,7 +166,10 @@ export default async function MeetingsPage() {
         // desktop. Not connected keeps its button at every width, because
         // that is the one part of it anybody can act on.
         aside={<>
-        <InfoTip>{t('meetings.hint')}</InfoTip>
+        <InfoTip>
+          <p>{t('meetings.hint')}</p>
+          <p className="mt-1">{t('meetings.addBusyHint')}</p>
+        </InfoTip>
         {isCalendarSynced ? (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -217,7 +219,6 @@ export default async function MeetingsPage() {
           </>
         }
       />
-      <MeetingsTabs current="calendar" />
       {/* Other people's bookings and busy hours arrive on their own: once a
           minute while the page is open, and on coming back to the tab. */}
       <AutoRefresh every={60_000} />
