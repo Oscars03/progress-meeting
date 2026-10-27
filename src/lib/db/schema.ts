@@ -14,7 +14,7 @@ export const SCHEMAS = {
   comments: [...COMMON_COLUMNS, 'entity_type', 'entity_id', 'body', 'author_id', 'mention_ids'],
   notifications: [...COMMON_COLUMNS, 'user_id', 'type', 'payload', 'read_at'],
   reminder_settings: [...COMMON_COLUMNS, 'user_id', 'channel', 'lead_hours'],
-  google_tokens: [...COMMON_COLUMNS, 'user_id', 'refresh_token', 'scope', 'account_email', 'connected_at', 'last_error'],
+  google_tokens: [...COMMON_COLUMNS, 'user_id', 'refresh_token', 'scope', 'account_email', 'connected_at', 'last_error', 'calendar_ids'],
   availability_polls: [...COMMON_COLUMNS, 'title', 'owner_id', 'status', 'meeting_id', 'note'],
   availability_slots: [...COMMON_COLUMNS, 'poll_id', 'start_at', 'end_at'],
   availability_votes: [...COMMON_COLUMNS, 'slot_id', 'user_id', 'choice'],
@@ -170,6 +170,12 @@ export type GoogleTokenRecord = BaseRecord & {
   account_email: string;
   connected_at: string;
   last_error: string;
+  /**
+   * The person's own calendars that count as busy, besides their main one.
+   * Empty -- the state of every row before this column -- means the main
+   * calendar only.
+   */
+  calendar_ids?: string[];
 };
 
 export type MeetingAttendeeRecord = BaseRecord & {

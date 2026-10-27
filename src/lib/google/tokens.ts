@@ -3,6 +3,7 @@ import { decryptSecret, encryptSecret } from '@/lib/secret-box';
 import type { GoogleTokenRecord } from '@/lib/db/schema';
 import { grantsCalendar, grantsDrive } from './scopes';
 import { forgetClient } from './client-cache';
+import { UserError } from '@/lib/user-error';
 
 export { CALENDAR_SCOPES } from './scopes';
 
@@ -145,6 +146,36 @@ export async function getConnectedUserIds(): Promise<Set<string>> {
   const rows = await SheetRepo.find<GoogleTokenRecord>('google_tokens');
   return new Set(
     rows.filter((r) => decryptSecret(r.refresh_token) !== null).map((r) => r.user_id)
+  );
+}
+
+/**
+ * Which of a person's Google calendars count as busy: always their main one,
+ * plus whatever else they ticked in Settings.
+ *
+ * Google keeps lessons, TA duties and the like on separate calendars, and the
+ * app used to read only the main one -- so a duty put on "TA" showed the
+ * person free. Which of theirs count is the person's call, not the app's: a
+ * calendar can just as well hold things that do not take their time.
+ */
+export async function countedCalendarIds(userId: string): Promise<string[]> {
+  const rows = await SheetRepo.find<GoogleTokenRecord>('google_tokens');
+  const chosen = rows.find((r) => r.user_id === userId)?.calendar_ids;
+  const extra = Array.isArray(chosen) ? chosen.filter((id): id is string => typeof id === 'string' && id !== '') : [];
+  return [...new Set(['primary', ...extra])];
+}
+
+/** Store which calendars, besides the main one, count as busy for this person. */
+export async function saveCountedCalendarIds(userId: string, ids: string[]): Promise<void> {
+  const rows = await SheetRepo.find<GoogleTokenRecord>('google_tokens', { fresh: true });
+  const row = rows.find((r) => r.user_id === userId);
+  if (!row) throw new UserError('calendar.notConnected');
+  await SheetRepo.update<GoogleTokenRecord>(
+    'google_tokens',
+    row.id,
+    { calendar_ids: [...new Set(ids.filter((id) => id && id !== 'primary'))] },
+    row.row_version,
+    userId
   );
 }
 

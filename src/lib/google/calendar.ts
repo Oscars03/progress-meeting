@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import type { calendar_v3 } from 'googleapis';
-import { getStoredToken, recordTokenError } from './tokens';
+import { countedCalendarIds, getStoredToken, recordTokenError } from './tokens';
 import { cacheClient, cachedClient, forgetClient } from './client-cache';
 import { UserError } from '../user-error';
 
@@ -79,14 +79,35 @@ export async function busyTimes(
   timeMin: string,
   timeMax: string
 ): Promise<BusyInterval[]> {
+  // Every calendar the person counts, in one query. A calendar Google cannot
+  // read any more (deleted, unshared) comes back with `errors` rather than
+  // failing the call, and simply adds nothing.
+  const ids = await countedCalendarIds(userId);
   return asUser(userId, async (calendar) => {
     const res = await calendar.freebusy.query({
-      requestBody: { timeMin, timeMax, items: [{ id: PRIMARY }] },
+      requestBody: { timeMin, timeMax, items: ids.map((id) => ({ id })) },
     });
-    const busy = res.data.calendars?.[PRIMARY]?.busy ?? [];
-    return busy
+    return ids
+      .flatMap((id) => res.data.calendars?.[id]?.busy ?? [])
       .filter((b): b is { start: string; end: string } => Boolean(b.start && b.end))
       .map((b) => ({ start: b.start, end: b.end }));
+  });
+}
+
+export type OwnCalendar = { id: string; name: string; primary: boolean };
+
+/**
+ * The calendars in the person's own Google list, for choosing which count as
+ * busy. Holidays and other read-only feeds are in the list too; it is theirs
+ * to leave unticked.
+ */
+export async function listCalendars(userId: string): Promise<OwnCalendar[]> {
+  return asUser(userId, async (calendar) => {
+    const res = await calendar.calendarList.list({ maxResults: 250 });
+    return (res.data.items ?? [])
+      .filter((c): c is calendar_v3.Schema$CalendarListEntry & { id: string } => Boolean(c.id))
+      .map((c) => ({ id: c.id, name: c.summaryOverride || c.summary || c.id, primary: Boolean(c.primary) }))
+      .sort((a, b) => Number(b.primary) - Number(a.primary) || a.name.localeCompare(b.name, 'th'));
   });
 }
 
@@ -107,25 +128,41 @@ export async function myEvents(
   timeMin: string,
   timeMax: string
 ): Promise<GoogleEvent[]> {
+  const ids = await countedCalendarIds(userId);
   return asUser(userId, async (calendar) => {
-    const res = await calendar.events.list({
-      calendarId: PRIMARY,
-      timeMin,
-      timeMax,
-      singleEvents: true,
-      orderBy: 'startTime',
-    });
-    return (res.data.items || [])
-      .filter((e) => e.start?.dateTime || e.start?.date)
-      .map((e) => ({
-        id: e.id || Math.random().toString(),
-        title: e.summary || 'Busy',
-        start: (e.start?.dateTime || e.start?.date) as string,
-        end: (e.end?.dateTime || e.end?.date) as string,
-        // Only set when the person coloured the event by hand; most carry
-        // none and take their calendar's default.
-        colorId: e.colorId ?? '',
-      }));
+    const lists = await Promise.all(
+      ids.map(async (calendarId) => {
+        try {
+          const res = await calendar.events.list({
+            calendarId,
+            timeMin,
+            timeMax,
+            singleEvents: true,
+            orderBy: 'startTime',
+          });
+          return { calendarId, items: res.data.items || [] };
+        } catch (err) {
+          // The main calendar failing is the connection failing, and says so.
+          // One of the others going away just leaves its events out.
+          if (calendarId === PRIMARY) throw err;
+          return { calendarId, items: [] };
+        }
+      })
+    );
+    return lists.flatMap(({ calendarId, items }) =>
+      items
+        .filter((e) => e.start?.dateTime || e.start?.date)
+        .map((e) => ({
+          // Ids are unique within a calendar, not across them.
+          id: calendarId === PRIMARY ? e.id || Math.random().toString() : `${calendarId}/${e.id}`,
+          title: e.summary || 'Busy',
+          start: (e.start?.dateTime || e.start?.date) as string,
+          end: (e.end?.dateTime || e.end?.date) as string,
+          // Only set when the person coloured the event by hand; most carry
+          // none and take their calendar's default.
+          colorId: e.colorId ?? '',
+        }))
+    );
   });
 }
 
