@@ -103,9 +103,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">
-          {t('polls.backToCalendar')}
-        </BackLink>
+        <BackLink href="/meetings" />
         <h2 className="text-2xl font-bold text-gray-900">{meeting.title}</h2>
         <p className="text-sm text-gray-500">
           <span className="text-sm text-gray-500 tabular-nums">

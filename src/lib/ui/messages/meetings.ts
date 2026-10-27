@@ -28,7 +28,6 @@ export const meetings = defineMessages({
     'meetings.timesRequired': 'กรุณาระบุเวลาเริ่มและเวลาสิ้นสุด',
     'meetings.linkInvalid': 'ลิงก์ประชุมต้องขึ้นต้นด้วย http:// หรือ https://',
 
-    'meeting.back': '← กลับไปปฏิทิน',
     'meeting.noTime': 'ยังไม่ระบุเวลา',
     'meeting.delete': 'ลบการประชุมนี้',
     'meeting.deleteConfirm': 'ลบถาวร กู้คืนไม่ได้',
@@ -146,7 +145,6 @@ export const meetings = defineMessages({
     'meetings.timesRequired': 'Please set both a start and an end time',
     'meetings.linkInvalid': 'The meeting link must start with http:// or https://',
 
-    'meeting.back': '← Back to calendar',
     'meeting.noTime': 'No time set',
     'meeting.delete': 'Delete this meeting',
     'meeting.deleteConfirm': 'Deleted for good, with no way back',

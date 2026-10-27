@@ -145,7 +145,6 @@ export const tasks = defineMessages({
 
     'weekly.title': 'รายงานรายสัปดาห์',
     'weekly.subtitle': 'สัปดาห์ {week} · เริ่ม {start} — กรอกก่อนประชุม เพื่อไม่ต้องไล่ถามกันในห้อง',
-    'weekly.backToBoard': '← กลับหน้างาน',
     'weekly.reported': 'รายงานแล้ว',
     'weekly.never': 'ไม่เคยรายงาน',
     'weekly.stale1': 'ค้าง 1 สัปดาห์',
@@ -330,7 +329,6 @@ export const tasks = defineMessages({
 
     'weekly.title': 'Weekly report',
     'weekly.subtitle': 'Week {week} · starting {start} — fill this in before the meeting so nobody has to be chased in the room',
-    'weekly.backToBoard': '← Back to Tasks',
     'weekly.reported': 'Reported',
     'weekly.never': 'Never reported',
     'weekly.stale1': '1 week behind',
