@@ -411,13 +411,16 @@ export default function ProjectDrawer({
   const owner = person(row.ownerId);
   const subsDone = subs.filter((s) => s.status === 'done').length;
 
-  let left = '—';
+  // The deadline is what this card leads with; how far off it is goes under
+  // it. It used to be the other way round, and the date itself was a line of
+  // small print beneath "4 days".
+  let left = '';
   let late = false;
   if (row.status === 'done') left = t('tracker.health.done');
   else if (row.due) {
     const n = daysBetween(today, row.due);
     late = n < 0;
-    left = late ? t('tracker.overdueBy', { n: -n }) : t('tracker.daysLeft', { n });
+    left = late ? t('tracker.dueOver', { n: -n }) : n === 0 ? t('tracker.dueToday') : t('tracker.dueLeft', { n });
   }
 
   // The project's own dates, changed right here. Saved on each change: one
@@ -541,13 +544,15 @@ export default function ProjectDrawer({
               .filter(Boolean)
               .join(' · ')}
           />
-          <Stat label={t('tracker.col.left')} value={left} late={late}>
+          <Stat
+            label={t('tasks.due')}
+            value={row.due ? formatDay(row.due, locale) : t('tracker.noDue')}
+            late={late}
+          >
             {row.due && (
               <>
+                <p className={`text-sm font-medium mt-0.5 ${late ? 'text-red-600' : 'text-gray-600'}`}>{left}</p>
                 <MiniBar pct={elapsed ?? 0} tone={late ? 'red' : 'gray'} />
-                <p className="text-xs text-gray-500 mt-1.5">
-                  {t('tasks.due')} {formatDay(row.due, locale)}
-                </p>
               </>
             )}
           </Stat>
