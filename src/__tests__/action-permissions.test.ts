@@ -79,7 +79,7 @@ const { setTopicOrder, clearTopicOrder, addTopic, updateTopic, deleteTopic } = a
   '../app/(app)/presentations/actions'
 );
 const { updatePersonalEventAction } = await import('../app/(app)/settings/schedule-actions');
-const { saveMinutesAction, setAgendaAction, deleteActionItemAction } = await import(
+const { saveMinutesAction, setAgendaAction, deleteActionItemAction, addActionItemAction, setActionItemStatusAction } = await import(
   '../app/(app)/meetings/[id]/actions'
 );
 const { pushMeetingAction, pullMeetingAction } = await import('../app/(app)/calendar-actions');
@@ -1437,6 +1437,79 @@ describe('syncing and recording a meeting', () => {
       signedInAs('lead');
       await expect(deleteActionItemAction('m1', 'ai1', 1)).resolves.toMatchObject({ ok: true });
       expect(remove).toHaveBeenCalledWith('action_items', 'ai1', 1, 'lead');
+    });
+  });
+
+  /**
+   * Who an action item may be given to. It follows the Tasks page: anybody
+   * writes down their own, the advisors and admin give them to anybody, and so
+   * does the week's lead, because handing out what was agreed is part of
+   * running the meeting.
+   */
+  describe('giving out action items', () => {
+    const item = (ownerId: string) => ({
+      meetingId: 'm1',
+      title: 'Read the paper',
+      ownerId,
+      dueDate: '',
+      sourceTaskId: '',
+    });
+
+    beforeEach(() => {
+      tables['action_items'] = [
+        { id: 'ai1', meeting_id: 'm1', title: 'Read the paper', owner_id: 'other', status: 'open', row_version: 1 },
+      ];
+    });
+
+    it("refuses a student putting one on somebody else's list, and writes nothing", async () => {
+      signedInAs('other');
+      await expect(addActionItemAction(item('third'))).resolves.toMatchObject({
+        ok: false,
+        error: 'items.ownOnly',
+      });
+      expect(insert).not.toHaveBeenCalled();
+    });
+
+    it('lets a student write one down for themselves', async () => {
+      signedInAs('other');
+      await expect(addActionItemAction(item('other'))).resolves.toMatchObject({ ok: true });
+      expect(insert).toHaveBeenCalledWith('action_items', expect.objectContaining({ owner_id: 'other' }), 'other');
+    });
+
+    it('makes an item a student names nobody for their own', async () => {
+      signedInAs('other');
+      await expect(addActionItemAction(item(''))).resolves.toMatchObject({ ok: true });
+      expect(insert).toHaveBeenCalledWith('action_items', expect.objectContaining({ owner_id: 'other' }), 'other');
+    });
+
+    it('lets the week lead give one to anybody', async () => {
+      signedInAs('lead');
+      await expect(addActionItemAction(item('other'))).resolves.toMatchObject({ ok: true });
+    });
+
+    it('lets a professor give one to anybody', async () => {
+      signedInAs('prof', 'professor');
+      await expect(addActionItemAction(item('other'))).resolves.toMatchObject({ ok: true });
+    });
+
+    it("refuses a student ticking off somebody else's item", async () => {
+      signedInAs('third');
+      await expect(setActionItemStatusAction('m1', 'ai1', 'done', 1)).resolves.toMatchObject({
+        ok: false,
+        error: 'items.ownOnly',
+      });
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('lets the owner tick off their own', async () => {
+      signedInAs('other');
+      await expect(setActionItemStatusAction('m1', 'ai1', 'done', 1)).resolves.toMatchObject({ ok: true });
+      expect(update).toHaveBeenCalledWith('action_items', 'ai1', { status: 'done' }, 1, 'other');
+    });
+
+    it('lets the week lead tick off anybody’s', async () => {
+      signedInAs('lead');
+      await expect(setActionItemStatusAction('m1', 'ai1', 'done', 1)).resolves.toMatchObject({ ok: true });
     });
   });
 });

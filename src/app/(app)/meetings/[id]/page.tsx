@@ -23,6 +23,7 @@ import DeleteMeeting from './delete-meeting';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import { formatLabTime } from '@/lib/lab-time';
 import { taskTitles } from '@/lib/task-title';
+import { canAssignWork } from '@/lib/task-rights';
 
 export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]'>) {
   const { id } = await props.params;
@@ -192,6 +193,10 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
         people={people}
         openTasks={openTasks}
         canDelete={canRemove}
+        // Same rule as addActionItemAction: whoever may give work on the
+        // Tasks page, or whoever runs this meeting.
+        canAssignOthers={canRemove || canAssignWork(actor)}
+        me={actor.id}
       />
 
       {/* Last, and apart: it is the one thing on this page that cannot be

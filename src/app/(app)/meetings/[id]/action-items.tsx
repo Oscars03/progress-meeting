@@ -35,19 +35,24 @@ export default function ActionItems({
   people,
   openTasks,
   canDelete,
+  canAssignOthers,
+  me,
 }: {
   meetingId: string;
   items: Item[];
   people: Person[];
   openTasks: { id: string; title: string }[];
   canDelete: boolean;
+  /** Advisors, admin and the meeting's lead; everybody else adds their own. */
+  canAssignOthers: boolean;
+  me: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
 
   const [title, setTitle] = useState('');
-  const [ownerId, setOwnerId] = useState('');
+  const [ownerId, setOwnerId] = useState(canAssignOthers ? '' : me);
   const [dueDate, setDueDate] = useState('');
   const [sourceTaskId, setSourceTaskId] = useState('');
 
@@ -78,10 +83,16 @@ export default function ActionItems({
       return;
     }
     run(async () => {
-      await addActionItemAction({ meetingId, title, ownerId, dueDate, sourceTaskId });
-      setTitle('');
-      setDueDate('');
-      setSourceTaskId('');
+      // Returned, so a refusal is shown: this used to await the result and
+      // drop it, and an add the server turned down cleared the form as if
+      // it had worked.
+      const res = await addActionItemAction({ meetingId, title, ownerId, dueDate, sourceTaskId });
+      if (res.ok) {
+        setTitle('');
+        setDueDate('');
+        setSourceTaskId('');
+      }
+      return res;
     });
   };
 
@@ -138,7 +149,7 @@ export default function ActionItems({
                 )}
 
                 <div className="flex items-center gap-2 ml-auto">
-                  {item.status !== 'done' ? (
+                  {!(canAssignOthers || item.owner_id === me) ? null : item.status !== 'done' ? (
                     <button
                       onClick={() =>
                         run(() =>
@@ -203,18 +214,27 @@ export default function ActionItems({
           <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="ai-owner">
             {t('items.owner')}
           </label>
+          {/* Somebody who may only add their own sees their own name, fixed,
+              rather than a list of people they would be refused for. */}
           <select
             id="ai-owner"
             value={ownerId}
             onChange={(e) => setOwnerId(e.target.value)}
+            disabled={!canAssignOthers}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
           >
-            <option value="">{t('agenda.pickPerson')}</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
+            {canAssignOthers ? (
+              <>
+                <option value="">{t('agenda.pickPerson')}</option>
+                {people.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </>
+            ) : (
+              <option value={me}>{nameOf(me)}</option>
+            )}
           </select>
         </div>
 
