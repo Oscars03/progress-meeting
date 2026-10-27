@@ -43,7 +43,7 @@ export default async function SharedWeekPage(props: { params: Promise<{ token: s
             to a phone's width, so a phone scrolls it sideways instead. */}
         <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
           <div
-            className="min-w-[760px] [&>svg]:w-full [&>svg]:h-auto"
+            className="min-w-[900px] [&>svg]:w-full [&>svg]:h-auto"
             // Built by renderShareSvg, which escapes every piece of text in it.
             dangerouslySetInnerHTML={{ __html: svg }}
           />

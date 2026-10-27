@@ -135,10 +135,55 @@ export type ShareLabels = {
   note: string;
 };
 
+/** "08:00" for 480 minutes past midnight. */
+export function clock(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+/** A box to draw: one busy period of one person (or the lab), on one day. */
+type Box = Segment & { name: string; fill: string; edge: string; ink: string; lane: number; lanes: number };
+
 /**
- * The week as one picture: a row per person, a column per day, a bar where
- * they are busy. Above them the lab's own meetings; below them the hours
- * when everybody shown is free, which is usually what the picture is for.
+ * Side by side where they overlap, full width where they do not -- the way a
+ * calendar app lays out a day. Boxes that overlap, directly or through a
+ * chain, form a group; each takes the first lane free at its start, and the
+ * group's width is shared between as many lanes as it needed.
+ */
+export function layOut<T extends Segment>(boxes: T[]): (T & { lane: number; lanes: number })[] {
+  const out: (T & { lane: number; lanes: number })[] = [];
+  for (let day = 0; day < 7; day++) {
+    const today = boxes.filter((b) => b.day === day).sort((a, b) => a.from - b.from || b.to - a.to);
+    let group: (T & { lane: number; lanes: number })[] = [];
+    let laneEnds: number[] = [];
+    let groupEnd = -1;
+    const close = () => {
+      for (const b of group) b.lanes = laneEnds.length;
+      out.push(...group);
+      group = [];
+      laneEnds = [];
+    };
+    for (const box of today) {
+      if (box.from >= groupEnd && group.length) close();
+      let lane = laneEnds.findIndex((end) => end <= box.from);
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(box.to);
+      } else laneEnds[lane] = box.to;
+      group.push({ ...box, lane, lanes: 1 });
+      groupEnd = Math.max(groupEnd, box.to);
+    }
+    if (group.length) close();
+  }
+  return out;
+}
+
+/**
+ * The week as one picture, laid out like the calendar in the app: a column
+ * per day, the hours from 08:00 to 22:00 running down the side, and a box in
+ * each person's own colour for every period they are busy, with their name
+ * and the times written in it. The lab's meetings are boxes of their own;
+ * the hours when everybody shown is free are tinted green behind it all,
+ * which is usually what the picture is for.
  *
  * Drawn for resvg as much as for a browser, so the same SVG is the shared
  * page and the downloaded PNG: plain shapes, one font, Thai sara am split
@@ -146,51 +191,105 @@ export type ShareLabels = {
  */
 export function renderShareSvg(input: { rows: ShareRow[]; meetings: Segment[]; labels: ShareLabels }): string {
   const { rows, meetings, labels } = input;
-  const W = 1200;
+  const W = 1400;
   const pad = 28;
-  const labelW = 190;
-  const dayW = (W - pad * 2 - labelW) / 7;
-  const rowH = 38;
-  const top = 118;
-  const allRows = [
-    { name: labels.meetings, fill: '#dbeafe', edge: '#1d4ed8', busy: meetings },
-    ...rows.map((r) => ({ name: r.name, fill: (AV[r.color] ?? AV.slate)[0], edge: (AV[r.color] ?? AV.slate)[1], busy: r.busy })),
-    { name: labels.free, fill: '#dcfce7', edge: '#15803d', busy: freeTogether(rows.map((r) => r.busy).concat([meetings])) },
+  const timeW = 64;
+  const dayW = (W - pad * 2 - timeW) / 7;
+  const hourH = 56;
+  const gridTop = 150;
+  const gridH = ((DAY_TO - DAY_FROM) / 60) * hourH;
+  const left = pad + timeW;
+  const y = (minute: number) => gridTop + ((minute - DAY_FROM) / 60) * hourH;
+  const dayX = (day: number) => left + day * dayW;
+
+  const boxes: Box[] = layOut([
+    ...meetings.map((s) => ({ ...s, name: labels.meetings, fill: '#dbeafe', edge: '#1d4ed8', ink: '#1e3a8a' })),
+    ...rows.flatMap((r) => {
+      const [fill, edge] = AV[r.color] ?? AV.slate;
+      return r.busy.map((s) => ({ ...s, name: r.name, fill, edge, ink: edge }));
+    }),
+  ]);
+  const free = freeTogether(rows.map((r) => r.busy).concat([meetings]));
+
+  // The key under the grid: everybody shown, in their colour, wrapped to
+  // as many lines as it takes.
+  const keyItems = [
+    { name: labels.meetings, fill: '#dbeafe', edge: '#1d4ed8' },
+    ...rows.map((r) => ({ name: r.name, fill: (AV[r.color] ?? AV.slate)[0], edge: (AV[r.color] ?? AV.slate)[1] })),
+    { name: labels.free, fill: '#dcfce7', edge: '#86efac' },
   ];
-  const H = top + allRows.length * rowH + 64;
-  const x = (day: number, minute: number) =>
-    pad + labelW + day * dayW + ((minute - DAY_FROM) / (DAY_TO - DAY_FROM)) * dayW;
+  const keyTop = gridTop + gridH + 40;
+  const keyParts: string[] = [];
+  let kx = pad;
+  let ky = keyTop;
+  for (const item of keyItems) {
+    const label = clip(item.name, 22);
+    const width = 30 + Array.from(label).length * 9 + 24;
+    if (kx + width > W - pad) {
+      kx = pad;
+      ky += 32;
+    }
+    keyParts.push(`<rect x="${kx}" y="${ky - 14}" width="20" height="18" rx="4" fill="${item.fill}" stroke="${item.edge}"/>`);
+    keyParts.push(`<text x="${kx + 28}" y="${ky}" font-size="16" fill="#374151">${esc(label)}</text>`);
+    kx += width;
+  }
+  const H = ky + 64;
 
   const parts: string[] = [];
   parts.push(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);
-  parts.push(`<text x="${pad}" y="46" font-size="26" font-weight="600" fill="#111827">${esc(labels.title)}</text>`);
-  parts.push(`<text x="${pad}" y="76" font-size="17" fill="#4b5563">${esc(labels.range)} · ${esc(labels.lab)}</text>`);
+  parts.push(`<text x="${pad}" y="48" font-size="30" font-weight="600" fill="#111827">${esc(labels.title)}</text>`);
+  parts.push(`<text x="${pad}" y="82" font-size="18" fill="#4b5563">${esc(labels.range)} · ${esc(labels.lab)}</text>`);
 
-  // Day headings and the lines between days, with faint marks at 12, 16 and 20.
+  // Free hours first, so everything else draws over them.
+  for (const s of free) {
+    const top = y(s.from);
+    const h = y(s.to) - top;
+    parts.push(`<rect x="${dayX(s.day) + 1}" y="${top}" width="${dayW - 2}" height="${h}" fill="#ecfdf5"/>`);
+    if (h >= 30) {
+      parts.push(`<text x="${dayX(s.day) + 8}" y="${top + 20}" font-size="14" fill="#15803d">${esc(labels.free)}</text>`);
+    }
+  }
+
+  // Hour lines and labels.
+  for (let m = DAY_FROM; m <= DAY_TO; m += 60) {
+    parts.push(`<line x1="${left}" y1="${y(m)}" x2="${W - pad}" y2="${y(m)}" stroke="#e5e7eb"/>`);
+    parts.push(`<text x="${left - 10}" y="${y(m) + 5}" font-size="14" fill="#6b7280" text-anchor="end">${clock(m)}</text>`);
+  }
+  for (let m = DAY_FROM + 30; m < DAY_TO; m += 60) {
+    parts.push(`<line x1="${left}" y1="${y(m)}" x2="${W - pad}" y2="${y(m)}" stroke="#f3f4f6"/>`);
+  }
+
+  // Day headings and the lines between days.
   labels.days.forEach((day, d) => {
-    const left = pad + labelW + d * dayW;
-    parts.push(`<text x="${left + dayW / 2}" y="${top - 12}" font-size="15" font-weight="600" fill="#374151" text-anchor="middle">${esc(day)}</text>`);
-    parts.push(`<line x1="${left}" y1="${top - 4}" x2="${left}" y2="${top + allRows.length * rowH}" stroke="#d1d5db"/>`);
-    for (const hour of [12, 16, 20]) {
-      const hx = x(d, hour * 60);
-      parts.push(`<line x1="${hx}" y1="${top}" x2="${hx}" y2="${top + allRows.length * rowH}" stroke="#f3f4f6"/>`);
-    }
+    parts.push(`<text x="${dayX(d) + dayW / 2}" y="${gridTop - 18}" font-size="18" font-weight="600" fill="#111827" text-anchor="middle">${esc(day)}</text>`);
+    parts.push(`<line x1="${dayX(d)}" y1="${gridTop - 8}" x2="${dayX(d)}" y2="${gridTop + gridH}" stroke="#d1d5db"/>`);
   });
-  parts.push(`<line x1="${W - pad}" y1="${top - 4}" x2="${W - pad}" y2="${top + allRows.length * rowH}" stroke="#d1d5db"/>`);
+  parts.push(`<line x1="${W - pad}" y1="${gridTop - 8}" x2="${W - pad}" y2="${gridTop + gridH}" stroke="#d1d5db"/>`);
 
-  allRows.forEach((row, i) => {
-    const y = top + i * rowH;
-    if (i % 2 === 1) parts.push(`<rect x="${pad}" y="${y}" width="${W - pad * 2}" height="${rowH}" fill="#f9fafb"/>`);
-    parts.push(`<text x="${pad}" y="${y + rowH / 2 + 6}" font-size="16" fill="#111827">${esc(clip(row.name, 20))}</text>`);
-    for (const s of row.busy) {
-      const bx = x(s.day, s.from);
-      const bw = Math.max(2, x(s.day, s.to) - bx);
-      parts.push(`<rect x="${bx.toFixed(1)}" y="${y + 7}" width="${bw.toFixed(1)}" height="${rowH - 14}" rx="4" fill="${row.fill}" stroke="${row.edge}"/>`);
+  // The busy boxes, each with whose it is and when.
+  for (const b of boxes) {
+    const laneW = dayW / b.lanes;
+    const bx = dayX(b.day) + b.lane * laneW + 2;
+    const bw = laneW - 4;
+    const top = y(b.from) + 1;
+    const h = Math.max(6, y(b.to) - y(b.from) - 2);
+    parts.push(`<rect x="${bx.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="5" fill="${b.fill}" stroke="${b.edge}"/>`);
+    parts.push(`<rect x="${bx.toFixed(1)}" y="${top.toFixed(1)}" width="4" height="${h.toFixed(1)}" rx="2" fill="${b.edge}"/>`);
+    // About 8px a character at this size; a box too narrow or short for a
+    // line drops it rather than letting text spill over its neighbour.
+    const chars = Math.floor((bw - 14) / 8);
+    if (chars >= 3 && h >= 22) {
+      parts.push(`<text x="${(bx + 9).toFixed(1)}" y="${(top + 18).toFixed(1)}" font-size="14" font-weight="600" fill="${b.ink}">${esc(clip(b.name, chars))}</text>`);
     }
-  });
-  parts.push(`<line x1="${pad}" y1="${top}" x2="${W - pad}" y2="${top}" stroke="#d1d5db"/>`);
-  parts.push(`<line x1="${pad}" y1="${top + allRows.length * rowH}" x2="${W - pad}" y2="${top + allRows.length * rowH}" stroke="#d1d5db"/>`);
-  parts.push(`<text x="${pad}" y="${H - 26}" font-size="14" fill="#6b7280">${esc(labels.note)}</text>`);
+    if (chars >= 5 && h >= 40) {
+      const when = chars >= 11 ? `${clock(b.from)}–${clock(b.to)}` : clock(b.from);
+      parts.push(`<text x="${(bx + 9).toFixed(1)}" y="${(top + 36).toFixed(1)}" font-size="13" fill="${b.ink}">${when}</text>`);
+    }
+  }
+  parts.push(`<line x1="${left}" y1="${gridTop + gridH}" x2="${W - pad}" y2="${gridTop + gridH}" stroke="#d1d5db"/>`);
+
+  parts.push(...keyParts);
+  parts.push(`<text x="${pad}" y="${H - 18}" font-size="14" fill="#6b7280">${esc(labels.note)}</text>`);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="IBM Plex Sans Thai">${parts.join('')}</svg>`;
 }
