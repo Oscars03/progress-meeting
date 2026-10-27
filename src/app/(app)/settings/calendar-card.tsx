@@ -7,13 +7,21 @@ import { disconnectCalendarAction, type ConnectionStatus } from '../calendar-act
 import Spinner from '@/lib/ui/spinner';
 import { useConfirm } from '@/lib/ui/confirm';
 import { calendarAuthParams } from '@/lib/google/scopes';
+import type { OwnCalendar } from '@/lib/google/calendar';
+import MyCalendars from './my-calendars';
 
 export default function CalendarCard({
   status,
   googleEnabled,
+  calendars = null,
+  counted = [],
 }: {
   status: ConnectionStatus;
   googleEnabled: boolean;
+  /** The person's Google calendars, or null when they could not be read. */
+  calendars?: OwnCalendar[] | null;
+  /** Which of them, besides the main one, count as busy. */
+  counted?: string[];
 }) {
   const router = useRouter();
   const ask = useConfirm();
@@ -106,6 +114,11 @@ export default function CalendarCard({
               </div>
             )}
           </dl>
+          {!broken && (
+            <div className="pt-3 border-t border-gray-100">
+              <MyCalendars calendars={calendars} counted={counted} />
+            </div>
+          )}
           <button
             onClick={async () => {
               if (

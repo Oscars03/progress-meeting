@@ -1,5 +1,6 @@
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { getStoredToken, googleOAuthConfigured } from '@/lib/google/tokens';
+import { countedCalendarIds, getStoredToken, googleOAuthConfigured } from '@/lib/google/tokens';
+import { listCalendars } from '@/lib/google/calendar';
 import { requirePageSession } from '@/lib/auth-guard';
 import type { UserRecord } from '@/lib/db/schema';
 import CalendarCard from '../calendar-card';
@@ -22,6 +23,11 @@ export default async function AccountSettingsPage() {
 
   // Calendar status is per-person, so it is read for everyone, not just admins.
   const stored = await getStoredToken(actor.id).catch(() => null);
+  // Which of their calendars count as busy. A list Google will not give right
+  // now is null, and the card says so rather than showing an empty choice.
+  const [calendars, counted] = stored
+    ? await Promise.all([listCalendars(actor.id).catch(() => null), countedCalendarIds(actor.id).catch(() => [])])
+    : [null, []];
 
   return (
     <>
@@ -39,6 +45,8 @@ export default async function AccountSettingsPage() {
           brokeWith: stored?.lastError ?? '',
         }}
         googleEnabled={googleOAuthConfigured()}
+        calendars={calendars}
+        counted={counted.filter((id) => id !== 'primary')}
       />
     </>
   );

@@ -4,9 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { requireSession } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { busyTimes, NotConnectedError } from '@/lib/google/calendar';
+import { busyTimes, listCalendars, NotConnectedError } from '@/lib/google/calendar';
 import { pullMeeting, pushMeeting, type SyncOutcome } from '@/lib/google/meeting-sync';
-import { disconnect, getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
+import { disconnect, getStoredToken, getConnectedUserIds, saveCountedCalendarIds } from '@/lib/google/tokens';
 import {
   addDays,
   buildWeekGrid,
@@ -254,6 +254,21 @@ export async function disconnectCalendarAction(): Promise<ActionResult> {
     const actor = await requireSession();
     await disconnect(actor.id);
     revalidatePath('/settings', 'layout');
+  });
+}
+
+/**
+ * Choose which of your own Google calendars count as busy, besides the main
+ * one. Only calendars Google actually lists for you are kept, so an id sent
+ * from elsewhere cannot point the app at a calendar that is not yours.
+ */
+export async function saveMyCalendarsAction(ids: string[]): Promise<ActionResult> {
+  return toResult(async () => {
+    const actor = await requireSession();
+    const yours = new Set((await listCalendars(actor.id)).map((c) => c.id));
+    await saveCountedCalendarIds(actor.id, ids.filter((id) => yours.has(id)));
+    revalidatePath('/settings', 'layout');
+    revalidatePath('/meetings');
   });
 }
 

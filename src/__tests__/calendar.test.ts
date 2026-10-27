@@ -27,6 +27,7 @@ const gcal = vi.hoisted(() => ({
 const tokens = vi.hoisted(() => ({
   getStoredToken: vi.fn(),
   recordTokenError: vi.fn(),
+  countedCalendarIds: vi.fn(),
 }));
 
 vi.mock('googleapis', () => ({
@@ -50,6 +51,7 @@ vi.mock('googleapis', () => ({
 vi.mock('../lib/google/tokens', () => ({
   getStoredToken: tokens.getStoredToken,
   recordTokenError: tokens.recordTokenError,
+  countedCalendarIds: tokens.countedCalendarIds,
 }));
 
 /* ------------------------------------------------------------------ */
@@ -65,6 +67,51 @@ const STORED = { refreshToken: 'fake-token' };
 beforeEach(() => {
   vi.clearAllMocks();
   tokens.getStoredToken.mockResolvedValue(STORED);
+  tokens.countedCalendarIds.mockResolvedValue(['primary']);
+});
+
+/**
+ * A duty on a calendar other than the main one used to leave the person
+ * looking free. Busy now covers every calendar they chose to count.
+ */
+describe('busyTimes across the calendars a person counts', () => {
+  const WINDOW = ['2026-10-26T00:00:00Z', '2026-11-02T00:00:00Z'] as const;
+
+  it('asks for all of them in one query and joins their busy hours', async () => {
+    tokens.countedCalendarIds.mockResolvedValue(['primary', 'ta@group']);
+    gcal.freebusyQuery.mockResolvedValue({
+      data: {
+        calendars: {
+          primary: { busy: [{ start: '2026-10-27T06:00:00Z', end: '2026-10-27T10:00:00Z' }] },
+          'ta@group': { busy: [{ start: '2026-10-30T03:00:00Z', end: '2026-10-30T04:00:00Z' }] },
+        },
+      },
+    });
+
+    const busy = await busyTimes('multi-user', ...WINDOW);
+
+    expect(gcal.freebusyQuery).toHaveBeenCalledWith({
+      requestBody: { timeMin: WINDOW[0], timeMax: WINDOW[1], items: [{ id: 'primary' }, { id: 'ta@group' }] },
+    });
+    expect(busy).toEqual([
+      { start: '2026-10-27T06:00:00Z', end: '2026-10-27T10:00:00Z' },
+      { start: '2026-10-30T03:00:00Z', end: '2026-10-30T04:00:00Z' },
+    ]);
+  });
+
+  it('adds nothing for a calendar Google reports an error on, and keeps the rest', async () => {
+    tokens.countedCalendarIds.mockResolvedValue(['primary', 'gone@group']);
+    gcal.freebusyQuery.mockResolvedValue({
+      data: {
+        calendars: {
+          primary: { busy: [{ start: '2026-10-27T06:00:00Z', end: '2026-10-27T10:00:00Z' }] },
+          'gone@group': { errors: [{ reason: 'notFound' }], busy: [] },
+        },
+      },
+    });
+
+    await expect(busyTimes('multi-user-2', ...WINDOW)).resolves.toHaveLength(1);
+  });
 });
 
 /* ------------------------------------------------------------------ */
