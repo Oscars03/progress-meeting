@@ -73,20 +73,14 @@ export default async function PollsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {schedules ? t('polls.header') : t('polls.headerSummary')}
-          </h2>
-          {/* Only whoever schedules needs telling what to do here; for anybody
-              else the heading says it. */}
-          {schedules && <p className="text-sm text-gray-500 mt-1">{t('polls.headerDesc')}</p>}
-        </div>
-        <div className="flex items-center gap-3">
-          <BackLink href="/meetings" className="text-sm text-blue-600 hover:underline">
-            {t('polls.backToCalendar')}
-          </BackLink>
-        </div>
+      <div className="space-y-1">
+        <BackLink href="/meetings" />
+        <h2 className="text-2xl font-bold text-gray-900">
+          {schedules ? t('polls.header') : t('polls.headerSummary')}
+        </h2>
+        {/* Only whoever schedules needs telling what to do here; for anybody
+            else the heading says it. */}
+        {schedules && <p className="text-sm text-gray-500">{t('polls.headerDesc')}</p>}
       </div>
 
       {/* Anchored, so the dashboard's "find free time" lands on the grid

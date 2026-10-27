@@ -107,9 +107,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <BackLink href="/meetings/polls" className="text-sm text-blue-600 hover:underline">
-          {t('polls.backToList')}
-        </BackLink>
+        <BackLink href="/meetings/polls" />
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-2xl font-bold text-gray-900">{poll.title}</h2>
           {closed && (

@@ -43,7 +43,6 @@ export const polls = {
     'polls.header': 'นัดหมายเวลาประชุม',
     'polls.headerDesc': 'ตารางด้านล่างแสดงช่วงเวลาที่ทุกคนว่าง เลือกช่วงที่ต้องการ แล้วส่งให้ทุกคนยืนยันเวลาประชุม',
     'polls.headerSummary': 'ดูสรุปเวลาว่าง',
-    'polls.backToCalendar': '← ปฏิทิน',
     'polls.empty': 'ยังไม่มีโพล',
     'polls.emptyManager': ' — เลือกช่วงเวลาว่างในตารางด้านบนเพื่อส่งให้ทุกคนยืนยัน',
     'polls.emptyUser': ' รอผู้รับผิดชอบประจำสัปดาห์เสนอเวลาประชุม',
@@ -55,7 +54,6 @@ export const polls = {
     'polls.statusConfirmed': 'ยืนยันแล้ว',
     'polls.statusClosed': 'ปิดแล้ว',
     'polls.statusClosedResponse': 'ปิดรับคำตอบ',
-    'polls.backToList': '← กลับไปรายการโพล',
     'polls.activeUsers': 'ผู้ใช้ที่ใช้งานอยู่ {count} คน',
     'polls.confirmedMsg': 'ยืนยันเป็นการประชุมแล้ว — ',
     'polls.openMeeting': 'เปิดหน้าการประชุม'
@@ -104,7 +102,6 @@ export const polls = {
     'polls.header': 'Schedule a meeting',
     'polls.headerDesc': 'The grid below shows when everyone is free. Pick a time and ask everyone to confirm it.',
     'polls.headerSummary': 'Free-time summary',
-    'polls.backToCalendar': '← Calendar',
     'polls.empty': 'No polls yet',
     'polls.emptyManager': ' — Pick a free time in the grid above to ask everyone to confirm it',
     'polls.emptyUser': " Waiting for this week's lead to propose a time",
@@ -116,7 +113,6 @@ export const polls = {
     'polls.statusConfirmed': 'Confirmed',
     'polls.statusClosed': 'Closed',
     'polls.statusClosedResponse': 'Closed for responses',
-    'polls.backToList': '← Back to polls',
     'polls.activeUsers': '{count} active users',
     'polls.confirmedMsg': 'Confirmed as a meeting — ',
     'polls.openMeeting': 'Open Meeting'

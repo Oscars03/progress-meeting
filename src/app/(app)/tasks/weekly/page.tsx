@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
 import { recentWeekKeys, weekKey, weeksAgo, weekStartDate } from '@/lib/week';
@@ -8,6 +7,7 @@ import { canRecordProgress } from '@/lib/task-rights';
 import { rollUpProgress } from '@/lib/tracker';
 import WeeklyBoard, { type TaskRow } from './weekly-board';
 import { getT } from '@/lib/ui/server-i18n';
+import BackLink from '@/lib/ui/back-link';
 
 /** Tasks the signed-in person is on: owner or listed assignee. */
 function assigneeIds(task: TaskRecord): string[] {
@@ -111,19 +111,12 @@ export default async function WeeklyPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t('weekly.title')}</h2>
-          <p className="text-sm text-gray-500">
-            {t('weekly.subtitle', { week: thisWeek, start: weekStartDate(thisWeek) ?? '' })}
-          </p>
-        </div>
-        <Link
-          href="/tasks"
-          className="text-sm text-blue-600 hover:underline whitespace-nowrap"
-        >
-          {t('weekly.backToBoard')}
-        </Link>
+      <div className="space-y-1">
+        <BackLink href="/tasks" />
+        <h2 className="text-2xl font-bold text-gray-900">{t('weekly.title')}</h2>
+        <p className="text-sm text-gray-500">
+          {t('weekly.subtitle', { week: thisWeek, start: weekStartDate(thisWeek) ?? '' })}
+        </p>
       </div>
 
       <WeeklyBoard

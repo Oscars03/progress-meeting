@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import AppNav from './app-nav';
 import PreviewBanner from './preview-banner';
 import { requireSession } from '@/lib/auth-guard';
-import { NavDepth } from '@/lib/ui/back-link';
+import { NavTrail } from '@/lib/ui/back-link';
 import { ToastProvider } from '@/lib/ui/toast';
 import { ConfirmProvider } from '@/lib/ui/confirm';
 import { UsageBeacon } from '@/lib/ui/usage-beacon';
@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <ToastProvider>
       <ConfirmProvider>
       <div className="h-dvh flex flex-col md:flex-row bg-gray-50 text-gray-900 overflow-hidden">
-        <NavDepth />
+        <NavTrail />
         <UsageBeacon />
         {/* The role being looked through, not realRole: an admin previewing a
             professor sees a professor's menu, with no admin pages in it. The

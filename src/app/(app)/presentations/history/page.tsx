@@ -42,9 +42,7 @@ export default async function MeetingHistoryPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <BackLink href="/presentations" className="text-sm text-blue-600 hover:underline">
-          ← {t('presentations.title')}
-        </BackLink>
+        <BackLink href="/presentations" />
         <h2 className="text-2xl font-bold text-gray-900">{t('history.title')}</h2>
       </div>
 
