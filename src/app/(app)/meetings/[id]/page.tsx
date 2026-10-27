@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BackLink from '@/lib/ui/back-link';
+import PageHeader from '@/lib/ui/page-header';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
@@ -102,16 +102,16 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <BackLink href="/meetings" />
-        <h2 className="text-2xl font-bold text-gray-900">{meeting.title}</h2>
-        <p className="text-sm text-gray-500">
-          <span className="text-sm text-gray-500 tabular-nums">
-            {when || t('meeting.noTime')}
-          </span>
-          {meeting.location ? ` · ${meeting.location}` : ''}
-        </p>
-      </div>
+      <PageHeader
+        back="/meetings"
+        title={meeting.title}
+        description={
+          <p>
+            <span className="tabular-nums">{when || t('meeting.noTime')}</span>
+            {meeting.location ? ` · ${meeting.location}` : ''}
+          </p>
+        }
+      />
 
       <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">

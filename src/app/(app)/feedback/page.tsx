@@ -1,3 +1,4 @@
+import PageHeader from '@/lib/ui/page-header';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
@@ -54,12 +55,10 @@ export default async function FeedbackPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">{t('feedback.title')}</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          {isAdmin ? t('feedback.adminHint') : t('feedback.memberHint')}
-        </p>
-      </div>
+      <PageHeader
+        title={t('feedback.title')}
+        description={isAdmin ? t('feedback.adminHint') : t('feedback.memberHint')}
+      />
 
       <FeedbackForm />
 

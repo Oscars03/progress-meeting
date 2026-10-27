@@ -1,3 +1,4 @@
+import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { MeetingRecord } from '@/lib/db/schema';
@@ -123,19 +124,18 @@ export default async function MeetingsPage() {
 
   return (
     <div className="space-y-3">
-      {/* One row on a phone, and everything still on it: the name, whether
-          Google is connected, and the way to the availability grid. The two
-          lines this used to take -- a wrapped description and a status pill on
-          its own -- cost about 300px before the calendar began, on the page
-          whose whole point is the calendar. The descriptive line stays behind
-          a wider screen; the rest shrinks rather than disappearing. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 className="text-lg sm:text-2xl font-bold text-gray-900">{t('meetings.title')}</h2>
-
-        {/* Connected is a dot and a word on a phone, the whole sentence on a
-            desktop. Not connected keeps its button at every width, because
-            that is the one part of it anybody can act on. */}
-        {isCalendarSynced ? (
+      {/* As little as possible on a phone: the name, whether Google is
+          connected, and the way to the availability grid. A wrapped
+          description and a status pill on its own line once cost about 300px
+          before the calendar began, on the page whose whole point is the
+          calendar. The descriptive line waits for a wide screen; the rest
+          shrinks rather than disappearing. */}
+      <PageHeader
+        title={t('meetings.title')}
+        // Connected is a dot and a word on a phone, the whole sentence on a
+        // desktop. Not connected keeps its button at every width, because
+        // that is the one part of it anybody can act on.
+        aside={isCalendarSynced ? (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -155,10 +155,9 @@ export default async function MeetingsPage() {
             <ConnectGoogleButton />
           </span>
         )}
-
-        <p className="hidden xl:block text-sm text-gray-500">{t('meetings.hint')}</p>
-
-        <div className="ml-auto flex items-center gap-2">
+        description={<p className="hidden lg:block">{t('meetings.hint')}</p>}
+        actions={
+          <>
           <Link
             href="/meetings/polls"
             className="btn btn-primary"
@@ -175,8 +174,9 @@ export default async function MeetingsPage() {
               <NewMeetingButton />
             </span>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <CalendarView 
         meetings={mappedMeetings} 

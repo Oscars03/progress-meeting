@@ -1,5 +1,6 @@
 'use client';
 
+import PageHeader from '@/lib/ui/page-header';
 import { Fragment, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -648,15 +649,40 @@ export default function Tracker({
 
   return (
     <div className="space-y-4">
-      <section className="trk-hero" aria-labelledby="trk-title">
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      {/* The page's name is the one in the menu, in the place every other
+          page has it. It used to be "Project Tracker 2569-2570" in a card,
+          which made Tasks the one page whose title was somewhere else. */}
+      <PageHeader
+        title={t('tasks.title')}
+        aside={
+          <span className="text-sm text-gray-500">
+            {firstYear === lastYear
+              ? t('tracker.titleOne', { year: firstYear })
+              : t('tracker.title', { from: firstYear, to: lastYear })}
+          </span>
+        }
+        actions={
+          <>
+            <Link href="/tasks/weekly" className="btn btn-secondary">
+              {t('weekly.title')}
+            </Link>
+            {canManageRounds && (
+              <button type="button" onClick={() => setRoundsOpen(true)} className="btn btn-secondary">
+                {t('tracker.rounds')}
+              </button>
+            )}
+            {canAdd && (
+              <button type="button" onClick={() => setForm({ mode: 'new' })} className="btn btn-primary">
+                {canAssign ? t('tracker.addProject') : t('tracker.addMine')}
+              </button>
+            )}
+          </>
+        }
+      />
+
+      <section className="trk-hero" aria-label={t('tasks.title')}>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <div className="min-w-0">
-            <div className="trk-eyebrow">{t('tasks.title')}</div>
-            <h2 id="trk-title" className="trk-title">
-              {firstYear === lastYear
-                ? t('tracker.titleOne', { year: firstYear })
-                : t('tracker.title', { from: firstYear, to: lastYear })}
-            </h2>
             <p className="trk-nextline">
               {nextRound && (
                 <>
@@ -675,56 +701,30 @@ export default function Tracker({
               </span>
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            {/* A row of its own on a phone: sharing one with the buttons left
-                it so narrow that the placeholder read "Search pr". */}
-            <label className="relative w-full sm:w-auto">
-              <span className="sr-only">{t('tracker.search')}</span>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-              >
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-3.5-3.5" />
-              </svg>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('tracker.search')}
-                className="w-full sm:w-80 pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
-              />
-            </label>
-            <Link
-              href="/tasks/weekly"
-              className="btn btn-secondary"
+          {/* A row of its own on a phone: sharing one with anything else left
+              it so narrow that the placeholder read "Search pr". */}
+          <label className="relative w-full sm:w-auto">
+            <span className="sr-only">{t('tracker.search')}</span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
             >
-              {t('weekly.title')}
-            </Link>
-            {canManageRounds && (
-              <button
-                type="button"
-                onClick={() => setRoundsOpen(true)}
-                className="btn btn-secondary"
-              >
-                {t('tracker.rounds')}
-              </button>
-            )}
-            {canAdd && (
-              <button
-                type="button"
-                onClick={() => setForm({ mode: 'new' })}
-                className="btn btn-primary"
-              >
-                {canAssign ? t('tracker.addProject') : t('tracker.addMine')}
-              </button>
-            )}
-          </div>
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('tracker.search')}
+              className="w-full sm:w-80 pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+            />
+          </label>
         </div>
 
         <div className="trk-dist" aria-hidden="true">

@@ -7,7 +7,7 @@ import { canRecordProgress } from '@/lib/task-rights';
 import { rollUpProgress } from '@/lib/tracker';
 import WeeklyBoard, { type TaskRow } from './weekly-board';
 import { getT } from '@/lib/ui/server-i18n';
-import BackLink from '@/lib/ui/back-link';
+import PageHeader from '@/lib/ui/page-header';
 
 /** Tasks the signed-in person is on: owner or listed assignee. */
 function assigneeIds(task: TaskRecord): string[] {
@@ -111,13 +111,11 @@ export default async function WeeklyPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <BackLink href="/tasks" />
-        <h2 className="text-2xl font-bold text-gray-900">{t('weekly.title')}</h2>
-        <p className="text-sm text-gray-500">
-          {t('weekly.subtitle', { week: thisWeek, start: weekStartDate(thisWeek) ?? '' })}
-        </p>
-      </div>
+      <PageHeader
+        back="/tasks"
+        title={t('weekly.title')}
+        description={t('weekly.subtitle', { week: thisWeek, start: weekStartDate(thisWeek) ?? '' })}
+      />
 
       <WeeklyBoard
         rows={rows}

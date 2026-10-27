@@ -1144,8 +1144,7 @@ body {
 
 /* Header */
 .trk-hero { background: var(--trk-surface); border: 1px solid var(--trk-border); border-radius: 16px; padding: 20px 22px 18px; }
-.trk-eyebrow { font-size: 12px; font-weight: 500; color: var(--trk-accent-ink); letter-spacing: 0.05em; }
-.trk-title { font-size: 28px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; margin: 2px 0 6px; color: var(--trk-ink); text-wrap: balance; }
+
 .trk-nextline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13.5px; color: var(--trk-ink-2); }
 .trk-nextline b { color: var(--trk-ink); font-weight: 600; }
 .trk-next { font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 6px; background: var(--trk-accent-soft); color: var(--trk-accent-ink); }
@@ -1163,7 +1162,7 @@ body {
 .trk-tile[aria-pressed='true'] .trk-tile-n,
 .trk-tile[aria-pressed='true'] .trk-tile-label { color: var(--x); }
 @media (max-width: 760px) { .trk-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 420px) { .trk-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .trk-hero { padding: 16px; } .trk-title { font-size: 23px; } }
+@media (max-width: 420px) { .trk-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .trk-hero { padding: 16px; } }
 
 .trk-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--trk-border); border-radius: 9px; background: var(--trk-sunken); }
 .trk-seg button { border: 0; background: transparent; padding: 5px 16px; border-radius: 7px; color: var(--trk-ink-2); cursor: pointer; font-size: 13.5px; white-space: nowrap; }

@@ -1,3 +1,4 @@
+import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
@@ -421,7 +422,7 @@ export default async function DashboardPage() {
           below. Admin also had "+ Schedule meeting" in this header and a link
           in the meeting card -- three buttons with nearly one name, one of
           which skips the poll. Booking outright stays on /meetings. */}
-      <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h2>
+      <PageHeader title={t('dashboard.title')} />
 
       {/* Above the meeting, and the only notice that is. Somebody waiting on
           approval cannot use the app at all until an admin acts, so it is the

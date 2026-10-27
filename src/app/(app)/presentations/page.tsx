@@ -1,3 +1,4 @@
+import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-guard';
@@ -85,25 +86,27 @@ export default async function PresentationsPage(props: {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-bold text-gray-900">{t('presentations.title')}</h2>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500 tabular-nums">
-              {t('presentations.week', { week: activeWeek })}
-            </span>
-            <Link href="/presentations/history" className="text-sm text-blue-600 hover:underline">
-              {t('history.link')}
-            </Link>
-          </div>
-        </div>
-        {locked && <p className="text-sm text-gray-500">{t('presentations.pastWeek')}</p>}
-        {currentBreak && (
-          <p className="text-sm text-gray-500">
-            {t('presentations.afterBreak', { name: currentBreak.name })}
-          </p>
-        )}
-      </div>
+      <PageHeader
+        title={t('presentations.title')}
+        aside={
+          <span className="text-sm text-gray-500 tabular-nums">
+            {t('presentations.week', { week: activeWeek })}
+          </span>
+        }
+        actions={
+          <Link href="/presentations/history" className="btn btn-secondary btn-sm">
+            {t('history.link')}
+          </Link>
+        }
+        description={
+          (locked || currentBreak) && (
+            <>
+              {locked && <p>{t('presentations.pastWeek')}</p>}
+              {currentBreak && <p>{t('presentations.afterBreak', { name: currentBreak.name })}</p>}
+            </>
+          )
+        }
+      />
 
       <OrderBoard
         weekKey={activeWeek}

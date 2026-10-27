@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BackLink from '@/lib/ui/back-link';
+import PageHeader from '@/lib/ui/page-header';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
@@ -41,10 +41,7 @@ export default async function MeetingHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <BackLink href="/presentations" />
-        <h2 className="text-2xl font-bold text-gray-900">{t('history.title')}</h2>
-      </div>
+      <PageHeader back="/presentations" title={t('history.title')} />
 
       {weeks.length === 0 ? (
         <div className="p-6 text-center bg-gray-50 rounded-xl border border-gray-100">
