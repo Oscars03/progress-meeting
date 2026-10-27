@@ -4,6 +4,7 @@ import {
   DAY_TO,
   freeTogether,
   generateShareToken,
+  layOut,
   hashShareToken,
   renderShareSvg,
   segmentsInWeek,
@@ -114,12 +115,45 @@ describe('renderShareSvg', () => {
     expect(svg).toContain('&lt;script&gt;');
   });
 
-  it('draws a bar for each busy block', () => {
+  it('draws a box for each busy period, plus the colour in the key', () => {
     const svg = renderShareSvg({
       rows: [{ name: 'A', color: 'blue', busy: [{ day: 0, from: 540, to: 600 }, { day: 3, from: 600, to: 660 }] }],
       meetings: [],
       labels,
     });
-    expect(svg.match(/fill="#dbeafe" stroke="#1e40af"/g)).toHaveLength(2);
+    expect(svg.match(/fill="#dbeafe" stroke="#1e40af"/g)).toHaveLength(3);
+  });
+
+  it('writes the times in a box with room for them, and every hour down the side', () => {
+    const svg = renderShareSvg({
+      rows: [{ name: 'A', color: 'blue', busy: [{ day: 0, from: 480, to: 750 }] }],
+      meetings: [],
+      labels,
+    });
+    expect(svg).toContain('08:00–12:30');
+    for (const hour of ['08:00', '12:00', '22:00']) expect(svg).toContain(`>${hour}</text>`);
+  });
+});
+
+describe('layOut', () => {
+  it('puts overlapping periods side by side and the rest full width', () => {
+    const laid = layOut([
+      { day: 0, from: 540, to: 660, id: 'a' },
+      { day: 0, from: 600, to: 720, id: 'b' },
+      { day: 0, from: 780, to: 840, id: 'c' },
+      { day: 1, from: 540, to: 600, id: 'd' },
+    ]);
+    const by = Object.fromEntries(laid.map((b) => [b.id, [b.lane, b.lanes]]));
+    expect(by).toEqual({ a: [0, 2], b: [1, 2], c: [0, 1], d: [0, 1] });
+  });
+
+  it('reuses a lane once it is free again within the same group', () => {
+    const laid = layOut([
+      { day: 0, from: 540, to: 720, id: 'long' },
+      { day: 0, from: 540, to: 600, id: 'early' },
+      { day: 0, from: 630, to: 690, id: 'later' },
+    ]);
+    const by = Object.fromEntries(laid.map((b) => [b.id, [b.lane, b.lanes]]));
+    expect(by).toEqual({ long: [0, 2], early: [1, 2], later: [1, 2] });
   });
 });
