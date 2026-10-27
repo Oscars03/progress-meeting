@@ -37,6 +37,7 @@ export default function ActionItems({
   canDelete,
   canAssignOthers,
   me,
+  myName,
 }: {
   meetingId: string;
   items: Item[];
@@ -46,6 +47,7 @@ export default function ActionItems({
   /** Advisors, admin and the meeting's lead; everybody else adds their own. */
   canAssignOthers: boolean;
   me: string;
+  myName: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -233,7 +235,7 @@ export default function ActionItems({
                 ))}
               </>
             ) : (
-              <option value={me}>{nameOf(me)}</option>
+              <option value={me}>{myName}</option>
             )}
           </select>
         </div>
