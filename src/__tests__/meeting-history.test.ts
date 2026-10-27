@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isPastWeek, pastWeeks, weekRange } from '../lib/meeting-history';
-import type { MeetingRecord, MinutesRecord, TopicRecord, WeekLeadRecord } from '../lib/db/schema';
+import type { ActionItemRecord, MeetingRecord, MinutesRecord, TopicRecord, WeekLeadRecord } from '../lib/db/schema';
 
 const base = { created_by: '', updated_at: '', row_version: 1 };
 
@@ -50,7 +50,21 @@ describe('pastWeeks', () => {
     const [week] = pastWeeks({ meetings: [m], minutes: [minutes], topics: [], leads: [] }, '2026-W40');
 
     expect(week.weekKey).toBe('2026-W39');
-    expect(week.meetings).toEqual([{ meeting: m, minutes }]);
+    expect(week.meetings).toEqual([{ meeting: m, minutes, items: [] }]);
+  });
+
+  it("gives each meeting its own action items and nobody else's", () => {
+    const m1 = meeting('m1', '2026-09-22T03:00:00.000Z');
+    const m2 = meeting('m2', '2026-09-24T03:00:00.000Z');
+    const item = (id: string, meetingId: string) =>
+      ({ ...base, id, created_at: '', meeting_id: meetingId, title: id, owner_id: 'u1', due_date: '', status: 'open', source_task_id: '' }) as ActionItemRecord;
+
+    const [week] = pastWeeks(
+      { meetings: [m1, m2], minutes: [], topics: [], leads: [], actionItems: [item('a', 'm1'), item('b', 'm2'), item('c', 'm1')] },
+      '2026-W40',
+    );
+
+    expect(week.meetings.map((m) => m.items.map((i) => i.id))).toEqual([['a', 'c'], ['b']]);
   });
 
   it('keeps a week that met without a booking, and names its lead', () => {
