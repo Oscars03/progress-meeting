@@ -576,15 +576,17 @@ export default function CalendarView({
              which is most of them. Shown only when it has something to show. */
           allDaySlot={hasAllDayEvents}
           /* Fires after the view settles, so this is a callback rather than an
-             effect. Guarded on the value: without that, setting state here
-             would re-render, fire it again, and spin. */
+             effect. It fires again on every render that hands FullCalendar
+             new options, which is every render, so it must not set state
+             unless the dates really moved -- and not merely set it to the same
+             value: an updater that returns `prev` is still a scheduled render,
+             and on a phone that render fired this again, forever, until React
+             gave up and the calendar page showed its error screen. */
           datesSet={(arg) => {
             const start = arg.start.getTime();
             const end = arg.end.getTime();
-            setRange((prev) =>
-              prev && prev.start === start && prev.end === end ? prev : { start, end }
-            );
-            setViewType((prev) => (prev === arg.view.type ? prev : arg.view.type));
+            if (!range || range.start !== start || range.end !== end) setRange({ start, end });
+            if (viewType !== arg.view.type) setViewType(arg.view.type);
           }}
           views={{
             timeGridWeek: {
