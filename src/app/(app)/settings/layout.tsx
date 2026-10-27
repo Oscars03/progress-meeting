@@ -1,3 +1,4 @@
+import PageHeader from '@/lib/ui/page-header';
 import type { ReactNode } from 'react';
 import { getT } from '@/lib/ui/server-i18n';
 
@@ -13,7 +14,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
   const t = await getT();
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">{t('nav.settings')}</h2>
+      <PageHeader title={t('nav.settings')} />
       {children}
     </div>
   );

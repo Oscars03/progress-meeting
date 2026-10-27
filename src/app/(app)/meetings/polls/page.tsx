@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BackLink from '@/lib/ui/back-link';
+import PageHeader from '@/lib/ui/page-header';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getT } from '@/lib/ui/server-i18n';
@@ -73,15 +73,13 @@ export default async function PollsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <BackLink href="/meetings" />
-        <h2 className="text-2xl font-bold text-gray-900">
-          {schedules ? t('polls.header') : t('polls.headerSummary')}
-        </h2>
-        {/* Only whoever schedules needs telling what to do here; for anybody
-            else the heading says it. */}
-        {schedules && <p className="text-sm text-gray-500">{t('polls.headerDesc')}</p>}
-      </div>
+      {/* Only whoever schedules needs telling what to do here; for anybody
+          else the heading says it. */}
+      <PageHeader
+        back="/meetings"
+        title={schedules ? t('polls.header') : t('polls.headerSummary')}
+        description={schedules && t('polls.headerDesc')}
+      />
 
       {/* Anchored, so the dashboard's "find free time" lands on the grid
           rather than at the top of a page of polls. */}

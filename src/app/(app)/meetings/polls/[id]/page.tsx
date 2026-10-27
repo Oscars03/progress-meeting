@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BackLink from '@/lib/ui/back-link';
+import PageHeader from '@/lib/ui/page-header';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
@@ -106,21 +106,23 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <BackLink href="/meetings/polls" />
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-2xl font-bold text-gray-900">{poll.title}</h2>
-          {closed && (
+      <PageHeader
+        back="/meetings/polls"
+        title={poll.title}
+        aside={
+          closed && (
             <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
               {poll.meeting_id ? t('polls.statusConfirmed') : poll.status === 'closed' ? t('polls.statusClosedResponse') : t('polls.openLabel')}
             </span>
-          )}
-        </div>
-        {poll.note && <p className="text-sm text-gray-500">{poll.note}</p>}
-        <p className="text-sm text-gray-500">
-          {t('polls.activeUsers', { count: votingUsers.length })}
-        </p>
-      </div>
+          )
+        }
+        description={
+          <>
+            {poll.note && <p>{poll.note}</p>}
+            <p>{t('polls.activeUsers', { count: votingUsers.length })}</p>
+          </>
+        }
+      />
 
       {poll.meeting_id && (
         <p className="text-sm font-medium text-green-700 bg-green-50 px-4 py-3 rounded-lg border border-green-200">
