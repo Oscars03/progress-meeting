@@ -30,6 +30,7 @@ export const SCHEMAS = {
   feedback: [...COMMON_COLUMNS, 'body', 'category', 'status'],
   widget_keys: [...COMMON_COLUMNS, 'user_id', 'key_hash', 'last_used_at'],
   app_log: [...COMMON_COLUMNS, 'level', 'event', 'user_id', 'path', 'message', 'detail'],
+  calendar_shares: [...COMMON_COLUMNS, 'token_hash', 'week_key', 'user_ids', 'expires_at', 'revoked_at'],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -238,6 +239,21 @@ export type PersonalEventRecord = BaseRecord & {
   color: string;
   /** A key from lib/event-colors.ts, or '' for none stated. */
   category: string;
+};
+
+/**
+ * A link that shows one week of chosen people's busy hours to anybody who has
+ * it, signed in or not. Only the token's SHA-256 is kept; the link itself is
+ * shown once, when it is made.
+ */
+export type CalendarShareRecord = BaseRecord & {
+  token_hash: string;
+  week_key: string;
+  user_ids: string[];
+  /** ISO instant after which the link shows nothing. */
+  expires_at: string;
+  /** ISO instant it was withdrawn, or '' while it stands. */
+  revoked_at: string;
 };
 
 /** Every table has the common columns, so this is the floor for any row. */

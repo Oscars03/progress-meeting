@@ -45,6 +45,11 @@ const nextConfig: NextConfig = {
       './node_modules/@resvg/resvg-wasm/index_bg.wasm',
       './node_modules/@ibm/plex-sans-thai/fonts/complete/woff/IBMPlexSansThai-{Regular,SemiBold}.woff',
     ],
+    // The shared week's picture (share/[token]/image) uses the same renderer.
+    '/share/**': [
+      './node_modules/@resvg/resvg-wasm/index_bg.wasm',
+      './node_modules/@ibm/plex-sans-thai/fonts/complete/woff/IBMPlexSansThai-{Regular,SemiBold}.woff',
+    ],
   },
   async headers() {
     return [
