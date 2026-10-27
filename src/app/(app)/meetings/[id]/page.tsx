@@ -197,6 +197,7 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
         // Tasks page, or whoever runs this meeting.
         canAssignOthers={canRemove || canAssignWork(actor)}
         me={actor.id}
+        myName={users.find((u) => u.id === actor.id)?.name ?? actor.name ?? ''}
       />
 
       {/* Last, and apart: it is the one thing on this page that cannot be
