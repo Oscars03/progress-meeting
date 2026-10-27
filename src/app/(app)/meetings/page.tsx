@@ -9,6 +9,7 @@ import NewMeetingButton from './new-meeting-button';
 import ConnectGoogleButton from './connect-google-button';
 import MeetingsTabs from './meetings-tabs';
 import ShareCalendar from './share-calendar';
+import AutoRefresh from '@/lib/ui/auto-refresh';
 
 import { getStoredToken, getConnectedUserIds } from '@/lib/google/tokens';
 import { requirePageSession } from '@/lib/auth-guard';
@@ -217,6 +218,9 @@ export default async function MeetingsPage() {
         }
       />
       <MeetingsTabs current="calendar" />
+      {/* Other people's bookings and busy hours arrive on their own: once a
+          minute while the page is open, and on coming back to the tab. */}
+      <AutoRefresh every={60_000} />
 
       <CalendarView
         meetings={mappedMeetings} 
