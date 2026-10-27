@@ -1,3 +1,4 @@
+import InfoTip from '@/lib/ui/info-tip';
 import Link from 'next/link';
 import PageHeader from '@/lib/ui/page-header';
 import { SheetRepo } from '@/lib/db/sheet-repo';
@@ -78,7 +79,7 @@ export default async function PollsPage() {
       <PageHeader
         back="/meetings"
         title={schedules ? t('polls.header') : t('polls.headerSummary')}
-        description={schedules && t('polls.headerDesc')}
+        aside={schedules && <InfoTip>{t('polls.headerDesc')}</InfoTip>}
       />
 
       {/* Anchored, so the dashboard's "find free time" lands on the grid

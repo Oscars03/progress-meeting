@@ -1,3 +1,4 @@
+import InfoTip from '@/lib/ui/info-tip';
 import PageHeader from '@/lib/ui/page-header';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
@@ -57,7 +58,7 @@ export default async function FeedbackPage() {
     <div className="space-y-6">
       <PageHeader
         title={t('feedback.title')}
-        description={isAdmin ? t('feedback.adminHint') : t('feedback.memberHint')}
+        aside={<InfoTip>{isAdmin ? t('feedback.adminHint') : t('feedback.memberHint')}</InfoTip>}
       />
 
       <FeedbackForm />

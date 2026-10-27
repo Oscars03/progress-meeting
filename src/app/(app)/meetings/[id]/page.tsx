@@ -1,3 +1,4 @@
+import InfoTip from '@/lib/ui/info-tip';
 import Link from 'next/link';
 import PageHeader from '@/lib/ui/page-header';
 import { notFound } from 'next/navigation';
@@ -123,9 +124,8 @@ export default async function MeetingDetailPage(props: PageProps<'/meetings/[id]
           >
             {lead ? t('rotation.confirmed') : t('rotation.suggested')}
           </span>
+          <InfoTip>{t('rotation.duty')}</InfoTip>
         </div>
-
-        <p className="text-sm text-gray-500">{t('rotation.duty')}</p>
 
         {students.length === 0 ? (
           <p className="text-sm text-gray-500">{t('rotation.noStudents')}</p>

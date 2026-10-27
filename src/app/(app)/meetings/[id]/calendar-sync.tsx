@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { pullMeetingAction, pushMeetingAction } from '../../calendar-actions';
@@ -75,7 +76,12 @@ export default function CalendarSync({
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Google Calendar</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-lg font-semibold text-gray-900">Google Calendar</h3>
+            {/* The note is about pressing a button, so it is for the people
+                who have one. */}
+            {canSync && <InfoTip>{t('sync.manualNote')}</InfoTip>}
+          </div>
           <p className="text-sm text-gray-500">
             {linked
               ? t('sync.linkedTo', { owner: ownerName || t('meeting.eventCreator') })
@@ -130,10 +136,6 @@ export default function CalendarSync({
           </span>
         )}
       </div>
-
-      {/* The note is about pressing a button, so it is for the people who
-          have one. */}
-      {canSync && <p className="text-xs text-gray-500">{t('sync.manualNote')}</p>}
     </section>
   );
 }

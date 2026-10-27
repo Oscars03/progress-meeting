@@ -1,5 +1,6 @@
 'use client';
 
+import InfoTip from '@/lib/ui/info-tip';
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
@@ -124,9 +125,9 @@ export default function RotationOrder({ students }: { students: RotationStudent[
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
-      <div>
+      <div className="flex items-center gap-1.5">
         <h3 className="text-lg font-semibold text-gray-900">{t('rotationOrder.title')}</h3>
-        <p className="text-sm text-gray-500 mt-1">{t('rotationOrder.desc')}</p>
+        <InfoTip>{t('rotationOrder.desc')}</InfoTip>
       </div>
 
       {error && (
