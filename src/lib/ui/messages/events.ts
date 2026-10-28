@@ -8,8 +8,6 @@ export const events = defineMessages({
     'events.category.study': 'เรียน',
     'events.category.meeting': 'ประชุม',
     'events.category.personal': 'ส่วนตัว',
-    'events.peopleKey': 'สีของแต่ละคน',
-    'events.stripKey': 'แถบซ้ายของบล็อก = ประเภท:',
 
     'events.editTitle': 'แก้ไขช่วงเวลาที่ไม่ว่าง',
   },
@@ -19,8 +17,6 @@ export const events = defineMessages({
     'events.category.study': 'Study',
     'events.category.meeting': 'Meeting',
     'events.category.personal': 'Personal',
-    'events.peopleKey': "Each person's colour",
-    'events.stripKey': 'Strip on the left of a block = kind:',
 
     'events.editTitle': 'Edit these hours',
   },

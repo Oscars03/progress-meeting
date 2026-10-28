@@ -231,9 +231,6 @@ export default async function MeetingsPage() {
         currentUserId={actor.id} 
         termBreaks={termBreaks}
         weekPlan={weekPlan}
-        people={users
-          .filter((u) => showsOnCalendar(u.id))
-          .map((u) => ({ id: u.id, ...faces.get(u.id)! }))}
       />
     </>
   );
