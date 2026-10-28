@@ -527,6 +527,43 @@ body {
   margin-bottom: 0.85rem;
 }
 
+/* Fitted to the window (calendar.tsx, FIT_QUERY). The slot height above is a
+   floor FullCalendar only ever stretches up from, so fitting 28 half hours
+   into a laptop screen needs a lower one; expandRows then grows them to fill
+   whatever the window has. The hour label is an inline-block, so its line
+   box takes the body's Thai line-height (1.65, ~26px) and held every row at
+   that whatever the height said. The slot's own font-size matters too, for
+   the strut of that line; the label sets its size in rem, so it is unmoved. */
+.cal-fit .fc .fc-timegrid-slot {
+  height: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+/* Whole numbers of pixels, all the way down. Thai line-heights make the card
+   and the day-header row fractions (507.45px, 41.09px); FullCalendar sizes its
+   rows to the rounded-down hours box while the box itself keeps the fraction,
+   which rounds up to a scrollbar with one pixel to scroll. */
+.cal-fit .fc {
+  height: round(down, 100%, 1px) !important;
+}
+/* And the hour lines: collapsed borders spill half their width outside the
+   table, which the scroller counts as two pixels to scroll. That layer is
+   only lines -- events sit in a layer of their own above it -- so it is
+   clipped to its own box. */
+.cal-fit .fc .fc-timegrid-slots {
+  overflow: hidden;
+}
+.cal-fit .fc .fc-col-header-cell {
+  padding: 0.25rem 0;
+}
+.cal-fit .fc .fc-col-header-cell-cushion {
+  line-height: 1.25rem;
+}
+.cal-fit .fc .fc-toolbar.fc-header-toolbar {
+  height: 2.25rem;
+  margin-bottom: 0.5rem;
+}
+
 /* A break day is not bookable, so it recedes rather than competing. */
 .fc .fc-day.bg-gray-100 {
   background-image: repeating-linear-gradient(

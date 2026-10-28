@@ -1,5 +1,4 @@
 import InfoTip from '@/lib/ui/info-tip';
-import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import type { MeetingRecord } from '@/lib/db/schema';
@@ -153,14 +152,22 @@ export default async function MeetingsPage() {
   );
 
   return (
-    <div className="space-y-3">
-      {/* As little as possible on a phone: the name, whether Google is
+    <>
+      {/* Other people's bookings and busy hours arrive on their own: once a
+          minute while the page is open, and on coming back to the tab. */}
+      <AutoRefresh every={60_000} />
+
+      {/* The header is drawn by the calendar, because the week's lead -- which
+          only the calendar knows, since it follows the week on screen -- sits
+          on the header's line rather than costing a banner of its own.
+
+          As little as possible on a phone: the name, whether Google is
           connected, and the way to the availability grid. A wrapped
           description and a status pill on its own line once cost about 300px
           before the calendar began, on the page whose whole point is the
           calendar. What the page is for sits behind an ⓘ, on every screen
           without costing a line; the rest shrinks rather than disappearing. */}
-      <PageHeader
+      <CalendarView
         title={t('meetings.title')}
         // Connected is a dot and a word on a phone, the whole sentence on a
         // desktop. Not connected keeps its button at every width, because
@@ -218,13 +225,7 @@ export default async function MeetingsPage() {
           )}
           </>
         }
-      />
-      {/* Other people's bookings and busy hours arrive on their own: once a
-          minute while the page is open, and on coming back to the tab. */}
-      <AutoRefresh every={60_000} />
-
-      <CalendarView
-        meetings={mappedMeetings} 
+        meetings={mappedMeetings}
         personalEvents={mappedPersonalEvents} 
         googleEvents={allGoogleEvents} 
         currentUserId={actor.id} 
@@ -234,6 +235,6 @@ export default async function MeetingsPage() {
           .filter((u) => showsOnCalendar(u.id))
           .map((u) => ({ id: u.id, ...faces.get(u.id)! }))}
       />
-    </div>
+    </>
   );
 }
