@@ -25,9 +25,7 @@ import {
   updatePersonalEventAction,
 } from '../settings/schedule-actions';
 import { EVENT_CATEGORIES, isEventCategory } from '@/lib/event-colors';
-import { Avatar } from '@/lib/ui/avatar';
 import PageHeader from '@/lib/ui/page-header';
-import type { AvatarFace } from '@/lib/avatar-face';
 import type { EventInput, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import type { DateClickArg } from '@fullcalendar/interaction';
 import type { MappedMeeting, MappedPersonalEvent } from './page';
@@ -122,7 +120,6 @@ export default function CalendarView({
   currentUserId = '',
   termBreaks = [],
   weekPlan = [],
-  people = []
 }: {
   /** The page header's parts -- see PageHeader. */
   title: ReactNode,
@@ -134,8 +131,6 @@ export default function CalendarView({
   currentUserId?: string,
   termBreaks?: TermBreakRecord[],
   weekPlan?: WeekLeadPlan[],
-  /** Everybody whose blocks can appear, each with their colour, for the key. */
-  people?: (AvatarFace & { id: string })[]
 }) {
   const router = useRouter();
   const { locale, t } = usePrefs();
@@ -757,37 +752,6 @@ export default function CalendarView({
           }}
         />
       </div>
-
-      {/* The key: whose colour is whose, and what each strip means. The
-          colours carry the calendar now, so they are explained on it. */}
-      {/* One flowing row rather than two stacked ones -- the list and the
-          strip key share their lines (`contents`) -- because on a wide screen
-          every line here is a line the hours do not get. */}
-      {people.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1">
-          <ul className="contents" aria-label={t('events.peopleKey')}>
-            {people.map((p) => (
-              <li key={p.id} className="flex items-center gap-1.5 text-xs text-gray-700">
-                <Avatar person={p} />
-                {p.name}
-              </li>
-            ))}
-          </ul>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 sm:ml-3">
-            <span>{t('events.stripKey')}</span>
-            {EVENT_CATEGORIES.map((k) => (
-              <span key={k} className="flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="inline-block h-3.5 w-1.5 rounded-sm"
-                  style={{ background: `var(--kind-${k})` }}
-                />
-                {t(`events.category.${k}` as 'events.category.teaching')}
-              </span>
-            ))}
-          </p>
-        </div>
-      )}
 
       {/* Create Modal */}
       {/* editingEvent rides along so the title does not flip to "add" while
