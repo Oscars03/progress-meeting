@@ -1,6 +1,14 @@
 'use client';
 
-import { useState, useSyncExternalStore, useTransition } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type ReactNode,
+} from 'react';
 import FullCalendar from '@fullcalendar/react';
 import { useRouter } from 'next/navigation';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -18,6 +26,7 @@ import {
 } from '../settings/schedule-actions';
 import { EVENT_CATEGORIES, isEventCategory } from '@/lib/event-colors';
 import { Avatar } from '@/lib/ui/avatar';
+import PageHeader from '@/lib/ui/page-header';
 import type { AvatarFace } from '@/lib/avatar-face';
 import type { EventInput, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import type { DateClickArg } from '@fullcalendar/interaction';
@@ -59,6 +68,25 @@ function getServerPhoneSnapshot(): boolean {
   return false;
 }
 
+/**
+ * From here up the menu is a sidebar, so the page has the window's whole
+ * height, and the week is sized to it: 08:00-22:00 on one screen, with no
+ * scrolling to reach the evening. Below it the grid keeps its natural height
+ * and the page scrolls -- squeezing fourteen hours into a phone would leave
+ * rows too thin to tap.
+ */
+const FIT_QUERY = '(min-width: 768px)';
+
+function subscribeToFit(listener: () => void): () => void {
+  const query = window.matchMedia(FIT_QUERY);
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+
+function getFitSnapshot(): boolean {
+  return window.matchMedia(FIT_QUERY).matches;
+}
+
 type GoogleEvent = {
   id: string;
   title: string;
@@ -84,7 +112,10 @@ function safeHttpUrl(value: unknown): string | undefined {
     return undefined;
   }
 }
-export default function CalendarView({ 
+export default function CalendarView({
+  title,
+  aside,
+  actions,
   meetings,
   personalEvents = [],
   googleEvents = [],
@@ -93,6 +124,10 @@ export default function CalendarView({
   weekPlan = [],
   people = []
 }: {
+  /** The page header's parts -- see PageHeader. */
+  title: ReactNode,
+  aside?: ReactNode,
+  actions?: ReactNode,
   meetings: MappedMeeting[],
   personalEvents?: MappedPersonalEvent[],
   googleEvents?: GoogleEvent[],
@@ -119,6 +154,7 @@ export default function CalendarView({
    */
   const [onlyMine, setOnlyMine] = useState(false);
   const isPhone = useSyncExternalStore(subscribeToPhone, getPhoneSnapshot, getServerPhoneSnapshot);
+  const fits = useSyncExternalStore(subscribeToFit, getFitSnapshot, getServerPhoneSnapshot);
 
   // Modals state
   const [isPending, startTransition] = useTransition();
@@ -255,6 +291,42 @@ export default function CalendarView({
     const at = Date.parse(ge.start);
     return !Number.isNaN(at) && at >= range.start && at < range.end;
   });
+
+  /**
+   * Fitted to the window, the rows shrink until they reach the floor set in
+   * globals.css (.cal-fit). Past that -- a short window, an all-day strip,
+   * day names wrapped to two lines -- FullCalendar would give the hours a
+   * scrollbar of their own inside a page that also scrolls, the two-scroll
+   * trap described at the card below. So the card is grown by exactly what
+   * would have scrolled, and the page scrolls once instead.
+   *
+   * Written to the element rather than kept in state: it is a measurement of
+   * what FullCalendar drew, and a state update here would re-render the
+   * calendar that is being measured.
+   */
+  const calendarRef = useRef<FullCalendar>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const settle = useCallback(() => {
+    const card = cardRef.current;
+    const api = calendarRef.current?.getApi();
+    if (!card || !api) return;
+    card.style.minHeight = '';
+    if (!fits) return;
+    api.updateSize();
+    requestAnimationFrame(() => {
+      let over = 0;
+      card.querySelectorAll('.fc-scroller').forEach((el) => {
+        over += Math.max(0, el.scrollHeight - el.clientHeight);
+      });
+      if (over > 0) {
+        card.style.minHeight = `${card.offsetHeight + over}px`;
+        api.updateSize();
+      }
+    });
+  }, [fits]);
+  // Whatever changes how much the grid has to hold: another week, another
+  // view, the all-day strip coming or going, the filter.
+  useLayoutEffect(settle, [settle, viewType, range, hasAllDayEvents, onlyMine]);
 
   /**
    * The week, on a phone, as how many people are busy in each half hour.
@@ -491,54 +563,74 @@ export default function CalendarView({
   const shownWeek = range && viewType !== 'dayGridMonth' ? planFor(new Date(range.start)) : undefined;
 
   return (
-    <div className="space-y-2">
-      {/* How to add busy time lives in the ⓘ beside the page title now, with
-          the rest of what the page does; this row keeps only the toggle. */}
-      <div className="flex items-center justify-end gap-3 text-xs sm:text-sm">
-
-        {/* Stated as what it does rather than what it hides: "only mine" is
-            one idea, while "show other members' personal schedules too" asked
-            the reader to work out the negative. */}
-        <label className="flex items-center gap-1.5 text-gray-600 cursor-pointer whitespace-nowrap shrink-0">
-          <input
-            type="checkbox"
-            checked={onlyMine}
-            onChange={(e) => setOnlyMine(e.target.checked)}
-            className="rounded text-blue-600 focus:ring-blue-500"
-          />
-          <span className="sm:hidden">{t('meetings.onlyMineShort')}</span>
-          <span className="hidden sm:inline">{t('meetings.onlyMine')}</span>
-        </label>
-      </div>
-
-      {shownWeek && (
-        <div
-          className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 rounded-lg border border-blue-200 bg-blue-50 text-sm"
-          title={shownWeek.name && !shownWeek.confirmed ? t('meetings.weekLeadPlanned') : undefined}
-        >
-          {shownWeek.break_name ? (
-            <span className="font-medium text-gray-600">
-              {t('meetings.weekBreak', { name: shownWeek.break_name })}
+    // On a wide screen the page is exactly the window's height, less <main>'s
+    // padding (p-6, then p-8), and the calendar takes what the header and the
+    // key leave of it. See FIT_QUERY.
+    <div className="flex flex-col gap-2 md:h-[calc(100dvh-3rem)] lg:h-[calc(100dvh-4rem)]">
+      {/* One line: the week's lead used to be a banner of its own and the
+          "only mine" toggle a row of its own, two strips of a desktop screen
+          that said a name and held a checkbox. The lead sits with the title,
+          the toggle with the buttons. */}
+      <PageHeader
+        title={title}
+        aside={<>
+          {aside}
+          {shownWeek && (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-xs sm:text-sm"
+              title={shownWeek.name && !shownWeek.confirmed ? t('meetings.weekLeadPlanned') : undefined}
+            >
+              {shownWeek.break_name ? (
+                <span className="font-medium text-gray-600">
+                  {t('meetings.weekBreak', { name: shownWeek.break_name })}
+                </span>
+              ) : (
+                <>
+                  <span className="text-blue-700">{t('meetings.weekLead')}</span>
+                  <span className="font-semibold text-blue-800">
+                    {shownWeek.name ?? t('meetings.weekNoLead')}
+                  </span>
+                </>
+              )}
             </span>
-          ) : (
-            <>
-              <span className="text-blue-700">{t('meetings.weekLead')}</span>
-              <span className="font-semibold text-blue-800">
-                {shownWeek.name ?? t('meetings.weekNoLead')}
-              </span>
-            </>
           )}
-        </div>
-      )}
+        </>}
+        actions={<>
+          {/* Stated as what it does rather than what it hides: "only mine" is
+              one idea, while "show other members' personal schedules too"
+              asked the reader to work out the negative. */}
+          <label className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-600 cursor-pointer whitespace-nowrap shrink-0 mr-1">
+            <input
+              type="checkbox"
+              checked={onlyMine}
+              onChange={(e) => setOnlyMine(e.target.checked)}
+              className="rounded text-blue-600 focus:ring-blue-500"
+            />
+            <span className="sm:hidden">{t('meetings.onlyMineShort')}</span>
+            <span className="hidden sm:inline">{t('meetings.onlyMine')}</span>
+          </label>
+          {actions}
+        </>}
+      />
 
-      {/* No fixed height, so the calendar is not a scrolling box inside a
-          scrolling page. It used to own its own scrollbar: reaching the
-          evening meant finding the inner one and dragging that, while the
-          outer one did nothing -- two scrolls competing for the same gesture,
-          which on a phone is close to unusable. The grid draws its full
-          08:00-22:00 at natural height now and the page scrolls it, so there
-          is one scrollbar and it is the one you expect. */}
-      <div className="bg-white p-0 sm:p-5 rounded-xl shadow-sm border border-gray-100">
+      {/* Never a scrolling box inside a scrolling page. The calendar once
+          owned its own scrollbar: reaching the evening meant finding the inner
+          one and dragging that, while the outer one did nothing -- two scrolls
+          competing for the same gesture, which on a phone is close to
+          unusable.
+
+          On a wide screen the whole 08:00-22:00 now fits the window instead,
+          the rows shrinking to share what height there is, so nothing scrolls
+          at all. Where they cannot shrink further the card grows instead (see
+          settle), so the page scrolls once rather than the grid getting a
+          scrollbar of its own. On a phone the grid keeps its natural height
+          and the page scrolls it, as before. */}
+      <div
+        ref={cardRef}
+        className={`bg-white p-0 sm:p-3 rounded-xl shadow-sm border border-gray-100 ${
+          fits ? 'cal-fit flex-1 min-h-0' : ''
+        }`}
+      >
         {/* initialView is read once per mount, so the key remounts the calendar
             when the viewport crosses the phone breakpoint. */}
         <FullCalendar
@@ -594,7 +686,12 @@ export default function CalendarView({
               // in it say less than three dots do, and the dots leave the date
               // legible, which is what a month view is actually for.
               eventDisplay: isPhone ? 'list-item' : 'block',
-              dayMaxEvents: isPhone ? 3 : 4,
+              // Fitted to the window, four a cell held the month a row or so
+              // past a laptop screen; three keeps it on one. A number, not
+              // `true`: letting FullCalendar size the cells by what fits and
+              // the rows by the window measured itself in circles and hung
+              // the tab.
+              dayMaxEvents: isPhone || fits ? 3 : 4,
               // "+3 more" is cut mid-word in a 50px cell; the number carries it.
               moreLinkContent: isPhone ? (arg: { num: number }) => `+${arg.num}` : undefined,
             },
@@ -607,9 +704,13 @@ export default function CalendarView({
           // On a phone the week is a heat map of who is busy; every other
           // view shows the events themselves.
           events={showHeat ? heatEvents : allEvents}
-          /* auto, not 100%: the grid takes the height its hours need and the
-             page scrolls it, instead of becoming its own scroll container. */
-          height="auto"
+          /* Fitting, the grid fills its card and expandRows stretches the
+             slots to the bottom of it; otherwise it takes the height its
+             hours need and the page scrolls it. */
+          height={fits ? '100%' : 'auto'}
+          expandRows={fits}
+          ref={calendarRef}
+          windowResize={settle}
           stickyHeaderDates={true}
           selectable={true}
           selectMirror={true}
@@ -659,9 +760,12 @@ export default function CalendarView({
 
       {/* The key: whose colour is whose, and what each strip means. The
           colours carry the calendar now, so they are explained on it. */}
+      {/* One flowing row rather than two stacked ones -- the list and the
+          strip key share their lines (`contents`) -- because on a wide screen
+          every line here is a line the hours do not get. */}
       {people.length > 0 && (
-        <div className="space-y-2 px-1">
-          <ul className="flex flex-wrap gap-x-3 gap-y-1.5" aria-label={t('events.peopleKey')}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1">
+          <ul className="contents" aria-label={t('events.peopleKey')}>
             {people.map((p) => (
               <li key={p.id} className="flex items-center gap-1.5 text-xs text-gray-700">
                 <Avatar person={p} />
@@ -669,7 +773,7 @@ export default function CalendarView({
               </li>
             ))}
           </ul>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 sm:ml-3">
             <span>{t('events.stripKey')}</span>
             {EVENT_CATEGORIES.map((k) => (
               <span key={k} className="flex items-center gap-1.5">
