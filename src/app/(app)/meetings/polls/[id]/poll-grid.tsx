@@ -23,6 +23,8 @@ export type SlotView = {
   isRecommended: boolean;
   myChoice: Choice | null;
   responders: { name: string; choice: Choice }[];
+  /** Voters who have not answered this slot yet, by name. */
+  silent: string[];
 };
 
 const ANSWER_LABELS: Record<Choice, string> = {
@@ -294,8 +296,14 @@ export default function PollGrid({
                 {canManage && !alreadyConfirmed && (
                   <button
                     onClick={async () => {
-                      if (!(await ask(t('polls.confirmSlot', { range: formatRange(slot.startAt, slot.endAt) }))))
-                        return;
+                      // Confirming no longer waits for everyone, so the prompt
+                      // says who is still silent instead.
+                      const range = formatRange(slot.startAt, slot.endAt);
+                      const question =
+                        slot.silent.length > 0
+                          ? t('polls.confirmSlotSilent', { range, n: slot.silent.length, who: slot.silent.join(', ') })
+                          : t('polls.confirmSlot', { range });
+                      if (!(await ask(question))) return;
                       // Returned, not just awaited: `run` reads the refusal
                       // out of the value, and a swallowed result is a refusal
                       // nobody is told about.

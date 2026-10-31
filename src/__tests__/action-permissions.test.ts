@@ -348,7 +348,7 @@ describe('who may answer a poll', () => {
   });
 });
 
-describe('confirming only once everyone has answered', () => {
+describe('confirming before everyone has answered', () => {
   beforeEach(() => {
     seedPoll();
     tables['users'] = [
@@ -373,14 +373,32 @@ describe('confirming only once everyone has answered', () => {
       row_version: 1,
     }));
 
-  it('refuses while somebody has not answered, and names them', async () => {
+  // Waiting for the last answers held the week hostage, so whoever runs the
+  // poll may settle it early; the page names who is still silent.
+  it('lets the lead confirm while somebody has not answered', async () => {
     tables['availability_votes'] = voted('lead');
     signedInAs('lead');
 
     const result = await confirmSlotAction('p1', 1, 's1');
 
-    expect(result).toMatchObject({ ok: false, error: 'polls.error.notEveryoneAnswered' });
-    expect(result).toMatchObject({ vars: { n: 1, who: 'Other' } });
+    expect(result.ok).toBe(true);
+    expect(insert).toHaveBeenCalledWith('meetings', expect.anything(), 'lead');
+  });
+
+  it('lets the lead confirm a slot nobody has answered', async () => {
+    tables['availability_votes'] = [];
+    signedInAs('lead');
+
+    await expect(confirmSlotAction('p1', 1, 's1')).resolves.toMatchObject({ ok: true });
+  });
+
+  it('still refuses somebody who does not run the poll', async () => {
+    tables['availability_votes'] = voted('lead');
+    signedInAs('other');
+
+    const result = await confirmSlotAction('p1', 1, 's1');
+
+    expect(result.ok).toBe(false);
     expect(insert).not.toHaveBeenCalled();
   });
 
@@ -430,14 +448,11 @@ describe('confirming only once everyone has answered', () => {
     await expect(confirmSlotAction('p1', 1, 's1')).resolves.toMatchObject({ ok: true });
   });
 
-  it('holds an admin to it too, so the rule is not one anybody can step around', async () => {
+  it('lets an admin confirm early too', async () => {
     tables['availability_votes'] = voted('lead');
     signedInAs('boss', 'admin');
 
-    const result = await confirmSlotAction('p1', 1, 's1');
-
-    expect(result).toMatchObject({ ok: false, error: 'polls.error.notEveryoneAnswered' });
-    expect(insert).not.toHaveBeenCalled();
+    await expect(confirmSlotAction('p1', 1, 's1')).resolves.toMatchObject({ ok: true });
   });
 });
 
