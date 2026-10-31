@@ -90,6 +90,7 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
       name: nameById.get(userId) ?? t('agenda.deletedUser'),
       choice,
     })),
+    silent: votingUsers.filter((u) => !byUser.has(u.id)).map((u) => u.name),
   }));
 
   // Ordered by how well each slot suits the group -- fewest people blocked,

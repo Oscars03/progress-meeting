@@ -18,7 +18,7 @@ import type {
   UserRecord,
 } from '@/lib/db/schema';
 import { breakCovering } from '@/lib/term-breaks';
-import { memberIds, pollVoters } from '@/lib/members';
+import { memberIds } from '@/lib/members';
 import { getT } from '@/lib/ui/server-i18n';
 
 function assertChoice(value: string): asserts value is Choice {
@@ -249,33 +249,10 @@ export async function confirmSlotAction(
   const slot = slots.find((s) => s.id === slotId && s.poll_id === pollId);
   if (!slot) throw new UserError('polls.error.slotNotFound');
 
-  // Everybody entitled to an opinion has to have given one first.
-  //
-  // A time settled while three people had not answered is not an agreed time,
-  // it is a guess with a quorum -- and the grid then shows them "busy" for a
-  // meeting they were never asked about. Admin is not in this count: it is not
-  // a member of the lab and has no availability to state.
-  //
-  // This is not a deadlock. Somebody who will never answer can be waited out,
-  // chased, or the whole poll abandoned and the meeting booked outright, which
-  // is what an admin's direct booking is for.
-  const [users, allVotes] = await Promise.all([
-    SheetRepo.find<UserRecord>('users'),
-    SheetRepo.find<AvailabilityVoteRecord>('availability_votes'),
-  ]);
-
-  const answered = new Set(
-    allVotes.filter((v) => v.slot_id === slotId).map((v) => v.user_id)
-  );
-  // Voters, not members: an advisor is not waited on -- see lib/members.ts.
-  const silent = pollVoters(users).filter((u) => !answered.has(u.id));
-
-  if (silent.length > 0) {
-    throw new UserError('polls.error.notEveryoneAnswered', {
-      n: silent.length,
-      who: silent.map((u) => u.name).join(', '),
-    });
-  }
+  // Not everybody has to have answered. Waiting on the last few held the
+  // week -- and with it the rotation -- hostage to whoever never opened the
+  // poll, so whoever runs it decides when enough is known. The page names the
+  // people still silent in the confirm prompt, so the choice is made knowingly.
 
   const breaks = await SheetRepo.find<TermBreakRecord>('term_breaks');
   const slotStart = labInstant(slot.start_at);
