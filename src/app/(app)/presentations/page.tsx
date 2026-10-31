@@ -72,14 +72,14 @@ export default async function PresentationsPage(props: {
     const task = topic.task_id ? taskById.get(topic.task_id) : undefined;
     return task ? { id: task.id, title: titleOf(task), progress: progressOf(task) } : null;
   };
-  // Your own unfinished work, and whatever this week's topics already point
-  // at, so editing a topic about work since finished still shows its link.
-  const linked = new Set(ordered.map((topic) => topic.task_id).filter(Boolean));
+  // Your own unfinished work, and nobody else's. This once also took in every
+  // task any topic this week pointed at, so one person's linked work turned up
+  // under everyone's "my work". A topic's existing link is added back by the
+  // board while that topic is the one being edited.
   const workOptions = tasks
     .filter(
       (task) =>
-        linked.has(task.id) ||
-        (task.status !== 'done' && (task.owner_id === actor.id || assigneesOf(task).includes(actor.id)))
+        task.status !== 'done' && (task.owner_id === actor.id || assigneesOf(task).includes(actor.id))
     )
     .map((task) => ({ id: task.id, title: titleOf(task) }))
     .sort((a, b) => a.title.localeCompare(b.title, 'th'));

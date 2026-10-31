@@ -117,7 +117,16 @@ export default function OrderBoard({
   const [taskId, setTaskId] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const workTitle = (id: string) => workOptions.find((w) => w.id === id)?.title ?? '';
+  // Your own work, plus -- only while editing -- the work that topic already
+  // links to, so a link to finished or someone else's work isn't silently
+  // dropped on save. Other people's links never reach a new topic's list.
+  const editingLink = editingId ? topics.find((topic) => topic.id === editingId)?.task : null;
+  const options =
+    editingLink && !workOptions.some((w) => w.id === editingLink.id)
+      ? [...workOptions, { id: editingLink.id, title: editingLink.title }]
+      : workOptions;
+
+  const workTitle = (id: string) => options.find((w) => w.id === id)?.title ?? '';
   /**
    * Picking a piece of work names the topic after it -- unless something of
    * your own is already typed there, which is kept. Picking another piece
@@ -303,7 +312,7 @@ export default function OrderBoard({
 
           {/* Picked from the tracker or typed freehand: the work, when there
               is some, names the topic and links back to it. */}
-          {workOptions.length > 0 && (
+          {options.length > 0 && (
             <div>
               <label className="block text-sm text-gray-600 mb-1" htmlFor="topic-task">
                 {t('topics.fromWork')}
@@ -315,7 +324,7 @@ export default function OrderBoard({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
               >
                 <option value="">{t('topics.noWork')}</option>
-                {workOptions.map((w) => (
+                {options.map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.title}
                   </option>
