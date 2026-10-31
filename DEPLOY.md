@@ -1,7 +1,8 @@
 # การ deploy
 
-ทุกการเปลี่ยนแปลงเข้า `master` ผ่าน pull request เท่านั้น แล้วค่อย deploy ขึ้น
-Vercel ด้วยมือ — ไม่มี auto-deploy จาก push
+ทุกการเปลี่ยนแปลงเข้า `master` ผ่าน pull request เท่านั้น และ **merge เข้า `master`
+คือการ deploy** — Vercel deploy ขึ้น production เองทันทีที่ `master` มี commit ใหม่
+(กิ่งอื่นไม่ deploy) ไม่ต้องสั่ง `vercel --prod` เพิ่ม
 
 **Production:** https://irish-progress.vercel.app
 **Vercel project:** `irish-progress` (team `irishlab101-7231s-projects`)
@@ -155,15 +156,26 @@ Changelog-TH: กดบล็อกสีเขียวแล้วเลือ
 > merge ไปแล้วโดยไม่มี trailer จึงมาโผล่ตรงนี้ เติมคำแปลใน `TH_BY_SUBJECT`
 > ใน PR เดียวกันนี้ (PR #86 แดงด้วยเหตุนี้ — `116bac8` ไม่มี trailer)
 
-### 7. Deploy
+### 7. Deploy — เกิดเองตอน merge
+
+`vercel.json` ตั้ง `git.deploymentEnabled` ให้ deploy เฉพาะ `master` และ Git
+integration ของโปรเจกต์ต่ออยู่ ขั้น 5 จึง deploy ขึ้น production ไปแล้ว ไม่ต้อง
+สั่งอะไรเพิ่ม รอให้ build จบ (ราว 2 นาที) แล้วดูว่าขึ้น Ready:
 
 ```bash
 git checkout master
 git pull --ff-only
-npx vercel --prod --yes
+npx vercel ls irish-progress --prod     # แถวบนสุดต้องเป็น ● Ready, source = git
 ```
 
-ขึ้น `▲ Aliased https://irish-progress.vercel.app` คือสำเร็จ
+เอกสารนี้เคยเขียนว่า "ไม่มี auto-deploy จาก push" และให้สั่ง `npx vercel --prod`
+เองทุกครั้ง — ไม่จริง 31 ต.ค. 2026 (PR #184) merge แล้ว Vercel เริ่ม deploy จาก git
+ภายใน 4 วินาที การสั่ง CLI ตามเอกสารเลยได้ production deploy ซ้ำของ commit เดียวกัน
+อีก 2 รอบ ไม่เสียหาย แต่เปลือง build
+
+**`npx vercel --prod --yes` เหลือไว้ใช้เฉพาะ** ตอน auto-deploy พัง หรือต้อง deploy ใหม่
+โดยไม่มี commit ใหม่ (เช่นหลังแก้ env — ดู "Environment variables") ขึ้น
+`▲ Aliased https://irish-progress.vercel.app` คือสำเร็จ
 
 ### 8. ตรวจหลัง deploy
 
@@ -323,6 +335,6 @@ git push -u origin chore/refresh-changelog
 gh pr create --title "chore: refresh the changelog" --body "..."
 gh pr checks <n> && gh pr merge <n> --rebase --delete-branch
 
-git checkout master && git pull --ff-only       # แล้วค่อย deploy
-npx vercel --prod --yes
+git checkout master && git pull --ff-only       # merge แล้ว = deploy แล้ว
+npx vercel ls irish-progress --prod             # รอให้แถวบนสุดเป็น Ready
 ```
