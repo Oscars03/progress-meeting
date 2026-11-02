@@ -96,12 +96,11 @@ describe('a share link', () => {
 
 describe('renderShareSvg', () => {
   const labels = {
-    title: 'Busy',
-    range: '26 Oct – 1 Nov',
+    title: '26 Oct – 1 Nov · W44',
     days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    lab: 'Lab',
     meetings: 'Meetings',
     free: 'Free',
+    freeAllDay: 'Free all day',
     note: 'note',
   };
 
@@ -115,13 +114,39 @@ describe('renderShareSvg', () => {
     expect(svg).toContain('&lt;script&gt;');
   });
 
-  it('draws a box for each busy period, plus the colour in the key', () => {
+  it('draws a box for each busy period, and no colour key', () => {
     const svg = renderShareSvg({
       rows: [{ name: 'A', color: 'blue', busy: [{ day: 0, from: 540, to: 600 }, { day: 3, from: 600, to: 660 }] }],
       meetings: [],
       labels,
     });
-    expect(svg.match(/fill="#dbeafe" stroke="#1e40af"/g)).toHaveLength(3);
+    expect(svg.match(/fill="#dbeafe" stroke="#1e40af"/g)).toHaveLength(2);
+  });
+
+  it('labels each free stretch of an hour or more once, with its hours', () => {
+    const svg = renderShareSvg({
+      // Monday: free 08:00-09:00, busy 09:00-12:00, free 12:00-12:30, busy to 13:00, free to 22:00.
+      rows: [{ name: 'A', color: 'blue', busy: [{ day: 0, from: 540, to: 720 }, { day: 0, from: 750, to: 780 }] }],
+      meetings: [],
+      labels,
+    });
+    expect(svg).toContain('>08:00–09:00</text>');
+    expect(svg).toContain('>13:00–22:00</text>');
+    // Half an hour is tinted but not named.
+    expect(svg).not.toContain('>12:00–12:30</text>');
+    // The six untouched days say so once each, without hours.
+    expect(svg.match(/>Free all day</g)).toHaveLength(6);
+  });
+
+  it('puts the week, its lead and who has not answered in the header', () => {
+    const svg = renderShareSvg({
+      rows: [],
+      meetings: [],
+      labels: { ...labels, lead: 'Lead Tud', missing: 'No times yet: Kandis' },
+    });
+    expect(svg).toContain('>26 Oct – 1 Nov · W44</text>');
+    expect(svg).toContain('>Lead Tud</tspan>');
+    expect(svg).toContain('>No times yet: Kandis</tspan>');
   });
 
   it('writes the times in a box with room for them, and every hour down the side', () => {

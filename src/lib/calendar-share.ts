@@ -126,13 +126,18 @@ function esc(value: string): string {
 export type ShareRow = { name: string; color: string; busy: Segment[] };
 
 export type ShareLabels = {
+  /** "2–8 พ.ย. · 2026-W45" -- the week is the whole headline; its key carries the year. */
   title: string;
-  range: string;
   days: string[];
-  lab: string;
   meetings: string;
   free: string;
+  /** The free label for a day nobody shown is busy at all. */
+  freeAllDay: string;
   note: string;
+  /** "Lead: Tud" -- whose week it is; absent in a break or before any rotation. */
+  lead?: string;
+  /** "No busy times: ..." -- absent when every student has some. */
+  missing?: string;
 };
 
 /** "08:00" for 480 minutes past midnight. */
@@ -196,7 +201,7 @@ export function renderShareSvg(input: { rows: ShareRow[]; meetings: Segment[]; l
   const timeW = 64;
   const dayW = (W - pad * 2 - timeW) / 7;
   const hourH = 56;
-  const gridTop = 150;
+  const gridTop = labels.lead || labels.missing ? 140 : 110;
   const gridH = ((DAY_TO - DAY_FROM) / 60) * hourH;
   const left = pad + timeW;
   const y = (minute: number) => gridTop + ((minute - DAY_FROM) / 60) * hourH;
@@ -211,53 +216,57 @@ export function renderShareSvg(input: { rows: ShareRow[]; meetings: Segment[]; l
   ]);
   const free = freeTogether(rows.map((r) => r.busy).concat([meetings]));
 
-  // The key under the grid: everybody shown, in their colour, wrapped to
-  // as many lines as it takes.
-  const keyItems = [
-    { name: labels.meetings, fill: '#dbeafe', edge: '#1d4ed8' },
-    ...rows.map((r) => ({ name: r.name, fill: (AV[r.color] ?? AV.slate)[0], edge: (AV[r.color] ?? AV.slate)[1] })),
-    { name: labels.free, fill: '#dcfce7', edge: '#86efac' },
-  ];
-  const keyTop = gridTop + gridH + 40;
-  const keyParts: string[] = [];
-  let kx = pad;
-  let ky = keyTop;
-  for (const item of keyItems) {
-    const label = clip(item.name, 22);
-    const width = 30 + Array.from(label).length * 9 + 24;
-    if (kx + width > W - pad) {
-      kx = pad;
-      ky += 32;
-    }
-    keyParts.push(`<rect x="${kx}" y="${ky - 14}" width="20" height="18" rx="4" fill="${item.fill}" stroke="${item.edge}"/>`);
-    keyParts.push(`<text x="${kx + 28}" y="${ky}" font-size="16" fill="#374151">${esc(label)}</text>`);
-    kx += width;
-  }
-  const H = ky + 64;
+  // No colour key: every box carries its owner's name, as on the calendar
+  // page, and a key listing everyone shown named people with no box at all.
+  const H = gridTop + gridH + 56;
 
   const parts: string[] = [];
   parts.push(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);
-  parts.push(`<text x="${pad}" y="48" font-size="30" font-weight="600" fill="#111827">${esc(labels.title)}</text>`);
-  parts.push(`<text x="${pad}" y="82" font-size="18" fill="#4b5563">${esc(labels.range)} · ${esc(labels.lab)}</text>`);
+  // Two lines and no more: the week, then whose it is and who has not said.
+  parts.push(`<text x="${pad}" y="46" font-size="30" font-weight="700" fill="#111827">${esc(labels.title)}</text>`);
+  if (labels.lead || labels.missing) {
+    const lead = labels.lead ? `<tspan fill="#374151">${esc(labels.lead)}</tspan>` : '';
+    const gap = labels.lead && labels.missing ? '<tspan fill="#9ca3af">  ·  </tspan>' : '';
+    const missing = labels.missing ? `<tspan fill="#b45309" font-weight="600">${esc(labels.missing)}</tspan>` : '';
+    parts.push(`<text x="${pad}" y="80" font-size="19" xml:space="preserve">${lead}${gap}${missing}</text>`);
+  }
 
-  // Free hours first, so everything else draws over them.
+  // Free hours first, so everything else draws over them. Labelled once per
+  // stretch, with its hours, in the middle of it, and only where an hour or
+  // more is free -- shorter gaps are tinted but unnamed, since nobody books a
+  // meeting there.
+  const freeLabels: string[] = [];
   for (const s of free) {
     const top = y(s.from);
     const h = y(s.to) - top;
     parts.push(`<rect x="${dayX(s.day) + 1}" y="${top}" width="${dayW - 2}" height="${h}" fill="#ecfdf5"/>`);
-    if (h >= 30) {
-      parts.push(`<text x="${dayX(s.day) + 8}" y="${top + 20}" font-size="14" fill="#15803d">${esc(labels.free)}</text>`);
+    if (s.to - s.from < 60) continue;
+    const cx = dayX(s.day) + dayW / 2;
+    const mid = top + h / 2;
+    const allDay = s.from === DAY_FROM && s.to === DAY_TO;
+    // A patch of the tint behind the words hides the hour lines there.
+    const [patchTop, patchH] = allDay ? [mid - 14, 28] : [mid - 21, 46];
+    freeLabels.push(`<rect x="${dayX(s.day) + 14}" y="${patchTop}" width="${dayW - 28}" height="${patchH}" rx="6" fill="#ecfdf5"/>`);
+    if (allDay) {
+      freeLabels.push(`<text x="${cx}" y="${mid + 6}" font-size="17" font-weight="600" fill="#15803d" text-anchor="middle">${esc(labels.freeAllDay)}</text>`);
+    } else {
+      freeLabels.push(`<text x="${cx}" y="${mid - 3}" font-size="17" font-weight="600" fill="#15803d" text-anchor="middle">${esc(labels.free)}</text>`);
+      freeLabels.push(`<text x="${cx}" y="${mid + 18}" font-size="16" fill="#15803d" text-anchor="middle">${clock(s.from)}–${clock(s.to)}</text>`);
     }
   }
 
-  // Hour lines and labels.
+  // Hour lines across the grid, for reading a time off it, and the labels.
+  // Drawn over the free tint so they show through it, and faint enough that
+  // a free stretch still reads as one piece.
   for (let m = DAY_FROM; m <= DAY_TO; m += 60) {
-    parts.push(`<line x1="${left}" y1="${y(m)}" x2="${W - pad}" y2="${y(m)}" stroke="#e5e7eb"/>`);
-    parts.push(`<text x="${left - 10}" y="${y(m) + 5}" font-size="14" fill="#6b7280" text-anchor="end">${clock(m)}</text>`);
+    parts.push(`<line x1="${left - 6}" y1="${y(m)}" x2="${W - pad}" y2="${y(m)}" stroke="#d1d5db" stroke-opacity="0.7"/>`);
+    parts.push(`<text x="${left - 10}" y="${y(m) + 5}" font-size="15" fill="#6b7280" text-anchor="end">${clock(m)}</text>`);
   }
   for (let m = DAY_FROM + 30; m < DAY_TO; m += 60) {
-    parts.push(`<line x1="${left}" y1="${y(m)}" x2="${W - pad}" y2="${y(m)}" stroke="#f3f4f6"/>`);
+    parts.push(`<line x1="${left}" y1="${y(m)}" x2="${W - pad}" y2="${y(m)}" stroke="#e5e7eb" stroke-opacity="0.6" stroke-dasharray="4 4"/>`);
   }
+  // The free labels over the lines, so no line runs through the words.
+  parts.push(...freeLabels);
 
   // Day headings and the lines between days.
   labels.days.forEach((day, d) => {
@@ -275,21 +284,20 @@ export function renderShareSvg(input: { rows: ShareRow[]; meetings: Segment[]; l
     const h = Math.max(6, y(b.to) - y(b.from) - 2);
     parts.push(`<rect x="${bx.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="5" fill="${b.fill}" stroke="${b.edge}"/>`);
     parts.push(`<rect x="${bx.toFixed(1)}" y="${top.toFixed(1)}" width="4" height="${h.toFixed(1)}" rx="2" fill="${b.edge}"/>`);
-    // About 8px a character at this size; a box too narrow or short for a
+    // About 9px a character at this size; a box too narrow or short for a
     // line drops it rather than letting text spill over its neighbour.
-    const chars = Math.floor((bw - 14) / 8);
-    if (chars >= 3 && h >= 22) {
-      parts.push(`<text x="${(bx + 9).toFixed(1)}" y="${(top + 18).toFixed(1)}" font-size="14" font-weight="600" fill="${b.ink}">${esc(clip(b.name, chars))}</text>`);
+    const chars = Math.floor((bw - 14) / 9);
+    if (chars >= 3 && h >= 26) {
+      parts.push(`<text x="${(bx + 10).toFixed(1)}" y="${(top + 21).toFixed(1)}" font-size="16" font-weight="600" fill="${b.ink}">${esc(clip(b.name, chars))}</text>`);
     }
-    if (chars >= 5 && h >= 40) {
+    if (chars >= 5 && h >= 46) {
       const when = chars >= 11 ? `${clock(b.from)}–${clock(b.to)}` : clock(b.from);
-      parts.push(`<text x="${(bx + 9).toFixed(1)}" y="${(top + 36).toFixed(1)}" font-size="13" fill="${b.ink}">${when}</text>`);
+      parts.push(`<text x="${(bx + 10).toFixed(1)}" y="${(top + 41).toFixed(1)}" font-size="15" fill="${b.ink}">${when}</text>`);
     }
   }
   parts.push(`<line x1="${left}" y1="${gridTop + gridH}" x2="${W - pad}" y2="${gridTop + gridH}" stroke="#d1d5db"/>`);
 
-  parts.push(...keyParts);
-  parts.push(`<text x="${pad}" y="${H - 18}" font-size="14" fill="#6b7280">${esc(labels.note)}</text>`);
+  parts.push(`<text x="${pad}" y="${H - 20}" font-size="14" fill="#6b7280">${esc(labels.note)}</text>`);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="IBM Plex Sans Thai">${parts.join('')}</svg>`;
 }
