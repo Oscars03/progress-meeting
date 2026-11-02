@@ -18,6 +18,8 @@ import { autoAssignWeekLead } from '../meetings/actions';
 import { formatLabClock, formatLabTime, labDay } from '@/lib/lab-time';
 import { openPolls } from '@/lib/poll-tally';
 import { brokenConnections, getConnectedUserIds, googleOAuthConfigured } from '@/lib/google/tokens';
+import { busyTimes } from '@/lib/google/calendar';
+import { weekDays } from '@/lib/calendar-share';
 import { needsBusyTimes } from '@/lib/busy-nudge';
 import BusyTimeNudge from './busy-time-nudge';
 import { breakForWeek } from '@/lib/term-breaks';
@@ -163,6 +165,19 @@ export default async function DashboardPage() {
   const iAmAMember = actor.previewing
     ? actor.role === 'student' || actor.role === 'professor'
     : users.some((user) => user.id === actor.id && isMember(user));
+  // A connected calendar answers only with something in it this week, so it
+  // is read -- one freebusy call, and only for a member who is connected.
+  const connectedIds = await connectedRead;
+  const myConnected = iAmAMember && connectedIds.has(actor.id);
+  const thisWeekDays = weekDays(thisWeekKey);
+  const googleBusy =
+    myConnected && thisWeekDays.length === 7
+      ? await busyTimes(
+          actor.id,
+          new Date(thisWeekDays[0]).toISOString(),
+          new Date(thisWeekDays[6] + 24 * 60 * 60 * 1000).toISOString()
+        ).catch(() => null)
+      : null;
   const busyNudge =
     iAmAMember &&
     needsBusyTimes({
@@ -171,7 +186,8 @@ export default async function DashboardPage() {
       isBreak: Boolean(currentBreak),
       meetings,
       personalEvents,
-      connected: await connectedRead,
+      connected: connectedIds,
+      googleBusy,
       // Lab-wide, not just polls this reader votes in: once any poll is out,
       // the hours have been picked.
       openPollCount: openPolls(polls, slots, votes, actor.id).length,
@@ -458,7 +474,7 @@ export default async function DashboardPage() {
         </>
       )}
 
-      {busyNudge && <BusyTimeNudge week={thisWeekKey} canConnect={googleOAuthConfigured()} />}
+      {busyNudge && <BusyTimeNudge week={thisWeekKey} canConnect={googleOAuthConfigured() && !myConnected} />}
 
       {/* What the lead has to do this week, where they start the week rather
           than two pages into it. Not shown during a term break: there is no
