@@ -18,6 +18,7 @@ function input(over: Partial<BusyNudgeInput> = {}): BusyNudgeInput {
     meetings: [],
     personalEvents: [],
     connected: new Set(),
+    googleBusy: null,
     openPollCount: 0,
     ...over,
   };
@@ -47,8 +48,20 @@ describe('needsBusyTimes', () => {
     expect(needsBusyTimes(input({ personalEvents }))).toBe(true);
   });
 
-  it('does not ask somebody whose Google calendar the grid already reads', () => {
-    expect(needsBusyTimes(input({ connected: new Set(['me']) }))).toBe(false);
+  it('does not ask somebody whose Google calendar has something in the week', () => {
+    const googleBusy = [{ start: '2026-10-28T02:00:00.000Z', end: '2026-10-28T04:00:00.000Z' }];
+    expect(needsBusyTimes(input({ connected: new Set(['me']), googleBusy }))).toBe(false);
+  });
+
+  it('asks somebody whose connected Google calendar is empty all week', () => {
+    expect(needsBusyTimes(input({ connected: new Set(['me']), googleBusy: [] }))).toBe(true);
+    // Busy only the week before is still nothing for this one.
+    const lastWeek = [{ start: '2026-10-20T02:00:00.000Z', end: '2026-10-20T04:00:00.000Z' }];
+    expect(needsBusyTimes(input({ connected: new Set(['me']), googleBusy: lastWeek }))).toBe(true);
+  });
+
+  it('does not ask when a connected calendar could not be read', () => {
+    expect(needsBusyTimes(input({ connected: new Set(['me']), googleBusy: null }))).toBe(false);
   });
 
   it('does not ask once the week has a meeting, but does if it was cancelled', () => {

@@ -8,8 +8,14 @@
  * asks, while there is still a meeting to find.
  *
  * Not asked once the week has a meeting, or a poll (the hours have been
- * picked by then), or during a break; and never of somebody whose Google
- * calendar is connected, because their busy hours already reach the grid.
+ * picked by then), or during a break.
+ *
+ * A connected Google calendar answers only if it has something in the week.
+ * It used to count as an answer by being connected at all, so somebody whose
+ * calendar sat empty all term -- connected once, never kept -- was never
+ * asked, and looked free on every grid. The shared week's picture names
+ * students with nothing in the week from either source, and this asks the
+ * same people, by the same test.
  */
 
 import type { MeetingRecord, PersonalEventRecord } from './db/schema';
@@ -25,13 +31,20 @@ export type BusyNudgeInput = {
   personalEvents: PersonalEventRecord[];
   /** Users whose Google calendar the grid can read. */
   connected: Set<string>;
+  /**
+   * This user's Google busy hours over the week, or null when they could not
+   * be read -- which is not asked about: a failing calendar is not the
+   * person's to fix by marking hours.
+   */
+  googleBusy: { start: string; end: string }[] | null;
   /** Polls still open for this user's lab. */
   openPollCount: number;
 };
 
 export function needsBusyTimes(input: BusyNudgeInput): boolean {
   const { userId, week, meetings, personalEvents, connected } = input;
-  if (!userId || input.isBreak || input.openPollCount > 0 || connected.has(userId)) return false;
+  if (!userId || input.isBreak || input.openPollCount > 0) return false;
+  if (connected.has(userId) && input.googleBusy === null) return false;
 
   const monday = weekStartDate(week);
   if (!monday) return false;
@@ -47,12 +60,13 @@ export function needsBusyTimes(input: BusyNudgeInput): boolean {
 
   // Any hour of theirs that touches the week counts: a blocked-out Sunday is
   // still an answer, and asking again after it would read as not having seen it.
-  const marked = personalEvents.some((event) => {
-    if (event.user_id !== userId) return false;
-    const start = labInstant(event.start_at);
-    const end = labInstant(event.end_at) ?? start;
+  const touches = (startAt: string, endAt: string) => {
+    const start = labInstant(startAt);
+    const end = labInstant(endAt) ?? start;
     return start !== null && end !== null && start.getTime() < to && end.getTime() > from;
-  });
+  };
+  const marked = personalEvents.some((event) => event.user_id === userId && touches(event.start_at, event.end_at));
+  const fromGoogle = connected.has(userId) && (input.googleBusy ?? []).some((b) => touches(b.start, b.end));
 
-  return !marked;
+  return !marked && !fromGoogle;
 }
