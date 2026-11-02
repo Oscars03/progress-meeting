@@ -66,6 +66,10 @@ next-env.d.ts
 # Python bytecode from running a skill's scripts
 __pycache__/
 
+# impeccable's engine binary (21MB). Its launcher, scripts/impeccable, downloads
+# and checksums the right one on first use when this folder is missing.
+.claude/skills/impeccable/scripts/bin/
+
 # Claude Code personal settings (not shared)
 .claude/settings.local.json
 .playwright-mcp/
