@@ -578,7 +578,9 @@ body {
 @media (max-width: 640px) {
   /* Two rows, not three. Stacking all three chunks cost about 150px of a
      780px screen before a single hour was visible, so the title takes its own
-     line and the two button groups share the next one. */
+     line and the two button groups share the next one: the views on the
+     left, the week buttons on the right, as on a wide screen. The middle
+     chunk is empty (calendar.tsx headerToolbar). */
   .fc .fc-toolbar.fc-header-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -586,13 +588,17 @@ body {
     gap: 0.4rem;
     margin-bottom: 0.6rem;
   }
-  .fc .fc-toolbar-chunk:nth-child(2) {
-    order: -1;
-    width: 100%;
-    text-align: center;
-  }
   .fc .fc-toolbar-chunk:nth-child(1) {
-    margin-right: auto;
+    width: 100%;
+    justify-content: center;
+  }
+  .fc .fc-toolbar-chunk:nth-child(2) {
+    display: none;
+  }
+  .fc .fc-toolbar-chunk:nth-child(3) {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.4rem;
   }
   .fc .fc-toolbar-chunk {
     display: flex;

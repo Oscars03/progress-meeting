@@ -327,9 +327,34 @@ export default function WeekAvailabilityGrid({
 
   return (
     <section className="p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-4">
-      {/* No heading of its own: the page's title already names it. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-1.5">
+      {/* No heading of its own: the page's title already names it.
+
+          The week on screen and whose turn it is to arrange it on the left,
+          the buttons that move it top right -- laid out as the calendar's
+          toolbar is, so the two pages put the same things in the same places
+          (feedback 2026-11-03). The week buttons used to sit on a row of
+          their own on the left, with the dates under them.
+
+          The grid walks between weeks and the duty belongs to a week, so the
+          lead sits with the dates: the page where the lab decides when to
+          meet did not say who was doing the arranging, and the answer lived
+          on another page entirely. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[1.05rem] font-bold text-gray-900 tabular-nums">
+          <span>{firstDay && lastDay ? `${dayLabel(firstDay)} – ${dayLabel(lastDay)}` : ''}</span>
+          {data.leadName ? (
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+              {t('avail.weekLead')}: {data.leadName}
+            </span>
+          ) : (
+            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+              {t('avail.weekNoLead')}
+            </span>
+          )}
+          <InfoTip>{t('avail.pickHint')}</InfoTip>
+          {isPending && !asking && <span className="text-xs font-normal text-gray-500">{t('avail.loading')}</span>}
+        </p>
+        <div className="flex items-center gap-1.5 ml-auto">
           <button
             type="button"
             onClick={() => firstDay && loadWeek(addDays(firstDay, -7))}
@@ -361,26 +386,12 @@ export default function WeekAvailabilityGrid({
         </div>
       </div>
 
-      {/* The week on screen, and whose turn it is to arrange it.
-
-          The grid walks between weeks and the duty belongs to a week, so the
-          two belong on one line: the page where the lab decides when to meet
-          did not say who was doing the arranging, and the answer lived on
-          another page entirely. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-gray-900 tabular-nums">
-          <span>{firstDay && lastDay ? `${dayLabel(firstDay)} – ${dayLabel(lastDay)}` : ''}</span>
-          {data.leadName ? (
-            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-              {t('avail.weekLead')}: {data.leadName}
-            </span>
-          ) : (
-            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-              {t('avail.weekNoLead')}
-            </span>
-          )}
-          <InfoTip>{t('avail.pickHint')}</InfoTip>
-          {isPending && !asking && <span className="text-xs text-gray-500">{t('avail.loading')}</span>}
+      {/* The key and how many calendars were read, one quiet line under. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
+        <p>
+          {data.readCount === total && total > 0
+            ? t('avail.coverageAll', { total })
+            : t('avail.coverage', { read: data.readCount, total })}
         </p>
         <ul className="flex flex-wrap items-center gap-3 text-xs">
           {LEGEND.map((state) => (
@@ -391,12 +402,6 @@ export default function WeekAvailabilityGrid({
           ))}
         </ul>
       </div>
-
-      <p className="text-xs text-gray-500">
-        {data.readCount === total && total > 0
-          ? t('avail.coverageAll', { total })
-          : t('avail.coverage', { read: data.readCount, total })}
-      </p>
 
       {!selected && errorNotice}
 
