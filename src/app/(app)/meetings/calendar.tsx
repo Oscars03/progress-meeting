@@ -691,10 +691,17 @@ export default function CalendarView({
               moreLinkContent: isPhone ? (arg: { num: number }) => `+${arg.num}` : undefined,
             },
           }}
+          /* The dates on the left, everything that moves them on the right --
+             the same as the availability grid on the polls page, whose week
+             buttons sit top right as "‹ this week ›". The two pages used to
+             put their week buttons on opposite sides (feedback 2026-11-03).
+             On a phone the title takes a line of its own; see globals.css. */
           headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: isPhone ? 'timeGridDay,timeGridWeek,dayGridMonth' : 'dayGridMonth,timeGridWeek,timeGridDay'
+            left: 'title',
+            center: '',
+            right: isPhone
+              ? 'timeGridDay,timeGridWeek,dayGridMonth prev,today,next'
+              : 'dayGridMonth,timeGridWeek,timeGridDay prev,today,next'
           }}
           // On a phone the week is a heat map of who is busy; every other
           // view shows the events themselves.
