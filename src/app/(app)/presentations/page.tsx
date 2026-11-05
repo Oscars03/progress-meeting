@@ -25,9 +25,9 @@ import { rollUpProgress } from '@/lib/tracker';
 import { assigneesOf } from '../tasks/tracker-model';
 
 export default async function PresentationsPage(props: {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ week?: string; add?: string }>;
 }) {
-  const { week } = await props.searchParams;
+  const { week, add } = await props.searchParams;
   const [actor, users, meetings, allTopics, initialLeads, breaks, tasks, t] = await Promise.all([
     requirePageSession(),
     SheetRepo.find<UserRecord>('users'),
@@ -132,6 +132,7 @@ export default async function PresentationsPage(props: {
         arrangedBy={arrangedById ? nameOf(arrangedById) : null}
         currentUserId={actor.id}
         workOptions={workOptions}
+        startAdding={add === '1'}
         topics={ordered.map((topic) => ({
           id: topic.id,
           title: topic.title,

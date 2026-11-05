@@ -2,7 +2,7 @@ import InfoTip from '@/lib/ui/info-tip';
 import PageHeader from '@/lib/ui/page-header';
 import Link from 'next/link';
 import { SheetRepo } from '@/lib/db/sheet-repo';
-import { requirePageSession } from '@/lib/auth-guard';
+import { canAddTopic, requirePageSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import {
   activeWeekKey,
@@ -16,14 +16,16 @@ import HostPicker from './host-picker';
 import PendingUsers from './pending-users';
 import { autoAssignWeekLead } from '../meetings/actions';
 import { formatLabClock, formatLabTime, labDay } from '@/lib/lab-time';
-import { openPolls } from '@/lib/poll-tally';
+import { openPolls, pollProgress } from '@/lib/poll-tally';
+import { weekKey } from '@/lib/week';
+import CopyLinkButton from '@/lib/ui/copy-link-button';
 import { brokenConnections, getConnectedUserIds, googleOAuthConfigured } from '@/lib/google/tokens';
 import { busyTimes } from '@/lib/google/calendar';
 import { weekDays } from '@/lib/calendar-share';
 import { needsBusyTimes } from '@/lib/busy-nudge';
 import BusyTimeNudge from './busy-time-nudge';
 import { breakForWeek } from '@/lib/term-breaks';
-import { isMember, memberIds } from '@/lib/members';
+import { isMember, memberIds, pollVoters } from '@/lib/members';
 import { intlLocale } from '@/lib/ui/i18n';
 import { effectiveTopicOrder, groupByPresenter, topicsForWeek } from '@/lib/presentation-order';
 import { actsAsWeekLead } from '@/lib/rotation';
@@ -46,16 +48,13 @@ import type {
   TaskRecord,
   FeedbackRecord,
 } from '@/lib/db/schema';
-import { displayPollTitle } from '@/lib/poll-title';
+import { displayPollTitle, pollWhenLabel } from '@/lib/poll-title';
 
 /**
  * The lead's buttons. Big enough to hit on a tablet (44px) and a clear step
  * apart: the one thing to do next is solid, anything after it is outlined.
  * The shared button classes, at their large size -- see globals.css.
  */
-const PRIMARY_ACTION = 'btn btn-primary btn-lg';
-const SECONDARY_ACTION = 'btn btn-secondary btn-lg';
-
 export default async function DashboardPage() {
   // Started with everything else so it rides in the same batched read, rather
   // than waiting for the role and then making a round trip of its own. Only an
@@ -155,10 +154,37 @@ export default async function DashboardPage() {
   // student has to show the polls a student is asked to answer, or the
   // preview reads as "students get no polls" when they do.
   const iAmAVoter = actor.previewing ? actor.role === 'student' : memberIds(users).has(actor.id);
-  const open = iAmAVoter ? openPolls(polls, slots, votes, actor.id) : [];
-  const awaiting = open.filter((row) => row.remaining > 0);
-  const answered = open.filter((row) => row.remaining === 0);
   const canConfirm = actor.role === 'admin';
+
+  /**
+   * Every open poll, as the whole lab needs to read it: what time it puts
+   * forward, how many of the people asked have answered, and who has not.
+   *
+   * This used to be two cards for the voter alone -- "waiting for you" and
+   * "you answered" -- while the meeting card above them said "not scheduled",
+   * as if nothing were under way. A proposed time *is* the state of the next
+   * meeting, so it now sits in that card, with who is still to answer by
+   * name: the lead needs to know whom to chase, and everybody else whether
+   * the time is settled.
+   */
+  const voterIdList = pollVoters(users).map((user) => user.id);
+  const labPolls = openPolls(polls, slots, votes, actor.id).map(({ poll, remaining }) => {
+    const pollSlots = slots
+      .filter((slot) => slot.poll_id === poll.id)
+      .sort((a, b) => a.start_at.localeCompare(b.start_at));
+    const { done, waiting } = pollProgress(poll.id, slots, votes, voterIdList);
+    return {
+      id: poll.id,
+      title: displayPollTitle(poll.title, pollSlots, locale),
+      // One slot reads as the time itself; several as how many were offered.
+      when: pollSlots.length === 1 ? pollWhenLabel(pollSlots[0].start_at, pollSlots[0].end_at, locale) : '',
+      slotCount: pollSlots.length,
+      done: done.length,
+      total: voterIdList.length,
+      waiting,
+      myRemaining: iAmAVoter ? remaining : 0,
+    };
+  });
 
   // Somebody whose hours the grid cannot see looks free all week, and the lead
   // books over their lecture. Asked of every member, professors included --
@@ -198,7 +224,8 @@ export default async function DashboardPage() {
   // line about it that concerns the person reading -- being third is something
   // you want to know without going to look.
   const weekTopics = topicsForWeek(allTopics, thisWeekKey);
-  const presenters = groupByPresenter(effectiveTopicOrder(weekTopics).ordered);
+  const weekOrder = effectiveTopicOrder(weekTopics);
+  const presenters = groupByPresenter(weekOrder.ordered);
   const myPlaceIndex = presenters.findIndex((block) => block.ownerId === actor.id);
   const myTurn =
     myPlaceIndex >= 0
@@ -237,6 +264,37 @@ export default async function DashboardPage() {
   const canRunTheWeek = !currentBreak && (actor.role === 'admin' || amThisWeeksLead);
   const canArrangeOrder = !currentBreak && (can(actor, 'arrangeOrder') || amThisWeeksLead);
   const iLeadThisWeek = canRunTheWeek || canArrangeOrder;
+
+  /**
+   * The weekly progress record is written after the meeting, by whoever led
+   * that week. The button used to sit in the meeting card from Monday on, the
+   * loudest thing on the page days before there was anything to record.
+   *
+   * It is due once a meeting has ended, and stays until the lab's week turns
+   * over -- not just until the board rolls on to the next lead a day later,
+   * which is too short a window for a write-up.
+   */
+  const now = new Date();
+  const recordDue = meetings.some(
+    (meeting) =>
+      meeting.status !== 'cancelled' &&
+      Boolean(meeting.start_at && meeting.end_at) &&
+      new Date(meeting.end_at) <= now &&
+      weekKey(new Date(meeting.start_at)) === weekKey(now) &&
+      leadForWeek(leads, weekKey(new Date(meeting.start_at)))?.user_id === actor.id
+  );
+
+  /**
+   * The week's meeting, if one is booked: the first step of the lead's list.
+   * Matched by the week it falls in rather than taken as `upcoming`, which
+   * may already be next week's.
+   */
+  const weekMeeting = meetings.find(
+    (meeting) =>
+      meeting.status !== 'cancelled' &&
+      Boolean(meeting.start_at) &&
+      weekKey(new Date(meeting.start_at)) === thisWeekKey
+  );
 
   const today = labDay(new Date());
 
@@ -304,6 +362,88 @@ export default async function DashboardPage() {
         : daysToGo === 1
           ? t('dashboard.meetingTomorrow')
           : t('dashboard.meetingInDays', { n: daysToGo });
+  // Nothing booked and something proposed: the proposal is the news.
+  const heroShowsPolls = !upcoming && !currentBreak && labPolls.length > 0;
+
+  /**
+   * Each open poll: the time, how far the answers have got, who is still
+   * silent, and the one button that is this reader's next step -- answer it,
+   * go and confirm it, or change an answer. `large` when it stands in for the
+   * meeting at the top of the page.
+   */
+  const pollRows = (large: boolean) => (
+    <ul className="space-y-4">
+      {labPolls.map((p) => {
+        const label =
+          p.myRemaining > 0
+            ? 'dashboard.answerPoll'
+            : canRunTheWeek
+              ? 'dashboard.goConfirm'
+              : iAmAVoter
+                ? 'dashboard.editAnswer'
+                : 'dashboard.viewPoll';
+        const primary = p.myRemaining > 0 || canRunTheWeek;
+        return (
+          <li key={p.id} className="space-y-2">
+            <p
+              className={
+                large
+                  ? 'text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums leading-tight'
+                  : 'font-semibold text-gray-900'
+              }
+            >
+              {p.when || p.title}
+            </p>
+            {!p.when && <p className="text-sm text-gray-500">{t('dashboard.pollSlots', { n: p.slotCount })}</p>}
+
+            {/* "6/6" and "everyone has answered" are the same fact; once it
+                is true, the words say it and the count steps aside. */}
+            <p className="text-sm text-gray-700 tabular-nums">
+              {p.waiting.length > 0 ? (
+                <span className="font-semibold">{t('dashboard.pollProgress', { done: p.done, total: p.total })}</span>
+              ) : (
+                <span className="font-semibold text-green-700">{t('dashboard.pollAllAnswered')}</span>
+              )}
+              {p.myRemaining > 0 && (
+                <span className="text-amber-800"> · {t('polls.myRemaining', { count: p.myRemaining })}</span>
+              )}
+            </p>
+
+            {p.waiting.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-gray-500">{t('dashboard.pollWaitingFor')}</span>
+                {p.waiting.map((id) => (
+                  <span key={id} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                    {id === actor.id ? t('dashboard.you') : nameOf(id)}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Link
+                href={`/meetings/polls/${p.id}`}
+                className={`btn ${primary ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+              >
+                {t(label)}
+              </Link>
+              {/* Chasing the silent is the lead's job, so the lead gets the
+                  link to send them. */}
+              {canRunTheWeek && (
+                <CopyLinkButton
+                  path={`/meetings/polls/${p.id}`}
+                  label="polls.share"
+                  message="polls.shareText"
+                  vars={{ title: p.title }}
+                />
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   const faces = facesOf(users);
   const leadFace = lead ? faces.get(lead.user_id) : suggested ? faces.get(suggested.id) : undefined;
 
@@ -321,6 +461,11 @@ export default async function DashboardPage() {
         {upcoming && soon && (
           <span className="dash-hero-chip" data-today={daysToGo !== null && daysToGo <= 0 ? '' : undefined}>
             {soon}
+          </span>
+        )}
+        {heroShowsPolls && (
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800">
+            {t('dashboard.pollPending')}
           </span>
         )}
       </div>
@@ -348,6 +493,8 @@ export default async function DashboardPage() {
             })()}
           </p>
         </>
+      ) : heroShowsPolls ? (
+        pollRows(true)
       ) : (
         // No "schedule" link here: whoever may arrange the meeting has the
         // week's card below, whose button starts it the usual way.
@@ -369,27 +516,17 @@ export default async function DashboardPage() {
                 <span className="text-gray-500">{t('rotation.title')}:</span>
                 {leadFace && <Avatar person={leadFace} />}
                 <span className="font-semibold text-gray-900">
-                  {confirmedHost || suggested?.name}
+                  {lead?.user_id === actor.id ? t('dashboard.you') : confirmedHost || suggested?.name}
                 </span>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    confirmedHost ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'
-                  }`}
-                >
-                  {confirmedHost ? t('rotation.confirmed') : t('rotation.suggested')}
-                </span>
+                {/* Only the exception is marked. Leads are assigned
+                    automatically now, so "confirmed" sat beside nearly every
+                    name and said nothing; "suggested" still means something. */}
+                {!confirmedHost && (
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-800">
+                    {t('rotation.suggested')}
+                  </span>
+                )}
               </p>
-
-              {lead?.user_id === actor.id && (
-                <div className="pt-2">
-                  <Link
-                    href="/tasks/weekly"
-                    className="btn btn-primary"
-                  >
-                    {t('weekly.recordProgress', { fallback: 'Record Weekly Progress' })}
-                  </Link>
-                </div>
-              )}
 
               {canConfirm && (
                 <HostPicker
@@ -406,37 +543,89 @@ export default async function DashboardPage() {
     </section>
   );
 
-  // Rebuilt in the reader's language when it was generated -- see lib/poll-title.ts.
-  const pollTitle = (poll: AvailabilityPollRecord) =>
-    displayPollTitle(poll.title, slots.filter((s) => s.poll_id === poll.id), locale);
+  // With a meeting already booked, an open poll (next week's, usually) still
+  // needs answering: its own card under the meeting, amber while it is
+  // waiting on you.
+  const pollCard =
+    upcoming && labPolls.length > 0 ? (
+      <section
+        className={`p-5 sm:p-6 rounded-xl space-y-3 border ${
+          labPolls.some((p) => p.myRemaining > 0)
+            ? 'bg-amber-50 border-amber-200'
+            : 'bg-white border-gray-100 shadow-sm'
+        }`}
+      >
+        <h3 className="font-semibold text-gray-900">{t('dashboard.openPolls')}</h3>
+        {pollRows(false)}
+      </section>
+    ) : null;
 
-  const pollCard = awaiting.length > 0 ? (
-    <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
-      <div>
-        <h3 className="font-semibold text-amber-900">{t('dashboard.awaitingYou')}</h3>
-        <p className="text-sm text-amber-800">{t('dashboard.awaitingHint')}</p>
-      </div>
-
-      <ul className="space-y-2">
-        {awaiting.map(({ poll, remaining }) => (
-          <li key={poll.id}>
-            <Link
-              href={`/meetings/polls/${poll.id}`}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 bg-white rounded-lg border border-amber-200 hover:border-amber-400 transition"
-            >
-              <span className="font-medium text-gray-900 flex-1 min-w-48">{pollTitle(poll)}</span>
-              <span className="text-xs text-gray-500 tabular-nums">
-                {t('dashboard.awaitingSlots', { n: remaining })}
-              </span>
-              <span className="text-sm font-medium text-blue-600">
-                {t('dashboard.answerNow')}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  ) : null;
+  /**
+   * What the lead has to do this week, as a list that says how far each part
+   * has got. It was a sentence and two buttons that looked the same on
+   * Monday as on Friday -- "arrange the meeting" stayed the loudest thing
+   * on the page after the poll was already out.
+   *
+   * Each step says its state, and the first unfinished one with something to
+   * press gets the one primary button, so the next thing to do is the thing
+   * that stands out.
+   */
+  type StepState = 'done' | 'doing' | 'todo';
+  type Step = { key: string; label: string; state: StepState; text: string; action?: { href: string; label: string } | 'share-order' };
+  const steps: Step[] = [];
+  if (iLeadThisWeek && canRunTheWeek) {
+    const poll = labPolls[0];
+    steps.push(
+      weekMeeting
+        ? { key: 'schedule', label: t('dashboard.step.schedule'), state: 'done', text: t('dashboard.step.scheduled', { when: formatLabTime(weekMeeting.start_at, locale) }) }
+        : poll
+          ? {
+              key: 'schedule',
+              label: t('dashboard.step.schedule'),
+              state: 'doing',
+              text: poll.waiting.length > 0 ? t('dashboard.step.polling', { n: poll.waiting.length }) : t('dashboard.step.pollAnswered'),
+              // The card above already carries this poll's button.
+              action: heroShowsPolls ? undefined : { href: `/meetings/polls/${poll.id}`, label: t('dashboard.goConfirm') },
+            }
+          : {
+              key: 'schedule',
+              label: t('dashboard.step.schedule'),
+              state: 'todo',
+              text: t('dashboard.step.notStarted'),
+              action: { href: '/meetings/polls#availability', label: t('dashboard.findFreeTime') },
+            }
+    );
+  }
+  if (iLeadThisWeek && canArrangeOrder) {
+    steps.push(
+      weekTopics.length === 0
+        ? { key: 'order', label: t('dashboard.step.order'), state: 'todo', text: t('dashboard.step.noTopics'), action: 'share-order' }
+        : weekOrder.custom
+          ? { key: 'order', label: t('dashboard.step.order'), state: 'done', text: t('dashboard.step.ordered', { n: weekTopics.length }) }
+          : {
+              key: 'order',
+              label: t('dashboard.step.order'),
+              state: 'doing',
+              text: t('dashboard.step.topics', { n: weekTopics.length, people: presenters.length }),
+              action: { href: '/presentations', label: t('dashboard.arrangeOrder') },
+            }
+    );
+  }
+  if (recordDue) {
+    steps.push({
+      key: 'record',
+      label: t('dashboard.step.record'),
+      state: 'todo',
+      text: t('dashboard.step.recordDue'),
+      action: { href: '/tasks/weekly', label: t('weekly.recordProgress') },
+    });
+  }
+  const primaryStep = steps.find((step) => step.state !== 'done' && typeof step.action === 'object')?.key;
+  const STEP_MARK: Record<StepState, { mark: string; className: string; label: string }> = {
+    done: { mark: '✓', className: 'bg-green-50 text-green-700', label: t('dashboard.step.done') },
+    doing: { mark: '…', className: 'bg-amber-50 text-amber-800', label: t('dashboard.step.inProgress') },
+    todo: { mark: '○', className: 'bg-gray-100 text-gray-500', label: t('dashboard.step.todo') },
+  };
 
   return (
     <div className="space-y-6">
@@ -466,58 +655,73 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* Meeting first, or the poll that will produce one -- see above. */}
-      {upcoming ? (
-        <>
-          {meetingCard}
-          {pollCard}
-        </>
-      ) : (
-        <>
-          {pollCard}
-          {meetingCard}
-        </>
-      )}
+      {/* The meeting, or the poll that will produce one, in the same card;
+          a poll for a later week below it. */}
+      {meetingCard}
+      {pollCard}
 
       {busyNudge && <BusyTimeNudge week={thisWeekKey} canConnect={googleOAuthConfigured() && !myConnected} />}
 
       {/* What the lead has to do this week, where they start the week rather
           than two pages into it. Not shown during a term break: there is no
           meeting to arrange. */}
-      {iLeadThisWeek && (
-        <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
-          <div>
+      {steps.length > 0 && (
+        <section className="p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-xl space-y-1">
+          <div className="flex items-center gap-1.5">
             {/* An admin is shown this because they can do it, not because it
                 is their turn -- so it does not tell them it is. */}
             <h3 className="font-semibold text-blue-800">
-              {t(amThisWeeksLead ? 'dashboard.yourLeadTurn' : 'dashboard.runThisWeek')}
+              {t(
+                !iLeadThisWeek
+                  ? 'dashboard.afterMeeting'
+                  : amThisWeeksLead
+                    ? 'dashboard.yourLeadTurn'
+                    : 'dashboard.runThisWeek'
+              )}
             </h3>
-            <p className="text-sm text-blue-700">
-              {t(canRunTheWeek ? 'dashboard.yourLeadTurnHint' : 'dashboard.arrangeOnlyHint')}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {/* One way in: the grid. Picking a free block there already makes
-                the poll, so a separate "create a poll" button was a second
-                road to the same place, and the longer one. */}
-            {canRunTheWeek && (
-              <Link
-                href="/meetings/polls#availability"
-                className={PRIMARY_ACTION}
-              >
-                {t('dashboard.findFreeTime')}
-              </Link>
+            {iLeadThisWeek && (
+              <InfoTip>{t(canRunTheWeek ? 'dashboard.yourLeadTurnHint' : 'dashboard.arrangeOnlyHint')}</InfoTip>
             )}
+          </div>
 
-            {canArrangeOrder && (
-              <Link
-                href="/presentations"
-                className={canRunTheWeek ? SECONDARY_ACTION : PRIMARY_ACTION}
-              >
-                {t('dashboard.arrangeOrder')}
-              </Link>
-            )}
-          </div>
+          <ol>
+            {steps.map((step, i) => {
+              const mark = STEP_MARK[step.state];
+              return (
+                <li
+                  key={step.key}
+                  className={`flex flex-wrap items-center gap-x-3 gap-y-2 py-3 ${i > 0 ? 'border-t border-blue-200' : ''}`}
+                >
+                  <span
+                    className={`shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${mark.className}`}
+                    title={mark.label}
+                  >
+                    <span aria-hidden="true">{mark.mark}</span>
+                    <span className="sr-only">{mark.label}</span>
+                  </span>
+                  <div className="flex-1 min-w-40">
+                    <p className="font-medium text-gray-900">{step.label}</p>
+                    <p className="text-sm text-gray-600">{step.text}</p>
+                  </div>
+                  {step.action === 'share-order' ? (
+                    <CopyLinkButton
+                      path={`/presentations?week=${thisWeekKey}`}
+                      label="presentations.share"
+                      message="presentations.shareText"
+                      vars={{ week: thisWeekKey }}
+                    />
+                  ) : step.action ? (
+                    <Link
+                      href={step.action.href}
+                      className={`btn ${step.key === primaryStep ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                    >
+                      {step.action.label}
+                    </Link>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
         </section>
       )}
 
@@ -602,7 +806,16 @@ export default async function DashboardPage() {
           ) : (
             /* Not a congratulation: nothing is down, which is different from
                everything being ready -- see CLAUDE.md. */
-            <p className="text-sm text-gray-500">{t('dashboard.noTopicYet')}</p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-gray-500">{t('dashboard.noTopicYet')}</p>
+              {/* Straight to the form: the empty card used to point only at
+                  the whole order, where the add button had to be found again. */}
+              {canAddTopic(actor) && (
+                <Link href="/presentations?add=1" className="btn btn-secondary btn-sm">
+                  {t('dashboard.addMyTopic')}
+                </Link>
+              )}
+            </div>
           )}
         </section>
       )}
@@ -723,36 +936,6 @@ export default async function DashboardPage() {
                     }`}
                   >
                     {t(item.kind === 'meeting' ? 'dashboard.kindMeeting' : 'dashboard.kindPersonal')}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Answered, but still open: quieter than the amber card above, because
-          it is not something to do -- it is somewhere to go back to. */}
-      {answered.length > 0 && (
-        <section className="p-5 sm:p-6 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-gray-500">{t('dashboard.answeredPolls')}</h3>
-            <InfoTip>{t('dashboard.answeredHint')}</InfoTip>
-          </div>
-
-          <ul className="space-y-2">
-            {answered.map(({ poll }) => (
-              <li key={poll.id}>
-                <Link
-                  href={`/meetings/polls/${poll.id}`}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 rounded-lg border border-gray-200 hover:border-gray-400 transition"
-                >
-                  <span className="font-medium text-gray-900 flex-1 min-w-48">{pollTitle(poll)}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
-                    {t('polls.myDone')}
-                  </span>
-                  <span className="text-sm font-medium text-blue-600">
-                    {t('dashboard.editAnswer')}
                   </span>
                 </Link>
               </li>
