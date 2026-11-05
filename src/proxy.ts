@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { RETURN_TO_HEADER } from '@/lib/return-path';
 
 /**
  * Send every production request to the one address sign-in works from.
@@ -16,20 +17,39 @@ import type { NextRequest } from 'next/server';
  *
  * Production only: preview deployments and localhost have their own URLs and
  * are meant to be used as they are.
+ *
+ * Every request that is not moved also carries the path it asked for, so a
+ * signed-out visitor is sent to /login with somewhere to come back to.
  */
 export function proxy(request: NextRequest) {
-  if (process.env.VERCEL_ENV !== 'production') return NextResponse.next();
-
-  const canonical = canonicalHost();
+  const canonical = process.env.VERCEL_ENV === 'production' ? canonicalHost() : null;
   const host = request.headers.get('host');
-  if (!canonical || !host || host === canonical) return NextResponse.next();
+  if (canonical && host && host !== canonical) {
+    const url = request.nextUrl.clone();
+    url.protocol = 'https:';
+    url.host = canonical;
+    url.port = '';
+    // 308 keeps the method and body, so a stray POST arrives intact.
+    return NextResponse.redirect(url, 308);
+  }
 
+  return NextResponse.next({ request: { headers: withReturnTo(request) } });
+}
+
+/**
+ * The request's headers plus the path that was asked for.
+ *
+ * A Server Component cannot see its own URL, so the sign-in redirect had no
+ * way to say where to come back to -- see lib/return-path.ts. `_rsc` is the
+ * router's cache-busting parameter on a client navigation, not part of the
+ * page's address.
+ */
+function withReturnTo(request: NextRequest): Headers {
   const url = request.nextUrl.clone();
-  url.protocol = 'https:';
-  url.host = canonical;
-  url.port = '';
-  // 308 keeps the method and body, so a stray POST arrives intact.
-  return NextResponse.redirect(url, 308);
+  url.searchParams.delete('_rsc');
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(RETURN_TO_HEADER, url.pathname + url.search);
+  return requestHeaders;
 }
 
 function canonicalHost(): string | null {

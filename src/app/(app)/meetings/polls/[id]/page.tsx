@@ -3,7 +3,9 @@ import PageHeader from '@/lib/ui/page-header';
 import { notFound } from 'next/navigation';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
-import { getT } from '@/lib/ui/server-i18n';
+import { getLocale, getT } from '@/lib/ui/server-i18n';
+import InfoTip from '@/lib/ui/info-tip';
+import { displayPollTitle } from '@/lib/poll-title';
 import { tallySlot, rankSlots, bestSlot, type Choice } from '@/lib/poll-tally';
 import { actsAsWeekLead } from '@/lib/rotation';
 import { weekKey } from '@/lib/week';
@@ -15,11 +17,12 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import PollGrid, { type SlotView } from './poll-grid';
+import SharePollButton from './share-poll-button';
 import { labMembers, memberIds, pollVoters } from '@/lib/members';
 
 export default async function PollDetailPage(props: PageProps<'/meetings/polls/[id]'>) {
   const { id } = await props.params;
-  const [actor, t] = await Promise.all([requirePageSession(), getT()]);
+  const [actor, t, locale] = await Promise.all([requirePageSession(), getT(), getLocale()]);
 
   const [polls, slots, votes, users, leads] = await Promise.all([
     SheetRepo.find<AvailabilityPollRecord>('availability_polls'),
@@ -104,19 +107,31 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
   const canManage =
     actor.role === 'admin' || (pollWeek !== '' && actsAsWeekLead(actor, leads, pollWeek));
   const closed = poll.status === 'closed';
+  const title = displayPollTitle(poll.title, mySlots, locale);
 
   return (
     <div className="space-y-6">
       <PageHeader
         back="/meetings/polls"
-        title={poll.title}
+        title={title}
         aside={
-          closed && (
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
-              {poll.meeting_id ? t('polls.statusConfirmed') : poll.status === 'closed' ? t('polls.statusClosedResponse') : t('polls.openLabel')}
-            </span>
-          )
+          <>
+            <InfoTip>
+              <span className="block space-y-1.5">
+                {(['vote', 'order', 'calendar', 'confirm', 'share'] as const).map((part) => (
+                  <span key={part} className="block">{t(`polls.info.${part}`)}</span>
+                ))}
+              </span>
+            </InfoTip>
+            {closed && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+                {poll.meeting_id ? t('polls.statusConfirmed') : t('polls.statusClosedResponse')}
+              </span>
+            )}
+          </>
         }
+        // Asking more people only means something while answers are taken.
+        actions={!closed && <SharePollButton pollId={id} title={title} />}
         description={
           <>
             {poll.note && <p>{poll.note}</p>}

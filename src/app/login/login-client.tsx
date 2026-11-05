@@ -6,6 +6,7 @@ import Spinner from '@/lib/ui/spinner';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { registerAction } from './actions';
 import { MIN_PASSWORD_LENGTH } from '@/lib/password';
+import { safeReturnPath } from '@/lib/return-path';
 import { usePrefs } from '@/lib/ui/prefs';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import {
@@ -58,7 +59,8 @@ function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  // Only ever a path on this site: anybody can put a callbackUrl in a link.
+  const callbackUrl = safeReturnPath(searchParams.get('callbackUrl')) ?? '/dashboard';
 
   const urlError = searchParams.get('error');
   // Kept as a key, not text, so it follows a language switch on this page.

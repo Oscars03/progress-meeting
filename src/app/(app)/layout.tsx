@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import AppNav from './app-nav';
 import PreviewBanner from './preview-banner';
-import { requireSession } from '@/lib/auth-guard';
+import { loginPath, requireSession } from '@/lib/auth-guard';
 import { NavTrail } from '@/lib/ui/back-link';
 import { ToastProvider } from '@/lib/ui/toast';
 import { ConfirmProvider } from '@/lib/ui/confirm';
@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await getServerSession(authOptions);
 
   if (!session) {
-    redirect('/login');
+    redirect(await loginPath());
   }
 
   // The name is read from the sheet, not from the session. A JWT carries

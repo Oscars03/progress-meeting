@@ -3,7 +3,8 @@ import Link from 'next/link';
 import PageHeader from '@/lib/ui/page-header';
 import { SheetRepo } from '@/lib/db/sheet-repo';
 import { requirePageSession } from '@/lib/auth-guard';
-import { getT } from '@/lib/ui/server-i18n';
+import { getLocale, getT } from '@/lib/ui/server-i18n';
+import { displayPollTitle } from '@/lib/poll-title';
 import { leadsCurrentOrLater, weeksRunBy } from '@/lib/rotation';
 import { memberIds } from '@/lib/members';
 import { pollIsOver } from '@/lib/poll-tally';
@@ -18,9 +19,10 @@ import WeekAvailabilityGrid from './week-availability';
 import { weekAvailabilityAction } from '../../calendar-actions';
 
 export default async function PollsPage() {
-  const [actor, t] = await Promise.all([
+  const [actor, t, locale] = await Promise.all([
     requirePageSession(),
     getT(),
+    getLocale(),
   ]);
 
   // The current week is read on the server so the grid arrives filled in,
@@ -59,6 +61,7 @@ export default async function PollsPage() {
 
       return {
         poll,
+        title: displayPollTitle(poll.title, mySlots, locale),
         slotCount: mySlots.length,
         responderCount: new Set(pollVotes.map((v) => v.user_id)).size,
         myRemaining: mySlots.length - iAnswered.size,
@@ -103,7 +106,7 @@ export default async function PollsPage() {
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">{t('polls.openLabel')}</h3>
           <ul className="space-y-2">
-            {open.map(({ poll, slotCount, responderCount, myRemaining }) => (
+            {open.map(({ poll, title, slotCount, responderCount, myRemaining }) => (
               <li key={poll.id}>
                 <Link
                   href={`/meetings/polls/${poll.id}`}
@@ -120,7 +123,7 @@ export default async function PollsPage() {
                       </span>
                     )}
                     <span className="font-semibold text-gray-900 flex-1 min-w-48">
-                      {poll.title}
+                      {title}
                     </span>
                     <span className="text-xs text-gray-500 tabular-nums">
                       {t('polls.stats', { slots: slotCount, responders: responderCount })}
@@ -137,7 +140,7 @@ export default async function PollsPage() {
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-gray-600">{t('polls.closedLabel')}</h3>
           <ul className="space-y-2">
-            {closed.map(({ poll, slotCount, responderCount }) => (
+            {closed.map(({ poll, title, slotCount, responderCount }) => (
               <li key={poll.id}>
                 <Link
                   href={`/meetings/polls/${poll.id}`}
@@ -147,7 +150,7 @@ export default async function PollsPage() {
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
                       {poll.meeting_id ? t('polls.statusConfirmed') : t('polls.statusClosed')}
                     </span>
-                    <span className="font-medium text-gray-700 flex-1 min-w-48">{poll.title}</span>
+                    <span className="font-medium text-gray-700 flex-1 min-w-48">{title}</span>
                     <span className="text-xs text-gray-500 tabular-nums">
                       {t('polls.stats', { slots: slotCount, responders: responderCount })}
                     </span>
