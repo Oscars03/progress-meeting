@@ -46,6 +46,7 @@ import type {
   TaskRecord,
   FeedbackRecord,
 } from '@/lib/db/schema';
+import { displayPollTitle } from '@/lib/poll-title';
 
 /**
  * The lead's buttons. Big enough to hit on a tablet (44px) and a clear step
@@ -405,6 +406,10 @@ export default async function DashboardPage() {
     </section>
   );
 
+  // Rebuilt in the reader's language when it was generated -- see lib/poll-title.ts.
+  const pollTitle = (poll: AvailabilityPollRecord) =>
+    displayPollTitle(poll.title, slots.filter((s) => s.poll_id === poll.id), locale);
+
   const pollCard = awaiting.length > 0 ? (
     <section className="p-5 sm:p-6 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
       <div>
@@ -419,7 +424,7 @@ export default async function DashboardPage() {
               href={`/meetings/polls/${poll.id}`}
               className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 bg-white rounded-lg border border-amber-200 hover:border-amber-400 transition"
             >
-              <span className="font-medium text-gray-900 flex-1 min-w-48">{poll.title}</span>
+              <span className="font-medium text-gray-900 flex-1 min-w-48">{pollTitle(poll)}</span>
               <span className="text-xs text-gray-500 tabular-nums">
                 {t('dashboard.awaitingSlots', { n: remaining })}
               </span>
@@ -742,7 +747,7 @@ export default async function DashboardPage() {
                   href={`/meetings/polls/${poll.id}`}
                   className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3 rounded-lg border border-gray-200 hover:border-gray-400 transition"
                 >
-                  <span className="font-medium text-gray-900 flex-1 min-w-48">{poll.title}</span>
+                  <span className="font-medium text-gray-900 flex-1 min-w-48">{pollTitle(poll)}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-50 text-green-700">
                     {t('polls.myDone')}
                   </span>

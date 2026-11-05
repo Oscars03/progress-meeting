@@ -245,7 +245,7 @@ export default function PollGrid({
               {slot.pending > 0 && <span>{t('polls.statusCount.pending', { pending: slot.pending })}</span>}
             </div>
 
-            {slot.responders.length > 0 && (
+            {(slot.responders.length > 0 || slot.silent.length > 0) && (
               <div className="flex flex-wrap gap-1.5">
                 {slot.responders.map((r) => (
                   <span
@@ -264,6 +264,20 @@ export default function PollGrid({
                     <span className="sr-only">
                       {' '}({t(ANSWER_LABELS[r.choice] as Parameters<typeof t>[0])})
                     </span>
+                  </span>
+                ))}
+                {/* Who is still silent, by name: "5 not answered" says how
+                    many to chase, not whom, and the share link is no use
+                    without knowing who to send it to. */}
+                {slot.silent.map((name, i) => (
+                  <span
+                    key={`silent-${i}-${name}`}
+                    title={t('polls.notAnswered')}
+                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500"
+                  >
+                    <span aria-hidden="true">?</span>
+                    {name}
+                    <span className="sr-only"> ({t('polls.notAnswered')})</span>
                   </span>
                 ))}
               </div>

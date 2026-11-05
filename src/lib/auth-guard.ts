@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { authOptions } from './auth';
 import { UserError } from './user-error';
@@ -8,6 +8,7 @@ import { can, parseOverrides, type Overrides } from './permissions';
 import { SheetRepo } from './db/sheet-repo';
 import type { UserRecord } from './db/schema';
 import type { TranslationKey, TranslationVars } from './ui/i18n';
+import { RETURN_TO_HEADER, loginHref } from './return-path';
 
 export type Role = 'admin' | 'professor' | 'student';
 
@@ -156,9 +157,24 @@ export async function requirePageSession(): Promise<SessionUser> {
     return await requireSession();
   } catch (error) {
     if (error instanceof AuthorizationError && error.key === 'error.signInRequired') {
-      redirect('/login');
+      redirect(await loginPath());
     }
     throw error;
+  }
+}
+
+/**
+ * `/login`, carrying the page that was asked for so signing in returns to it.
+ *
+ * The path comes from a header the proxy sets (see lib/return-path.ts). Where
+ * there is none -- outside a request, or a request the proxy did not see --
+ * it is plain /login, which is what every sign-in redirect used to be.
+ */
+export async function loginPath(): Promise<string> {
+  try {
+    return loginHref((await headers()).get(RETURN_TO_HEADER));
+  } catch {
+    return '/login';
   }
 }
 

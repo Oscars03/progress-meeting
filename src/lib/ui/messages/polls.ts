@@ -54,9 +54,19 @@ export const polls = {
     'polls.statusConfirmed': 'ยืนยันแล้ว',
     'polls.statusClosed': 'ปิดแล้ว',
     'polls.statusClosedResponse': 'ปิดรับคำตอบ',
-    'polls.activeUsers': 'ผู้ใช้ที่ใช้งานอยู่ {count} คน',
+    'polls.activeUsers': 'ถามความเห็น {count} คน',
     'polls.confirmedMsg': 'ยืนยันเป็นการประชุมแล้ว — ',
-    'polls.openMeeting': 'เปิดหน้าการประชุม'
+    'polls.openMeeting': 'เปิดหน้าการประชุม',
+    'polls.notAnswered': 'ยังไม่ตอบ',
+    'polls.share': 'คัดลอกลิงก์โพล',
+    'polls.shareCopied': 'คัดลอกลิงก์แล้ว วางในกลุ่มแชตได้เลย',
+    'polls.shareFailed': 'คัดลอกไม่ได้ ลิงก์คือ {url}',
+    'polls.shareText': '{title}\nช่วยกดตอบว่าว่างหรือไม่ว่าง ล็อกอินด้วยบัญชีของตัวเองที่ลิงก์นี้\n{url}',
+    'polls.info.vote': 'กด "ว่าง" หรือ "ไม่ว่าง" ให้ครบทุกช่วง โพลถามเฉพาะนักศึกษาที่ต้องนำเสนอ อาจารย์และ admin ไม่ถูกนับ',
+    'polls.info.order': 'ช่วงเวลาเรียงจากช่วงที่มีคนไม่ว่างน้อยที่สุด แล้วตามด้วยช่วงที่มีคนว่างมากที่สุด ช่วงบนสุดจึงได้ป้าย "แนะนำ"',
+    'polls.info.calendar': '"ตรวจจาก Google Calendar" ดูว่าใครติดธุระในปฏิทินที่เชื่อมไว้ เห็นแค่ว่าไม่ว่าง ไม่เห็นชื่อนัด',
+    'polls.info.confirm': 'คนนำประชุมของสัปดาห์นั้นหรือ admin กด "ยืนยันช่วงนี้" ได้โดยไม่ต้องรอให้ทุกคนตอบ ช่วงนั้นจะกลายเป็นการประชุม',
+    'polls.info.share': '"คัดลอกลิงก์โพล" ได้ข้อความพร้อมลิงก์ไว้ส่งในกลุ่ม คนที่กดจะต้องล็อกอินก่อน แล้วระบบจะพากลับมาที่โพลนี้'
   },
   en: {
     'polls.status.yes': 'Free',
@@ -113,8 +123,18 @@ export const polls = {
     'polls.statusConfirmed': 'Confirmed',
     'polls.statusClosed': 'Closed',
     'polls.statusClosedResponse': 'Closed for responses',
-    'polls.activeUsers': '{count} active users',
+    'polls.activeUsers': 'Asking {count} people',
     'polls.confirmedMsg': 'Confirmed as a meeting — ',
-    'polls.openMeeting': 'Open Meeting'
+    'polls.openMeeting': 'Open Meeting',
+    'polls.notAnswered': 'Not answered yet',
+    'polls.share': 'Copy poll link',
+    'polls.shareCopied': 'Link copied. Paste it into the group chat',
+    'polls.shareFailed': 'Could not copy. The link is {url}',
+    'polls.shareText': '{title}\nPlease mark whether you are free. Sign in with your own account at this link\n{url}',
+    'polls.info.vote': 'Answer "Free" or "Busy" for every slot. Only the students who present are asked; advisors and admin are not counted',
+    'polls.info.order': 'Slots are ordered by fewest people busy, then most people free, so the top one is marked "Recommended"',
+    'polls.info.calendar': '"Check against Google Calendar" shows who is busy in a connected calendar: only that they are busy, never what the event is',
+    'polls.info.confirm': "That week's lead or an admin can press \"Confirm this time\" without waiting for everyone. The slot becomes the meeting",
+    'polls.info.share': '"Copy poll link" copies a short message with the link for the group chat. Whoever opens it signs in first and comes straight back here'
   }
 };
