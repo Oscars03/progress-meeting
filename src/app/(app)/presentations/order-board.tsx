@@ -73,6 +73,7 @@ export default function OrderBoard({
   currentUserId,
   workOptions,
   readOnly = false,
+  startAdding = false,
 }: {
   weekKey: string;
   topics: BoardTopic[];
@@ -89,6 +90,12 @@ export default function OrderBoard({
   workOptions: { id: string; title: string }[];
   /** A week that is over: even your own topics stay as they were presented. */
   readOnly?: boolean;
+  /**
+   * Open with the add form showing. The dashboard's "add my topic" lands here,
+   * and making somebody find and press the same button again was a second
+   * click for nothing.
+   */
+  startAdding?: boolean;
 }) {
   const { t } = usePrefs();
   const ask = useConfirm();
@@ -98,7 +105,7 @@ export default function OrderBoard({
   const [error, setError] = useState('');
 
   const [order, setOrder] = useState<Block[]>(() => toBlocks(topics));
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(startAdding && canAdd);
 
   // Re-sync when the server sends a different set -- a topic added, edited or
   // removed. Without this the local copy kept showing the list as it was when

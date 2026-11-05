@@ -138,3 +138,32 @@ export function openPolls<
     })
     .sort((a, b) => b.poll.created_at.localeCompare(a.poll.created_at));
 }
+
+/**
+ * Who has finished a poll and who has not, among the people it asks.
+ *
+ * "Finished" is an answer -- yes or no -- on every slot. Somebody who answered
+ * one of three has not told the lead what they needed to know, so they are
+ * still waiting to be heard from. A vote from outside `voterIds` (admin, an
+ * advisor) is not counted, the rule the poll page applies.
+ */
+export function pollProgress(
+  pollId: string,
+  slots: { id: string; poll_id: string }[],
+  votes: { slot_id: string; user_id: string; choice: string }[],
+  voterIds: string[],
+): { done: string[]; waiting: string[] } {
+  const slotIds = new Set(slots.filter((slot) => slot.poll_id === pollId).map((slot) => slot.id));
+  const answered = new Map<string, Set<string>>();
+  for (const vote of votes) {
+    if (!slotIds.has(vote.slot_id) || !isChoice(vote.choice)) continue;
+    const mine = answered.get(vote.user_id) ?? new Set<string>();
+    mine.add(vote.slot_id);
+    answered.set(vote.user_id, mine);
+  }
+  const finished = (id: string) => slotIds.size > 0 && (answered.get(id)?.size ?? 0) >= slotIds.size;
+  return {
+    done: voterIds.filter(finished),
+    waiting: voterIds.filter((id) => !finished(id)),
+  };
+}
