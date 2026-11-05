@@ -17,7 +17,7 @@ import type {
   WeekLeadRecord,
 } from '@/lib/db/schema';
 import PollGrid, { type SlotView } from './poll-grid';
-import SharePollButton from './share-poll-button';
+import CopyLinkButton from '@/lib/ui/copy-link-button';
 import { labMembers, memberIds, pollVoters } from '@/lib/members';
 
 export default async function PollDetailPage(props: PageProps<'/meetings/polls/[id]'>) {
@@ -131,7 +131,16 @@ export default async function PollDetailPage(props: PageProps<'/meetings/polls/[
           </>
         }
         // Asking more people only means something while answers are taken.
-        actions={!closed && <SharePollButton pollId={id} title={title} />}
+        actions={
+          !closed && (
+            <CopyLinkButton
+              path={`/meetings/polls/${id}`}
+              label="polls.share"
+              message="polls.shareText"
+              vars={{ title }}
+            />
+          )
+        }
         description={
           <>
             {poll.note && <p>{poll.note}</p>}

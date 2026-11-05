@@ -262,6 +262,8 @@ export const common = defineMessages({
     'report.body':
       'ข้อมูลทั้งหมดถูกบันทึกลง Google Sheets เป็นแหล่งข้อมูลหลักแหล่งเดียว จึงเปิดดูรายงานสรุปได้โดยตรงที่แท็บ “Report” ใช้สูตรหรือ Pivot Table ประมวลผล และส่งออกเป็น PDF ได้ทันที',
     'report.openSheet': 'เปิดชีตสรุป (Weekly Report)',
+    'common.linkCopied': 'คัดลอกลิงก์แล้ว วางในกลุ่มแชตได้เลย',
+    'common.linkCopyFailed': 'คัดลอกไม่ได้ ลิงก์คือ {url}',
   },
   en: {
     'app.title': 'Weekly Progress',
@@ -524,5 +526,7 @@ export const common = defineMessages({
     'report.body':
       'All data is recorded in Google Sheets as the single source of truth, so the full summary can be read directly on the “Report” tab — processed with formulas or pivot tables and exported to PDF straight away.',
     'report.openSheet': 'Open the summary sheet (Weekly Report)',
+    'common.linkCopied': 'Link copied. Paste it into the group chat',
+    'common.linkCopyFailed': 'Could not copy. The link is {url}',
   },
 });
