@@ -5,6 +5,7 @@ import { requirePageSession, canAddTopic, canEditAnyTopic } from '@/lib/auth-gua
 import { getT } from '@/lib/ui/server-i18n';
 import { effectiveTopicOrder, topicsForWeek, lastArrangedBy } from '@/lib/presentation-order';
 import OrderBoard from './order-board';
+import CopyLinkButton from '@/lib/ui/copy-link-button';
 import type {
   AuditRecord,
   MeetingRecord,
@@ -94,9 +95,22 @@ export default async function PresentationsPage(props: {
           </span>
         }
         actions={
-          <Link href="/meetings/history" className="btn btn-secondary btn-sm">
-            {t('history.link')}
-          </Link>
+          <>
+            {/* Asking people to add topics only means something while the
+                week still takes them. The link names its week, so one sent
+                on Monday still opens that week after the board has moved on. */}
+            {!locked && (
+              <CopyLinkButton
+                path={`/presentations?week=${activeWeek}`}
+                label="presentations.share"
+                message="presentations.shareText"
+                vars={{ week: activeWeek }}
+              />
+            )}
+            <Link href="/meetings/history" className="btn btn-secondary btn-sm">
+              {t('history.link')}
+            </Link>
+          </>
         }
         description={
           (locked || currentBreak) && (

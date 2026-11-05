@@ -70,6 +70,8 @@ export const presentations = defineMessages({
     'history.items': 'งานที่มอบหมาย',
     'history.noItems': 'ไม่มีงานที่มอบหมาย',
     'history.meetings': 'การประชุม',
+    'presentations.share': 'คัดลอกลิงก์',
+    'presentations.shareText': 'ลำดับการนำเสนอ สัปดาห์ {week}\nช่วยเพิ่มหัวข้อที่จะนำเสนอ ล็อกอินด้วยบัญชีของตัวเองที่ลิงก์นี้\n{url}',
   },
   en: {
     'nav.presentations': 'Running order',
@@ -139,5 +141,7 @@ export const presentations = defineMessages({
     'history.items': 'Action items',
     'history.noItems': 'No action items',
     'history.meetings': 'Meetings',
+    'presentations.share': 'Copy link',
+    'presentations.shareText': 'Presentation order, week {week}\nPlease add the topic you will present. Sign in with your own account at this link\n{url}',
   },
 });
