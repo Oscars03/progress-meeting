@@ -168,7 +168,7 @@ export default async function DashboardPage() {
    * the time is settled.
    */
   const voterIdList = pollVoters(users).map((user) => user.id);
-  const labPolls = openPolls(polls, slots, votes, actor.id).map(({ poll, remaining }) => {
+  const labPolls = openPolls(polls, slots, votes, actor.id, new Date(), meetings).map(({ poll, remaining }) => {
     const pollSlots = slots
       .filter((slot) => slot.poll_id === poll.id)
       .sort((a, b) => a.start_at.localeCompare(b.start_at));
@@ -217,7 +217,7 @@ export default async function DashboardPage() {
       googleBusy,
       // Lab-wide, not just polls this reader votes in: once any poll is out,
       // the hours have been picked.
-      openPollCount: openPolls(polls, slots, votes, actor.id).length,
+      openPollCount: labPolls.length,
     });
   // Where you come in this week's meeting, and what you are down to show.
   // The order itself lives on /presentations; what belongs here is the one

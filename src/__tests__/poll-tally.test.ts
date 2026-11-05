@@ -128,3 +128,38 @@ describe('polls that are over', () => {
     expect(pollIsOver([], NOW)).toBe(false);
   });
 });
+
+// The dashboard showed a just-confirmed poll as still open, beside the meeting
+// it had become: that server instance's cached polls were a minute old, its
+// meetings were not. A booked meeting settles the poll whatever its status says.
+describe('confirmed polls', () => {
+  const NOW = new Date('2026-11-05T10:00:00.000Z');
+  const poll = (id: string, extra: Record<string, string> = {}) => ({
+    id, status: 'open', title: id, created_at: '2026-11-01T00:00:00.000Z', ...extra,
+  });
+  const slots = [
+    { id: 's1', poll_id: 'fri', start_at: '2026-11-06T04:00:00.000Z', end_at: '2026-11-06T06:00:00.000Z' },
+    { id: 's2', poll_id: 'next', start_at: '2026-11-13T04:00:00.000Z', end_at: '2026-11-13T06:00:00.000Z' },
+  ];
+  const ids = (rows: { poll: { id: string } }[]) => rows.map((r) => r.poll.id);
+
+  it('drops a poll whose slot a meeting now occupies, even while its status still reads open', () => {
+    // Same instants, written differently -- the meeting as an offset time.
+    const meetings = [{ start_at: '2026-11-06T11:00:00+07:00', end_at: '2026-11-06T13:00:00+07:00', status: 'scheduled' }];
+    expect(ids(openPolls([poll('fri'), poll('next')], slots, [], 'me', NOW, meetings))).toEqual(['next']);
+  });
+
+  it('keeps it when the meeting at that time was cancelled', () => {
+    const meetings = [{ start_at: '2026-11-06T04:00:00.000Z', end_at: '2026-11-06T06:00:00.000Z', status: 'cancelled' }];
+    expect(ids(openPolls([poll('fri')], slots, [], 'me', NOW, meetings))).toEqual(['fri']);
+  });
+
+  it('keeps it when a meeting only overlaps, rather than taking the slot exactly', () => {
+    const meetings = [{ start_at: '2026-11-06T04:00:00.000Z', end_at: '2026-11-06T05:00:00.000Z', status: 'scheduled' }];
+    expect(ids(openPolls([poll('fri')], slots, [], 'me', NOW, meetings))).toEqual(['fri']);
+  });
+
+  it('drops a poll that carries a meeting_id', () => {
+    expect(ids(openPolls([poll('fri', { meeting_id: 'm1' })], slots, [], 'me', NOW))).toEqual([]);
+  });
+});

@@ -163,7 +163,7 @@ export function buildWidgetSummary(
 
   // Only members are asked to answer polls -- the dashboard chases nobody else.
   const waiting = memberIds(users).has(userId)
-    ? openPolls(polls, slots, votes, userId)
+    ? openPolls(polls, slots, votes, userId, now, meetings)
         .filter((row) => row.remaining > 0)
         .map((row) => ({ title: row.poll.title, remaining: row.remaining }))
     : [];

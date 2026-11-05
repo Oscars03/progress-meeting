@@ -119,14 +119,39 @@ export function pollIsOver(slots: { end_at: string }[], now: Date = new Date()):
  * A poll whose every slot has already ended is left out, closed or not: there
  * is no time left in it to meet, and it only kept the place a new poll would
  * take. (Nobody closes a poll once the week has moved on.)
+ *
+ * A confirmed poll is left out too, and confirmation is read from more than
+ * its status. Confirming writes the meeting and closes the poll together, but
+ * each server instance caches the sheet for a minute on its own: the
+ * dashboard once showed a poll as open beside the very meeting it had just
+ * become, because that instance's polls were a minute old and its meetings
+ * were not. So a poll with a `meeting_id`, or with a slot that a meeting now
+ * occupies to the minute, is settled whatever its status says. Pass the
+ * meetings for the second check.
  */
 export function openPolls<
-  P extends { id: string; status: string; title: string; created_at: string },
-  S extends { id: string; poll_id: string; end_at: string },
+  P extends { id: string; status: string; title: string; created_at: string; meeting_id?: string },
+  S extends { id: string; poll_id: string; end_at: string; start_at?: string },
   V extends { slot_id: string; user_id: string },
->(polls: P[], slots: S[], votes: V[], userId: string, now: Date = new Date()): { poll: P; remaining: number }[] {
+>(
+  polls: P[],
+  slots: S[],
+  votes: V[],
+  userId: string,
+  now: Date = new Date(),
+  meetings: { start_at: string; end_at: string; status?: string }[] = [],
+): { poll: P; remaining: number }[] {
+  const booked = new Set(
+    meetings
+      .filter((meeting) => meeting.status !== 'cancelled')
+      .map((meeting) => spanKey(meeting.start_at, meeting.end_at))
+      .filter(Boolean),
+  );
+  const settledByMeeting = (pollId: string) =>
+    slots.some((slot) => slot.poll_id === pollId && slot.start_at && booked.has(spanKey(slot.start_at, slot.end_at)));
+
   return polls
-    .filter((poll) => poll.status !== 'closed')
+    .filter((poll) => poll.status !== 'closed' && !poll.meeting_id && !settledByMeeting(poll.id))
     .filter((poll) => !pollIsOver(slots.filter((slot) => slot.poll_id === poll.id), now))
     .map((poll) => {
       const mySlots = slots.filter((slot) => slot.poll_id === poll.id);
@@ -137,6 +162,13 @@ export function openPolls<
       return { poll, remaining: mySlots.length - answered.size };
     })
     .sort((a, b) => b.poll.created_at.localeCompare(a.poll.created_at));
+}
+
+/** A span as two instants, so a meeting and a slot match however each was written. '' if unreadable. */
+function spanKey(start: string, end: string): string {
+  const a = new Date(start).getTime();
+  const b = new Date(end).getTime();
+  return Number.isFinite(a) && Number.isFinite(b) ? `${a}-${b}` : '';
 }
 
 /**
