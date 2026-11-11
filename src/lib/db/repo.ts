@@ -42,6 +42,11 @@ export type InsertOptions = {
   onConflict?: OnConflict;
 };
 
+export type UpdateOptions = {
+  /** Values no other row may share after the update; empty values are skipped. */
+  uniqueBy?: Record<string, CellValue>;
+};
+
 export type Repo = {
   find<T extends BaseRecord = AnyRecord>(
     tabName: TableName,
@@ -57,13 +62,18 @@ export type Repo = {
     options?: InsertOptions
   ): Promise<T & BaseRecord>;
 
-  /** Refuses unless `expectedVersion` is the version that was read. */
+  /**
+   * Refuses unless `expectedVersion` is the version that was read. With
+   * `uniqueBy`, also refuses (ConflictError) when a different row already
+   * holds all of those non-empty values.
+   */
   update<T extends BaseRecord = AnyRecord>(
     tabName: TableName,
     id: string,
     record: Partial<Record<string, CellValue>>,
     expectedVersion: number,
-    actorId?: string
+    actorId?: string,
+    options?: UpdateOptions
   ): Promise<T>;
 
   delete(
