@@ -12,7 +12,7 @@ import { ThemeToggle, LocaleSwitcher } from '@/lib/ui/switchers';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import { settingsMenuOpen, type MenuToggle } from '@/lib/ui/settings-menu';
 
-type IconName = 'dashboard' | 'tasks' | 'meetings' | 'history' | 'presentations' | 'report' | 'feedback' | 'settings';
+type IconName = 'dashboard' | 'tasks' | 'meetings' | 'history' | 'presentations' | 'clips' | 'report' | 'feedback' | 'settings';
 
 /**
  * Tasks and Report are not part of the current workflow, so they are off the
@@ -25,6 +25,7 @@ const LINKS: { href: string; key: TranslationKey; icon: IconName }[] = [
   { href: '/meetings', key: 'nav.meetings', icon: 'meetings' },
   { href: '/meetings/history', key: 'nav.history', icon: 'history' },
   { href: '/presentations', key: 'nav.presentations', icon: 'presentations' },
+  { href: '/clips', key: 'nav.clips', icon: 'clips' },
   { href: '/feedback', key: 'nav.feedback', icon: 'feedback' },
   { href: '/settings', key: 'nav.settings', icon: 'settings' },
 ];
@@ -101,6 +102,13 @@ function NavIcon({ name }: { name: IconName }) {
       );
     case 'presentations':
       return <Icon d="M4 6h6M4 12h10M4 18h7M17 5l3 3-3 3" />;
+    case 'clips':
+      return (
+        <Icon>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M10 9.5v5l4.5-2.5z" />
+        </Icon>
+      );
     case 'report':
       return <Icon d="M3 20h18M7 16V9M12 16V5M17 16v-4" />;
     case 'feedback':
