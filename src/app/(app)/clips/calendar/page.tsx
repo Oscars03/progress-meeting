@@ -15,8 +15,10 @@ import { Chip, ModeSwitch, NotReady, PeopleLine, Swatch } from '../clip-ui';
  * Page 2 of the weekly clips: the calendar summary, one slot per week.
  *
  * This is the agenda list -- one row per week, a week spanning two months
- * listed in the month of its Thursday so nothing shows twice. Rendered on the
- * server from plain links; the wide month grid comes later.
+ * listed in the month of its Thursday so nothing shows twice. A booked week
+ * links to its episode, where everything about it is done; an empty week
+ * only says who would make its clip (to fill it, book an episode from its
+ * topic). Rendered on the server from plain links.
  */
 export default async function ClipsCalendarPage(props: { searchParams: Promise<{ month?: string }> }) {
   const [, t, locale, data, params] = await Promise.all([
@@ -37,7 +39,7 @@ export default async function ClipsCalendarPage(props: { searchParams: Promise<{
 
   const header = (
     <>
-      <PageHeader title={t('nav.clips')} aside={<InfoTip>{t('clips.calendar.hint')}</InfoTip>} />
+      <PageHeader title={t('nav.clips')} aside={<InfoTip>{t('clips.hint')}</InfoTip>} />
       <ModeSwitch active="calendar" topicsLabel={t('clips.mode.topics')} calendarLabel={t('clips.mode.calendar')} />
     </>
   );
@@ -118,18 +120,15 @@ export default async function ClipsCalendarPage(props: { searchParams: Promise<{
                       })()}
                     </Link>
                   ) : (
-                    <span className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="text-gray-500">{t('clips.calendar.empty')}</span>
-                      <span className="text-gray-600">
-                        {t('clips.people.makeShort')}: {(() => {
-                          const m = describeMaker(clipMaker({ week_key: week }, data.leads, data.users, data.breaks), data.users, t, locale);
-                          return m.name ? `${m.name}${m.tentative ? '?' : ''}` : '—';
-                        })()}
-                      </span>
+                    <span className="block text-sm">
+                      <span className="block text-gray-500">{t('clips.calendar.empty')}</span>
                       {week >= today && (
-                        <Link href={`/clips/week/${week}`} className="btn btn-secondary btn-sm">
-                          {t('clips.calendar.add')}
-                        </Link>
+                        <span className="block text-gray-600">
+                          {t('clips.people.makeShort')}: {(() => {
+                            const m = describeMaker(clipMaker({ week_key: week }, data.leads, data.users, data.breaks), data.users, t, locale);
+                            return m.name ? `${m.name}${m.tentative ? '?' : ''}` : m.note;
+                          })()}
+                        </span>
                       )}
                     </span>
                   )}

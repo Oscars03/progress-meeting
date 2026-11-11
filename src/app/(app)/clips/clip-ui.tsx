@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { EventColor } from '@/lib/event-colors';
 import { SWATCH } from './describe';
 
@@ -78,6 +79,35 @@ export function PeopleLine({
         </span>
       )}
     </span>
+  );
+}
+
+/**
+ * Controls that are needed now and then, folded away under one line so the
+ * page shows its one main action first. A plain <details>: works before the
+ * page's script loads, and the browser handles keyboard and screen readers.
+ */
+export function More({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <details className="group rounded-xl border border-gray-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 sm:px-5 [&::-webkit-details-marker]:hidden">
+        {label}
+        <svg aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-400 motion-safe:transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <div className="space-y-5 border-t border-gray-100 px-4 py-4 sm:px-5">{children}</div>
+    </details>
+  );
+}
+
+/** One titled block inside More. */
+export function MoreSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
+      {children}
+    </section>
   );
 }
 
