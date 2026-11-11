@@ -163,9 +163,34 @@ async function appendEpisode(
   throw new ConflictError(`Could not number a new episode of ${seriesId}`);
 }
 
-/** Start a topic with several episodes. Anybody may (D3). */
-export async function createSeriesAction(data: SeriesInput & { episodes?: string[] }): Promise<
-  ActionResult<{ seriesId: string; added: number }>
+/**
+ * Book freshly added episodes, in order, into the next free weeks. Stops at
+ * the first that cannot be placed (no free week left, or a race lost three
+ * times): the rest stay queued, which the answer reports. Creating never
+ * fails because booking did.
+ */
+async function bookInOrder(actor: SessionUser, episodes: ClipRecord[]): Promise<number> {
+  let booked = 0;
+  for (const episode of episodes) {
+    try {
+      await placeInWeek(actor, episode.id, episode.row_version, 'next', 'book');
+      booked++;
+    } catch (err) {
+      if (!(err instanceof UserError)) throw err;
+      break;
+    }
+  }
+  return booked;
+}
+
+/**
+ * Start a clip topic (D3, D18): a series with its episodes, one per title. With
+ * no titles it is a one-off -- a series of one, the episode named after the
+ * topic. `book` puts the new episodes into the next free weeks straight away,
+ * in order. Anybody may.
+ */
+export async function createSeriesAction(data: SeriesInput & { episodes?: string[]; book?: boolean }): Promise<
+  ActionResult<{ seriesId: string; added: number; booked: number }>
 > {
   return toResult(async () => {
     const actor = await requireSession();
@@ -177,58 +202,18 @@ export async function createSeriesAction(data: SeriesInput & { episodes?: string
       throw new UserError('clips.error.tooManyEpisodes', { n: MAX_EPISODES_AT_ONCE });
     }
     titles.forEach((t) => requiredTitle(t, LIMITS.episodeTitle));
+    if (titles.length === 0) titles.push(series.title.slice(0, LIMITS.episodeTitle));
 
     const row = await SheetRepo.insert('clip_series', { ...series, status: 'active' }, actor.id);
 
     // One insert each. If one fails the series keeps the ones that landed,
     // which is visible and harmless.
-    let added = 0;
-    for (const title of titles) {
-      await appendEpisode(actor, row.id, { title });
-      added++;
-    }
+    const added: ClipRecord[] = [];
+    for (const title of titles) added.push(await appendEpisode(actor, row.id, { title }));
+    const booked = data.book ? await bookInOrder(actor, added) : 0;
 
     revalidateClips();
-    return { seriesId: row.id, added };
-  });
-}
-
-/**
- * A one-off topic: a series of one, in one step (D18). It can be booked
- * straight away into the next free week or a chosen one, or left queued. A
- * booking that fails leaves the episode queued and says why.
- */
-export async function createOneOffAction(data: {
-  title: string;
-  details?: string;
-  color?: string;
-  /** '' to leave it queued, 'next' for the next free week, or a week key. */
-  week?: string;
-}): Promise<ActionResult<{ seriesId: string; clipId: string; bookError?: string }>> {
-  return toResult(async () => {
-    const actor = await requireSession();
-    const series = cleanSeries({ title: data.title, color: data.color });
-    const details = text(data.details, LIMITS.episodeDetails, 'clips.error.textTooLong');
-    const target = data.week ?? '';
-    if (target && target !== 'next' && !isRealWeekKey(target)) {
-      throw new UserError('clips.error.badWeek');
-    }
-
-    const row = await SheetRepo.insert('clip_series', { ...series, status: 'active' }, actor.id);
-    const clip = await appendEpisode(actor, row.id, { title: series.title, details });
-
-    let bookError: string | undefined;
-    if (target) {
-      try {
-        await placeInWeek(actor, clip.id, clip.row_version, target, 'book');
-      } catch (err) {
-        if (!(err instanceof UserError)) throw err;
-        bookError = err.key as string;
-      }
-    }
-
-    revalidateClips();
-    return { seriesId: row.id, clipId: clip.id, ...(bookError ? { bookError } : {}) };
+    return { seriesId: row.id, added: added.length, booked };
   });
 }
 
@@ -275,18 +260,23 @@ export async function deleteSeriesAction(id: string, rowVersion: number): Promis
 /* Episodes                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Add an episode to any series, at the end of its queue (D17). */
+/**
+ * Add an episode to any series, at the end (D17). `book` puts it into the
+ * next free week after the series' earlier episodes; without a free week it
+ * waits in the queue.
+ */
 export async function addEpisodeAction(
   seriesId: string,
-  data: { title: string; details?: string }
-): Promise<ActionResult<{ clipId: string }>> {
+  data: { title: string; details?: string; book?: boolean }
+): Promise<ActionResult<{ clipId: string; booked: boolean }>> {
   return toResult(async () => {
     const actor = await requireSession();
     const series = await SheetRepo.findOne<ClipSeriesRecord>('clip_series', seriesId);
     if (!series) throw new UserError('error.notFound');
     const clip = await appendEpisode(actor, series.id, data);
+    const booked = data.book ? (await bookInOrder(actor, [clip])) === 1 : false;
     revalidateClips();
-    return { clipId: clip.id };
+    return { clipId: clip.id, booked };
   });
 }
 
@@ -518,9 +508,22 @@ const TRANSITION_ERROR = {
   usePublishForm: 'clips.error.usePublishForm',
 } as const;
 
+/** The 5:00 cap, checked on every write that carries a length. */
+function cleanDuration(raw: string): number {
+  const sec = parseDuration(raw);
+  if (sec === null) throw new UserError('clips.error.durationInvalid');
+  if (sec > MAX_DURATION_SEC) throw new UserError('clips.error.tooLong', { length: formatDuration(sec) });
+  if (!isAllowedDuration(sec)) throw new UserError('clips.error.durationInvalid');
+  return sec;
+}
+
 /**
  * Move an episode one stage forward or back. Anybody (the maker is the one
  * expected to, but anyone may help).
+ *
+ * The step can carry what it needs, so it is one tap and one write: the
+ * planner when production starts, the length when it becomes ready. Both go
+ * through the same checks as their own actions.
  *
  * Leaving `planned` freezes the maker -- the derived one, never a choice -- so
  * moving the episode later keeps the work with whoever started it. Going back
@@ -529,17 +532,34 @@ const TRANSITION_ERROR = {
 export async function setEpisodeStatusAction(
   id: string,
   to: string,
-  rowVersion: number
+  rowVersion: number,
+  extra: { plannerId?: string; duration?: string } = {}
 ): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireSession();
     if (!isClipStatus(to)) throw new UserError('error.invalidValue', { value: String(to) });
     const { clip } = await freshClip(id);
+    const now = new Date().toISOString();
 
-    const problem = transitionProblem(clip, to, isAdmin(actor));
+    const fields: Record<string, string | number> = { status: to, status_at: now };
+    if (to === 'in_production' && extra.plannerId && extra.plannerId !== clip.planner_id) {
+      Object.assign(fields, { planner_id: await memberId(extra.plannerId), planner_set_by: actor.id, planner_set_at: now });
+    }
+    if (to === 'ready' && typeof extra.duration === 'string' && extra.duration.trim()) {
+      fields.duration_sec = cleanDuration(extra.duration.trim());
+    }
+
+    const problem = transitionProblem(
+      {
+        ...clip,
+        planner_id: String(fields.planner_id ?? clip.planner_id),
+        duration_sec: String(fields.duration_sec ?? clip.duration_sec),
+      },
+      to,
+      isAdmin(actor)
+    );
     if (problem) throw new UserError(TRANSITION_ERROR[problem]);
 
-    const fields: Record<string, string> = { status: to, status_at: new Date().toISOString() };
     const from = statusOf(clip);
     if (from === 'planned' && to === 'in_production' && !clip.maker_id) {
       const [leads, users, breaks] = await Promise.all([
@@ -583,15 +603,7 @@ export async function updateEpisodeWorkAction(
         // Ready and later need a length; it cannot be taken away from them.
         if (['ready', 'published'].includes(statusOf(clip))) throw new UserError('clips.error.durationRequired');
         fields.duration_sec = '';
-      } else {
-        const sec = parseDuration(raw);
-        if (sec === null) throw new UserError('clips.error.durationInvalid');
-        if (sec > MAX_DURATION_SEC) {
-          throw new UserError('clips.error.tooLong', { length: formatDuration(sec) });
-        }
-        if (!isAllowedDuration(sec)) throw new UserError('clips.error.durationInvalid');
-        fields.duration_sec = sec;
-      }
+      } else fields.duration_sec = cleanDuration(raw);
     }
 
     if (data.draftUrl !== undefined) {

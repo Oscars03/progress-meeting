@@ -233,20 +233,51 @@ describe('creating topics (D3, D17, D18)', () => {
     );
   });
 
-  it('makes a one-off a series of one, booked into the next free week', async () => {
+  it('makes a topic without episode titles a one-off, its episode named after it', async () => {
     signedInAs('b');
-    const res = await actions.createOneOffAction({ title: 'Safety', week: 'next' });
-    expect(res).toMatchObject({ ok: true });
+    const res = await actions.createSeriesAction({ title: 'Safety' });
+    expect(res).toMatchObject({ ok: true, added: 1, booked: 0 });
     expect(insert).toHaveBeenCalledWith('clip_series', expect.objectContaining({ title: 'Safety' }), 'b');
-    // W46 and W47 are taken.
-    expect(update).toHaveBeenCalledWith(
+    expect(insert).toHaveBeenCalledWith(
       'clips',
-      expect.any(String),
-      expect.objectContaining({ week_key: '2026-W48' }),
-      1,
+      expect.objectContaining({ title: 'Safety', episode_no: 1, week_key: '' }),
       'b',
-      { uniqueBy: { week_key: '2026-W48' } }
+      expect.anything()
     );
+  });
+
+  it('books a new topic’s episodes into the next free weeks, in order, past breaks', async () => {
+    signedInAs('b');
+    const res = await actions.createSeriesAction({ title: 'ROS', episodes: ['Nodes', 'Topics', 'Services'], book: true });
+    expect(res).toMatchObject({ ok: true, added: 3, booked: 3 });
+    // W46 and W47 are taken and W50 is a break.
+    const weeks = Object.fromEntries(
+      store.tables.clips.filter((c) => c.series_id !== 's1').map((c) => [c.title, c.week_key])
+    );
+    expect(weeks).toEqual({ Nodes: '2026-W48', Topics: '2026-W49', Services: '2026-W51' });
+    for (const [table, , fields, , , options] of update.mock.calls) {
+      expect(table).toBe('clips');
+      expect(options).toEqual({ uniqueBy: { week_key: fields.week_key } });
+    }
+  });
+
+  it('keeps the episodes it could not book queued, and says how many', async () => {
+    signedInAs('b');
+    // Fill every free week but the first.
+    let n = 10;
+    for (const week of ['2026-W49', '2026-W51', '2026-W52', '2026-W53', '2027-W01', '2027-W02', '2027-W03', '2027-W04', '2027-W05', '2027-W06']) {
+      store.tables.clips.push(clip(`f${n}`, { series_id: 'other', episode_no: n++, week_key: week }));
+    }
+    const res = await actions.createSeriesAction({ title: 'ROS', episodes: ['Nodes', 'Topics'], book: true });
+    expect(res).toMatchObject({ ok: true, added: 2, booked: 1 });
+    const mine = store.tables.clips.filter((c) => c.series_id !== 's1' && c.series_id !== 'other');
+    expect(mine.map((c) => c.week_key)).toEqual(['2026-W48', '']);
+  });
+
+  it('can book an added episode straight away', async () => {
+    signedInAs('c');
+    expect(await actions.addEpisodeAction('s1', { title: 'LiDAR', book: true })).toMatchObject({ ok: true, booked: true });
+    expect(store.tables.clips.find((c) => c.title === 'LiDAR')?.week_key).toBe('2026-W48');
   });
 
   it('refuses a title that is too long', async () => {
@@ -384,6 +415,27 @@ describe('stages and the maker (D9, D24)', () => {
     expect(rowOf('e1')).toMatchObject({ status: 'in_production', maker_id: 'b' });
     expect(await actions.setEpisodeStatusAction('e1', 'planned', 2)).toMatchObject({ ok: true });
     expect(rowOf('e1').maker_id).toBe('');
+  });
+
+  it('records the planner in the same step that starts production', async () => {
+    signedInAs('c');
+    expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1, { plannerId: 'gone' })).toMatchObject({
+      error: 'clips.error.notMember',
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1, { plannerId: 'a' })).toMatchObject({ ok: true });
+    expect(rowOf('e1')).toMatchObject({ status: 'in_production', planner_id: 'a', planner_set_by: 'c', maker_id: 'b' });
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it('records the length in the same step that marks it ready, under the 5:00 cap', async () => {
+    signedInAs('c');
+    Object.assign(rowOf('e1'), { status: 'in_production', planner_id: 'a' });
+    expect(await actions.setEpisodeStatusAction('e1', 'ready', 1, { duration: '5:01' })).toMatchObject({
+      error: 'clips.error.tooLong',
+    });
+    expect(await actions.setEpisodeStatusAction('e1', 'ready', 1, { duration: '4:30' })).toMatchObject({ ok: true });
+    expect(rowOf('e1')).toMatchObject({ status: 'ready', duration_sec: 270 });
   });
 
   it('needs a week to start', async () => {
