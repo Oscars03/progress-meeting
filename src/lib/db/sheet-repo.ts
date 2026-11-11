@@ -518,7 +518,20 @@ export class SheetRepo {
     id: string,
     record: Partial<Record<string, CellValue>>,
     expectedVersion: number,
-    actorId: string = 'system'
+    actorId: string = 'system',
+    options?: {
+      /**
+       * Column-value pairs no OTHER row may hold once this update lands --
+       * booking a clip into a week, say. Checked inside the write-queue mutex
+       * against the rows just read, so two moves into the same week on one
+       * process cannot both succeed; a clash throws ConflictError and writes
+       * nothing. A pair whose value is empty is not checked, so clearing a
+       * slot never clashes with other empty slots.
+       *
+       * ponytail: per-process mutex only, as with insert's uniqueBy.
+       */
+      uniqueBy?: Record<string, CellValue>;
+    }
   ): Promise<T> {
     assertHasCommonColumns(tabName);
 
@@ -553,6 +566,28 @@ export class SheetRepo {
         throw new ConflictError(
           `Row changed by someone else (expected version ${expectedVersion}, now ${currentVersion})`
         );
+      }
+
+      if (options?.uniqueBy) {
+        const entries = Object.entries(options.uniqueBy).filter(
+          ([, val]) => toCell(val) !== ''
+        );
+        if (entries.length > 0) {
+          const clash = values.some(
+            (row, i) =>
+              i > 0 &&
+              i !== rowIndex &&
+              entries.every(([col, val]) => {
+                const idx = headers.indexOf(col);
+                return idx !== -1 && row[idx] === toCell(val);
+              })
+          );
+          if (clash) {
+            throw new ConflictError(
+              `Another row in ${tabName} already has ${entries.map(([c, v]) => `${c}=${toCell(v)}`).join(', ')}`
+            );
+          }
+        }
       }
 
       const now = new Date().toISOString();

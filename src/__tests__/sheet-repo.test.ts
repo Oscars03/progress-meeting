@@ -225,6 +225,56 @@ describe('SheetRepo.insert uniqueBy', () => {
   });
 });
 
+/**
+ * Two meta rows: "1" holds key "test_key", "2" holds key "other_key" and an
+ * empty value. A uniqueBy on update refuses only a clash with a DIFFERENT row.
+ */
+describe('SheetRepo.update uniqueBy', () => {
+  const TWO_ROWS = [
+    ...META_ROWS,
+    ['2', '2023-01-01', '2023-01-01', '1', 'system', 'other_key', ''],
+  ];
+
+  beforeEach(() => {
+    server.use(
+      http.get('https://sheets.googleapis.com/v4/spreadsheets/:id/values/:range', () =>
+        HttpResponse.json({ values: TWO_ROWS })
+      )
+    );
+  });
+
+  it('refuses a value another row already holds, writing nothing', async () => {
+    await expect(
+      SheetRepo.update('meta', '2', { key: 'test_key' }, 1, 'someone', { uniqueBy: { key: 'test_key' } })
+    ).rejects.toThrow(ConflictError);
+    expect(batchUpdateCalls).toHaveLength(0);
+  });
+
+  it('writes when no other row holds the value', async () => {
+    const updated = await SheetRepo.update('meta', '2', { key: 'free_key' }, 1, 'someone', {
+      uniqueBy: { key: 'free_key' },
+    });
+    expect(updated.key).toBe('free_key');
+    expect(batchUpdateCalls).toHaveLength(1);
+  });
+
+  it('does not count the row being updated as a clash', async () => {
+    const updated = await SheetRepo.update('meta', '1', { value: 'v2' }, 1, 'someone', {
+      uniqueBy: { key: 'test_key' },
+    });
+    expect(updated.row_version).toBe(2);
+    expect(batchUpdateCalls).toHaveLength(1);
+  });
+
+  it('skips an empty value, so clearing a slot never clashes', async () => {
+    const updated = await SheetRepo.update('meta', '1', { value: '' }, 1, 'someone', {
+      uniqueBy: { value: '' },
+    });
+    expect(updated.row_version).toBe(2);
+    expect(batchUpdateCalls).toHaveLength(1);
+  });
+});
+
 describe('SheetRepo.update optimistic concurrency', () => {
   it('rejects a stale row_version', async () => {
     await expect(SheetRepo.update('meta', '1', { key: 'new_val' }, 99)).rejects.toThrow(
