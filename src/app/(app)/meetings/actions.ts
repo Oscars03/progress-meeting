@@ -270,7 +270,12 @@ export async function autoAssignWeekLead(weekKey: string): Promise<boolean> {
   const next = suggestNextHost(users, leads);
   if (!next) return false;
 
-  await SheetRepo.insert('week_leads', { week_key: weekKey, user_id: next.id });
+  // uniqueBy, as in setWeekLead: the dashboard and /presentations both call
+  // this while rendering, and `leads` above may be another process's 60 s old
+  // list. The check re-reads the sheet inside the write queue.
+  await SheetRepo.insert('week_leads', { week_key: weekKey, user_id: next.id }, 'system', {
+    uniqueBy: { week_key: weekKey },
+  });
   return true;
 }
 

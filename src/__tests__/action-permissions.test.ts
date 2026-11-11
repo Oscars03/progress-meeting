@@ -661,7 +661,9 @@ describe('auto-assigning a week lead', () => {
     const wrote = await autoAssignWeekLead(WEEK);
 
     expect(wrote).toBe(true);
-    expect(insert).toHaveBeenCalledWith('week_leads', { week_key: WEEK, user_id: 'stu1' });
+    expect(insert).toHaveBeenCalledWith('week_leads', { week_key: WEEK, user_id: 'stu1' }, 'system', {
+      uniqueBy: { week_key: WEEK },
+    });
   });
 
   it("never overwrites a week somebody -- admin or itself -- already settled", async () => {
