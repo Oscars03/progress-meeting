@@ -17,6 +17,7 @@ import { presentations } from './messages/presentations';
 import { feedback } from './messages/feedback';
 import { events } from './messages/events';
 import { logs } from './messages/logs';
+import { clips } from './messages/clips';
 
 export const LOCALES = ['th', 'en'] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -25,8 +26,8 @@ export type Locale = (typeof LOCALES)[number];
 export const LOCALE_COOKIE = 'wpm.locale';
 
 export const DICT = {
-  th: { ...common.th, ...avail.th, ...tasks.th, ...meetings.th, ...polls.th, ...settings.th, ...presentations.th, ...feedback.th, ...events.th, ...logs.th },
-  en: { ...common.en, ...avail.en, ...tasks.en, ...meetings.en, ...polls.en, ...settings.en, ...presentations.en, ...feedback.en, ...events.en, ...logs.en },
+  th: { ...common.th, ...avail.th, ...tasks.th, ...meetings.th, ...polls.th, ...settings.th, ...presentations.th, ...feedback.th, ...events.th, ...logs.th, ...clips.th },
+  en: { ...common.en, ...avail.en, ...tasks.en, ...meetings.en, ...polls.en, ...settings.en, ...presentations.en, ...feedback.en, ...events.en, ...logs.en, ...clips.en },
 };
 
 export type TranslationKey = keyof (typeof DICT)['th'];

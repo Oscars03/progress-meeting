@@ -1,0 +1,92 @@
+import Link from 'next/link';
+import type { EventColor } from '@/lib/event-colors';
+import { SWATCH } from './describe';
+
+/**
+ * Small pieces the clip pages share. Server components: no state, and every
+ * string arrives already translated.
+ */
+
+/** The two pages, Topics and Calendar, as a switch at the top of each. */
+export function ModeSwitch({
+  active,
+  topicsLabel,
+  calendarLabel,
+}: {
+  active: 'topics' | 'calendar';
+  topicsLabel: string;
+  calendarLabel: string;
+}) {
+  const item = (on: boolean) =>
+    `px-4 py-2 text-sm font-medium rounded-lg ${on ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`;
+  return (
+    <nav className="inline-flex gap-1 p-1 bg-white rounded-xl border border-gray-200">
+      <Link href="/clips" className={item(active === 'topics')} aria-current={active === 'topics' ? 'page' : undefined}>
+        {topicsLabel}
+      </Link>
+      <Link
+        href="/clips/calendar"
+        className={item(active === 'calendar')}
+        aria-current={active === 'calendar' ? 'page' : undefined}
+      >
+        {calendarLabel}
+      </Link>
+    </nav>
+  );
+}
+
+export function Swatch({ color, large = false }: { color: EventColor; large?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block shrink-0 rounded ${large ? 'h-4 w-4' : 'h-3 w-3'} ${SWATCH[color]}`}
+    />
+  );
+}
+
+export function Chip({ label, style }: { label: string; style: string }) {
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${style}`}>{label}</span>;
+}
+
+/**
+ * "วาง: พี · ทำ: ซี" -- planner and maker side by side with fixed labels, so
+ * it reads without colour, in either theme.
+ */
+export function PeopleLine({
+  planLabel,
+  makeLabel,
+  planner,
+  maker,
+  same,
+  sameLabel,
+}: {
+  planLabel: string;
+  makeLabel: string;
+  planner: string;
+  maker: string;
+  same: boolean;
+  sameLabel: string;
+}) {
+  return (
+    <span className="text-sm text-gray-600 break-words">
+      {planLabel}: <span className="text-gray-900">{planner}</span>
+      {' · '}
+      {makeLabel}: <span className="text-gray-900">{maker}</span>
+      {same && (
+        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-800" title={sameLabel}>
+          =
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Shown when the clip tabs have not been created in the sheet yet. */
+export function NotReady({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="p-5 rounded-xl border bg-amber-50 border-amber-200 space-y-1">
+      <p className="font-semibold text-amber-900">{title}</p>
+      <p className="text-sm text-amber-800">{body}</p>
+    </div>
+  );
+}
