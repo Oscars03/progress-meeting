@@ -86,3 +86,74 @@ export function weeksAgo(key: string, from: Date = new Date()): number | null {
   const diff = Date.parse(thisStart) - Date.parse(start);
   return Math.round(diff / (7 * 86400000));
 }
+
+/** The ISO week key immediately before the given one. */
+export function previousWeekKey(key: string): string {
+  const monday = weekStartDate(key);
+  if (!monday) return key;
+
+  const d = new Date(`${monday}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 7);
+  return weekKey(d);
+}
+
+/**
+ * Whether `key` names a week that exists: the right shape, and the same key
+ * comes back from its own Monday. `2026-W60` has the shape and no such week;
+ * `2026-W53` exists, `2025-W53` does not.
+ */
+export function isRealWeekKey(key: unknown): key is string {
+  if (typeof key !== 'string' || !/^\d{4}-W\d{2}$/.test(key)) return false;
+  const monday = weekStartDate(key);
+  if (!monday) return false;
+  return weekKey(new Date(`${monday}T12:00:00Z`)) === key;
+}
+
+/** YYYY-MM of a week's Thursday -- the month a list puts a spanning week in. */
+export function monthOfWeek(key: string): string | null {
+  const monday = weekStartDate(key);
+  if (!monday) return null;
+  const thursday = new Date(`${monday}T12:00:00Z`);
+  thursday.setUTCDate(thursday.getUTCDate() + 3);
+  return thursday.toISOString().slice(0, 7);
+}
+
+/** Whether `month` is a real YYYY-MM. */
+export function isMonthKey(month: unknown): month is string {
+  return typeof month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(month);
+}
+
+/** The month after (or with `step` -1, before) a YYYY-MM. */
+export function shiftMonth(month: string, step: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + step, 1));
+  return d.toISOString().slice(0, 7);
+}
+
+/**
+ * Every week whose Thursday falls in `month`, in order -- so each week is in
+ * exactly one month, and a list of months never shows a week twice.
+ */
+export function weeksOfMonth(month: string): string[] {
+  if (!isMonthKey(month)) return [];
+  return weeksTouchingMonth(month).filter((key) => monthOfWeek(key) === month);
+}
+
+/**
+ * Every week with at least one day in `month`, in order -- what a month grid
+ * draws, where the week either side of a month boundary shows in both.
+ */
+export function weeksTouchingMonth(month: string): string[] {
+  if (!isMonthKey(month)) return [];
+  const first = `${month}-01`;
+  const next = `${shiftMonth(month, 1)}-01`;
+  const out: string[] = [];
+  let key = weekKey(new Date(`${first}T12:00:00Z`));
+  for (let i = 0; i < 7; i++) {
+    const monday = weekStartDate(key);
+    if (!monday || monday >= next) break;
+    out.push(key);
+    key = nextWeekKey(key);
+  }
+  return out;
+}

@@ -31,6 +31,15 @@ export const SCHEMAS = {
   widget_keys: [...COMMON_COLUMNS, 'user_id', 'key_hash', 'last_used_at'],
   app_log: [...COMMON_COLUMNS, 'level', 'event', 'user_id', 'path', 'message', 'detail'],
   calendar_shares: [...COMMON_COLUMNS, 'token_hash', 'week_key', 'user_ids', 'expires_at', 'revoked_at'],
+  // Weekly clips (schema 21). A series is a topic with several episodes; an
+  // episode occupies one calendar week. See lib/clips.ts.
+  clip_series: [...COMMON_COLUMNS, 'title', 'description', 'color', 'status'],
+  clips: [
+    ...COMMON_COLUMNS,
+    'series_id', 'episode_no', 'week_key', 'scheduled_at', 'title', 'details', 'maker_id', 'status',
+    'status_at', 'due_at', 'duration_sec', 'draft_url', 'notes', 'published_url', 'published_at',
+    'published_by', 'moved_from', 'moved_by', 'moved_at', 'planner_id', 'planner_set_by', 'planner_set_at',
+  ],
 } as const;
 
 export type TableName = keyof typeof SCHEMAS;
@@ -417,4 +426,62 @@ export type AppLogRecord = BaseRecord & {
    * through SheetRepo it arrives parsed; '' when there was nothing to add.
    */
   detail: Record<string, unknown> | string;
+};
+
+/**
+ * A topic for the lab's weekly clips: a series of episodes, or a one-off
+ * (a series of one). `created_by` is whoever proposed it -- shown as the
+ * person who looks after the topic. Schema 21.
+ */
+export type ClipSeriesRecord = BaseRecord & {
+  title: string;
+  description: string;
+  /** A key from lib/event-colors.ts, or '' for one derived from the id. */
+  color: string;
+  /** 'active' | 'finished' | 'archived' -- see lib/clips.ts. */
+  status: string;
+};
+
+/**
+ * One episode of a clip series. It occupies one calendar week (`week_key`),
+ * or none while it waits in its series' queue. Schema 21.
+ *
+ * The maker is never stored by hand: it is derived from the week (the lead of
+ * the working week before it), and `maker_id` only freezes that derived
+ * person when work starts, so a later move does not hand half-done work to
+ * somebody else. See clipMaker in lib/clips.ts.
+ */
+export type ClipRecord = BaseRecord & {
+  series_id: string;
+  /** 1..n within the series. */
+  episode_no: number | string;
+  /** ISO week, e.g. 2026-W47, or '' while queued. One episode per week. */
+  week_key: string;
+  /** ISO instant week_key was last set; the earliest holds a week claimed twice. */
+  scheduled_at: string;
+  title: string;
+  details: string;
+  /** '' = follow the week; set automatically when work starts. */
+  maker_id: string;
+  /** planned | in_production | ready | published | skipped */
+  status: string;
+  status_at: string;
+  /** '' = Sunday 23:59 of the week, in the lab's time. */
+  due_at: string;
+  /** Whole seconds, 1..300, or '' until known. */
+  duration_sec: number | string;
+  draft_url: string;
+  notes: string;
+  /** The post on the lab's Facebook Page. */
+  published_url: string;
+  published_at: string;
+  published_by: string;
+  /** The week it was in before its last move or unbooking; '' if never moved. */
+  moved_from: string;
+  moved_by: string;
+  moved_at: string;
+  /** Who plans the content; '' until somebody records it. Never derived. */
+  planner_id: string;
+  planner_set_by: string;
+  planner_set_at: string;
 };
