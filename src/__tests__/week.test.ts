@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { weekKey, weekStartDate, nextWeekKey, recentWeekKeys, weeksAgo } from '../lib/week';
+import {
+  weekKey,
+  weekStartDate,
+  nextWeekKey,
+  recentWeekKeys,
+  weeksAgo,
+  previousWeekKey,
+  isRealWeekKey,
+  monthOfWeek,
+  weeksOfMonth,
+  weeksTouchingMonth,
+  shiftMonth,
+  isMonthKey,
+} from '../lib/week';
 
 describe('weekKey', () => {
   it('numbers a plain mid-year week', () => {
@@ -102,5 +115,74 @@ describe('weeksAgo', () => {
 
   it('returns null for a malformed key', () => {
     expect(weeksAgo('nonsense', new Date(2026, 8, 16))).toBeNull();
+  });
+});
+
+describe('previousWeekKey', () => {
+  it('steps back one week', () => {
+    expect(previousWeekKey('2026-W47')).toBe('2026-W46');
+  });
+
+  it('crosses into a 53-week year', () => {
+    expect(previousWeekKey('2027-W01')).toBe('2026-W53');
+  });
+
+  it('crosses into a 52-week year', () => {
+    expect(previousWeekKey('2026-W01')).toBe('2025-W52');
+  });
+
+  it('mirrors nextWeekKey', () => {
+    expect(nextWeekKey(previousWeekKey('2026-W30'))).toBe('2026-W30');
+  });
+});
+
+describe('isRealWeekKey', () => {
+  it('accepts weeks that exist', () => {
+    expect(isRealWeekKey('2026-W46')).toBe(true);
+    expect(isRealWeekKey('2026-W53')).toBe(true);
+  });
+
+  it('refuses weeks that do not', () => {
+    expect(isRealWeekKey('2025-W53')).toBe(false);
+    expect(isRealWeekKey('2026-W60')).toBe(false);
+    expect(isRealWeekKey('2026-W00')).toBe(false);
+    expect(isRealWeekKey('2026-46')).toBe(false);
+    expect(isRealWeekKey(undefined)).toBe(false);
+  });
+});
+
+describe('months of weeks', () => {
+  it('puts a week in the month of its Thursday', () => {
+    // 30 Nov - 6 Dec 2026: Thursday is 3 Dec.
+    expect(monthOfWeek('2026-W49')).toBe('2026-12');
+    // 28 Dec 2026 - 3 Jan 2027: Thursday is 31 Dec.
+    expect(monthOfWeek('2026-W53')).toBe('2026-12');
+  });
+
+  it('lists each week in exactly one month', () => {
+    expect(weeksOfMonth('2026-11')).toEqual(['2026-W45', '2026-W46', '2026-W47', '2026-W48']);
+    expect(weeksOfMonth('2026-12')).toEqual(['2026-W49', '2026-W50', '2026-W51', '2026-W52', '2026-W53']);
+    expect(weeksOfMonth('2027-01')[0]).toBe('2027-W01');
+  });
+
+  it('gives a grid every week touching the month', () => {
+    expect(weeksTouchingMonth('2026-11')).toEqual([
+      '2026-W44',
+      '2026-W45',
+      '2026-W46',
+      '2026-W47',
+      '2026-W48',
+      '2026-W49',
+    ]);
+  });
+
+  it('steps months across a year', () => {
+    expect(shiftMonth('2026-12', 1)).toBe('2027-01');
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+  });
+
+  it('refuses a month that is not one', () => {
+    expect(isMonthKey('2026-13')).toBe(false);
+    expect(weeksOfMonth('nonsense')).toEqual([]);
   });
 });
