@@ -3,14 +3,13 @@ import InfoTip from '@/lib/ui/info-tip';
 import PageHeader from '@/lib/ui/page-header';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
-import { formatLabTime } from '@/lib/lab-time';
 import { breakForWeek } from '@/lib/term-breaks';
 import { weekKey } from '@/lib/week';
 import type { ClipSeriesRecord } from '@/lib/db/schema';
-import { canonicalForWeek, catalogueOrder, clipMaker, dueAt, isLate, seriesColor, seriesSummary, statusOf } from '@/lib/clips';
+import { canonicalForWeek, catalogueOrder, clipMaker, seriesColor, seriesSummary } from '@/lib/clips';
 import { loadClips, type ClipData } from './load';
-import { chipFor, describeMaker, peopleOf, weekLabel } from './describe';
-import { Chip, ModeSwitch, More, NotReady, PeopleLine, Swatch } from './clip-ui';
+import { chipFor, describeMaker, makerOf, weekLabel } from './describe';
+import { Chip, MakerLine, ModeSwitch, More, NotReady, Swatch } from './clip-ui';
 import { NewTopic } from './clip-forms';
 
 type T = Awaited<ReturnType<typeof getT>>;
@@ -18,8 +17,8 @@ type T = Awaited<ReturnType<typeof getT>>;
 /**
  * Where the menu opens (D21). Two things, in the order people need them:
  *
- * 1. this week's clip -- what it is, who makes it, who plans it, when it is
- *    due -- one tap from its page;
+ * 1. this week's clip -- what it is and who makes it -- one tap from its
+ *    page;
  * 2. the topic catalogue, one line per active topic with its next episode.
  *    Finished and archived topics fold away at the bottom.
  *
@@ -107,9 +106,7 @@ function ThisWeek({ data, today, t, locale }: { data: ClipData; today: string; t
 
   const series = data.series.find((s) => s.id === clip.series_id);
   const chip = chipFor(clip);
-  const people = peopleOf(clip, data, t, locale);
-  const due = dueAt(clip);
-  const late = isLate(clip);
+  const { maker } = makerOf(clip, data, t, locale);
   return (
     <Link href={`/clips/episode/${clip.id}`} className={`tap-exempt ${box} hover:bg-gray-50`}>
       <span className="flex flex-wrap items-center justify-between gap-2">
@@ -125,19 +122,7 @@ function ThisWeek({ data, today, t, locale }: { data: ClipData; today: string; t
           {series.title} · {t('clips.episode.no', { n: Number(clip.episode_no) })}
         </span>
       )}
-      <PeopleLine
-        planLabel={t('clips.people.planShort')}
-        makeLabel={t('clips.people.makeShort')}
-        planner={people.planner}
-        maker={people.maker}
-        same={people.same}
-        sameLabel={t('clips.people.samePerson')}
-      />
-      {due && !['published', 'skipped'].includes(statusOf(clip)) && (
-        <span className={`block text-sm ${late ? 'text-red-700' : 'text-gray-500'}`}>
-          {t(late ? 'clips.week.lateDue' : 'clips.week.due', { when: formatLabTime(due, locale) })}
-        </span>
-      )}
+      <MakerLine label={t('clips.people.maker')} maker={maker} />
     </Link>
   );
 }
@@ -156,7 +141,7 @@ function TopicList({
   return (
     <ul className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100 overflow-hidden">
       {items.map(({ s, sum }) => {
-        const people = sum.next ? peopleOf(sum.next, data, t, locale) : null;
+        const next = sum.next ? makerOf(sum.next, data, t, locale) : null;
         return (
           <li key={s.id}>
             <Link href={`/clips/series/${s.id}`} className="tap-exempt flex items-start gap-3 px-4 sm:px-5 py-3.5 hover:bg-gray-50">
@@ -169,19 +154,12 @@ function TopicList({
                   {t('clips.card.counts', { n: sum.episodes, published: sum.published })}
                   {sum.queued > 0 && ` · ${t('clips.card.queued', { n: sum.queued })}`}
                 </span>
-                {sum.next && people && (
+                {sum.next && next && (
                   <span className="block text-sm">
                     <span className="block text-gray-700">
                       {t('clips.card.next', { ep: Number(sum.next.episode_no), week: weekLabel(sum.next.week_key, locale) })}
                     </span>
-                    <PeopleLine
-                      planLabel={t('clips.people.planShort')}
-                      makeLabel={t('clips.people.makeShort')}
-                      planner={people.planner}
-                      maker={people.maker}
-                      same={people.same}
-                      sameLabel={t('clips.people.samePerson')}
-                    />
+                    <MakerLine label={t('clips.people.maker')} maker={next.maker} />
                   </span>
                 )}
               </span>

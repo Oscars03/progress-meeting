@@ -8,7 +8,7 @@
 import type { TranslationKey, TranslationVars } from '@/lib/ui/i18n';
 import type { ClipRecord, TermBreakRecord, UserRecord, WeekLeadRecord } from '@/lib/db/schema';
 import type { ClipMaker, ClipStatus } from '@/lib/clips';
-import { clipMaker, makerId, statusOf } from '@/lib/clips';
+import { clipMaker, statusOf } from '@/lib/clips';
 import { isMember } from '@/lib/members';
 import { weekRange } from '@/lib/meeting-history';
 import { weekKey } from '@/lib/week';
@@ -132,22 +132,16 @@ export function weekOptions(keys: string[], locale: string): { key: string; labe
   return keys.map((key) => ({ key, label: weekLabel(key, locale) + (key === now ? ' ★' : '') }));
 }
 
-/** The planner and maker of an episode as one short line's worth of names. */
-export function peopleOf(
+/** An episode's maker: a short name for lists, and the full description. */
+export function makerOf(
   clip: ClipRecord,
   data: { leads: WeekLeadRecord[]; users: UserRecord[]; breaks: TermBreakRecord[] },
   t: T,
   locale: string
-): { planner: string; maker: string; same: boolean; makerText: MakerText; makerUserId: string | null } {
-  const name = nameFrom(data.users, t);
-  const maker = clipMaker(clip, data.leads, data.users, data.breaks);
-  const makerText = describeMaker(maker, data.users, t, locale);
-  const makerUserId = makerId(maker);
+): { maker: string; makerText: MakerText } {
+  const makerText = describeMaker(clipMaker(clip, data.leads, data.users, data.breaks), data.users, t, locale);
   return {
-    planner: clip.planner_id ? name(clip.planner_id) : '—',
     maker: makerText.name ? `${makerText.name}${makerText.tentative ? '?' : ''}` : '—',
-    same: Boolean(clip.planner_id && makerUserId === clip.planner_id),
     makerText,
-    makerUserId,
   };
 }

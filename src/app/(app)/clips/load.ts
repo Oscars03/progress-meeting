@@ -16,7 +16,7 @@ export type ClipData = {
   series: ClipSeriesRecord[];
   clips: ClipRecord[];
   faces: Map<string, AvatarFace>;
-  /** Active members, for the planner and poster pickers. */
+  /** Active members, for the "who posted" picker. */
   members: { id: string; name: string }[];
 };
 

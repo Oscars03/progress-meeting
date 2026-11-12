@@ -6,8 +6,8 @@ import { getLocale, getT } from '@/lib/ui/server-i18n';
 import { weekKey } from '@/lib/week';
 import { episodesOf, seriesColor } from '@/lib/clips';
 import { loadClips } from '../../load';
-import { chipFor, peopleOf, weekLabel } from '../../describe';
-import { Chip, More, NotReady, PeopleLine, Swatch } from '../../clip-ui';
+import { chipFor, makerOf, weekLabel } from '../../describe';
+import { Chip, MakerLine, More, NotReady, Swatch } from '../../clip-ui';
 import { EpisodeAdd, SeriesEditor } from '../../clip-forms';
 
 /**
@@ -58,7 +58,7 @@ export default async function SeriesPage(props: { params: Promise<{ id: string }
         <ol className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100 overflow-hidden">
           {episodes.map((c) => {
             const chip = chipFor(c);
-            const people = peopleOf(c, data, t, locale);
+            const { maker } = makerOf(c, data, t, locale);
             return (
               <li key={c.id}>
                 <Link
@@ -73,14 +73,7 @@ export default async function SeriesPage(props: { params: Promise<{ id: string }
                     </span>
                     <span className="block font-medium text-gray-900 break-words">{c.title}</span>
                     {c.week_key && (
-                      <PeopleLine
-                        planLabel={t('clips.people.planShort')}
-                        makeLabel={t('clips.people.makeShort')}
-                        planner={people.planner}
-                        maker={people.maker}
-                        same={people.same}
-                        sameLabel={t('clips.people.samePerson')}
-                      />
+                      <MakerLine label={t('clips.people.maker')} maker={maker} />
                     )}
                   </span>
                   <Chip label={t(chip.label)} style={chip.style} />

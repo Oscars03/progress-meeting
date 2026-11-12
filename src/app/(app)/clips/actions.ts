@@ -20,11 +20,9 @@ import {
   LIMITS,
   MAX_EPISODES_AT_ONCE,
   clipMaker,
-  endOfLabDay,
   isAllowedDuration,
   isClipStatus,
   isSeriesStatus,
-  makerId,
   nextEpisodeNo,
   nextFreeWeek,
   noonOfLabDay,
@@ -39,10 +37,13 @@ import {
 
 /*
  * Everybody signed in manages clip content: creating series, adding
- * episodes, booking and moving weeks, recording the planner, moving work along
- * (owner, D3/D16/D20/D22). So most actions only ask for a session, plus the
- * data rules. What stays admin's is destructive or changes a record of what
+ * episodes, booking and moving weeks, moving work along (owner,
+ * D3/D16/D20/D22). So most actions only ask for a session, plus the data
+ * rules. What stays admin's is destructive or changes a record of what
  * happened: deleting a series, anything about a published episode, skipping.
+ *
+ * There is no planner, draft link, notes or due date (owner, 2026-11-12).
+ * Their sheet columns stay; only a new row writes them, empty.
  *
  * Every read that a decision rests on is fresh, and every write carries the
  * row_version the page read, so a stale screen is refused, not obeyed.
@@ -383,8 +384,8 @@ async function placeInWeek(
     const now = new Date().toISOString();
     const fields: Record<string, string> = { week_key: week, scheduled_at: now };
     if (mode === 'move') {
-      // The due date follows the week; a pinned maker stays (it is on the row).
-      Object.assign(fields, { moved_from: clip.week_key, moved_by: actor.id, moved_at: now, due_at: '' });
+      // A pinned maker stays: it is on the row.
+      Object.assign(fields, { moved_from: clip.week_key, moved_by: actor.id, moved_at: now });
     }
 
     try {
@@ -449,7 +450,7 @@ export async function unbookEpisodeAction(id: string, rowVersion: number): Promi
     await SheetRepo.update<ClipRecord>(
       'clips',
       id,
-      { week_key: '', scheduled_at: '', moved_from: clip.week_key, moved_by: actor.id, moved_at: now, due_at: '' },
+      { week_key: '', scheduled_at: '', moved_from: clip.week_key, moved_by: actor.id, moved_at: now },
       version(rowVersion),
       actor.id
     );
@@ -458,52 +459,13 @@ export async function unbookEpisodeAction(id: string, rowVersion: number): Promi
 }
 
 /* ------------------------------------------------------------------ */
-/* People and work                                                     */
+/* Work                                                                */
 /* ------------------------------------------------------------------ */
-
-/**
- * Record who plans the episode's content (D25). Anybody may, to any active
- * member; clearing it is only allowed while nothing has started. The answer
- * says when the planner is also the maker -- a warning, never a refusal (D27).
- */
-export async function setPlannerAction(
-  id: string,
-  plannerId: string,
-  rowVersion: number
-): Promise<ActionResult<{ sameAsMaker: boolean }>> {
-  return toResult(async () => {
-    const actor = await requireSession();
-    const { clip } = await freshClip(id);
-    assertNotPublished(actor, clip);
-
-    let planner = '';
-    if (plannerId) planner = await memberId(plannerId);
-    else if (statusOf(clip) !== 'planned') throw new UserError('clips.error.plannerClearLocked');
-
-    await SheetRepo.update<ClipRecord>(
-      'clips',
-      id,
-      { planner_id: planner, planner_set_by: actor.id, planner_set_at: new Date().toISOString() },
-      version(rowVersion),
-      actor.id
-    );
-
-    const [leads, users, breaks] = await Promise.all([
-      SheetRepo.find<WeekLeadRecord>('week_leads'),
-      SheetRepo.find<UserRecord>('users'),
-      SheetRepo.find<TermBreakRecord>('term_breaks'),
-    ]);
-    const maker = makerId(clipMaker(clip, leads, users, breaks));
-    revalidateClips();
-    return { sameAsMaker: Boolean(planner && maker === planner) };
-  });
-}
 
 const TRANSITION_ERROR = {
   notOneStep: 'clips.error.notOneStep',
   adminOnly: 'clips.error.statusAdminOnly',
   needsWeek: 'clips.error.needsWeek',
-  plannerRequired: 'clips.error.plannerRequired',
   durationRequired: 'clips.error.durationRequired',
   usePublishForm: 'clips.error.usePublishForm',
 } as const;
@@ -521,9 +483,9 @@ function cleanDuration(raw: string): number {
  * Move an episode one stage forward or back. Anybody (the maker is the one
  * expected to, but anyone may help).
  *
- * The step can carry what it needs, so it is one tap and one write: the
- * planner when production starts, the length when it becomes ready. Both go
- * through the same checks as their own actions.
+ * Starting production needs nothing but a week. Marking it ready can carry
+ * the length, so it is one tap and one write; the length goes through the
+ * same 5:00 check as its own action.
  *
  * Leaving `planned` freezes the maker -- the derived one, never a choice -- so
  * moving the episode later keeps the work with whoever started it. Going back
@@ -533,7 +495,7 @@ export async function setEpisodeStatusAction(
   id: string,
   to: string,
   rowVersion: number,
-  extra: { plannerId?: string; duration?: string } = {}
+  extra: { duration?: string } = {}
 ): Promise<ActionResult> {
   return toResult(async () => {
     const actor = await requireSession();
@@ -542,19 +504,12 @@ export async function setEpisodeStatusAction(
     const now = new Date().toISOString();
 
     const fields: Record<string, string | number> = { status: to, status_at: now };
-    if (to === 'in_production' && extra.plannerId && extra.plannerId !== clip.planner_id) {
-      Object.assign(fields, { planner_id: await memberId(extra.plannerId), planner_set_by: actor.id, planner_set_at: now });
-    }
     if (to === 'ready' && typeof extra.duration === 'string' && extra.duration.trim()) {
       fields.duration_sec = cleanDuration(extra.duration.trim());
     }
 
     const problem = transitionProblem(
-      {
-        ...clip,
-        planner_id: String(fields.planner_id ?? clip.planner_id),
-        duration_sec: String(fields.duration_sec ?? clip.duration_sec),
-      },
+      { ...clip, duration_sec: String(fields.duration_sec ?? clip.duration_sec) },
       to,
       isAdmin(actor)
     );
@@ -580,14 +535,15 @@ export async function setEpisodeStatusAction(
 }
 
 /**
- * The working details: length, draft link, notes, due date. Anybody.
+ * Change the length of a clip. Anybody. An empty length clears it, but not
+ * once the episode is ready: ready and later need one.
  *
  * The 5:00 cap is checked here on every write -- a server action is a public
  * endpoint, so the form's own check decides nothing.
  */
-export async function updateEpisodeWorkAction(
+export async function updateEpisodeLengthAction(
   id: string,
-  data: { duration?: string; draftUrl?: string; notes?: string; dueDate?: string },
+  duration: string,
   rowVersion: number
 ): Promise<ActionResult> {
   return toResult(async () => {
@@ -595,36 +551,9 @@ export async function updateEpisodeWorkAction(
     const { clip } = await freshClip(id);
     assertNotPublished(actor, clip);
 
-    const fields: Record<string, string | number> = {};
-
-    if (data.duration !== undefined) {
-      const raw = data.duration.trim();
-      if (!raw) {
-        // Ready and later need a length; it cannot be taken away from them.
-        if (['ready', 'published'].includes(statusOf(clip))) throw new UserError('clips.error.durationRequired');
-        fields.duration_sec = '';
-      } else fields.duration_sec = cleanDuration(raw);
-    }
-
-    if (data.draftUrl !== undefined) {
-      const raw = data.draftUrl.trim();
-      if (raw) {
-        const safe = safeHttpsUrl(raw);
-        if (!safe) throw new UserError('clips.error.badUrl');
-        fields.draft_url = safe;
-      } else fields.draft_url = '';
-    }
-
-    if (data.notes !== undefined) fields.notes = text(data.notes, LIMITS.notes, 'clips.error.textTooLong');
-
-    if (data.dueDate !== undefined) {
-      const raw = data.dueDate.trim();
-      if (raw) {
-        const due = endOfLabDay(raw);
-        if (!due) throw new UserError('error.dateInvalid');
-        fields.due_at = due;
-      } else fields.due_at = '';
-    }
+    const raw = typeof duration === 'string' ? duration.trim() : '';
+    if (!raw && ['ready', 'published'].includes(statusOf(clip))) throw new UserError('clips.error.durationRequired');
+    const fields = { duration_sec: raw ? cleanDuration(raw) : '' };
 
     await SheetRepo.update<ClipRecord>('clips', id, fields, version(rowVersion), actor.id);
     revalidateClips();
