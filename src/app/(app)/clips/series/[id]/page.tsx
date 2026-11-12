@@ -4,17 +4,21 @@ import PageHeader from '@/lib/ui/page-header';
 import { requirePageSession } from '@/lib/auth-guard';
 import { getLocale, getT } from '@/lib/ui/server-i18n';
 import { weekKey } from '@/lib/week';
-import { episodesOf, seriesColor } from '@/lib/clips';
+import { episodeDeleteProblem, episodeEditProblem, episodesOf, seriesColor } from '@/lib/clips';
 import { loadClips } from '../../load';
 import { chipFor, makerOf, weekLabel } from '../../describe';
 import { Chip, MakerLine, More, NotReady, Swatch } from '../../clip-ui';
 import { EpisodeAdd, SeriesEditor } from '../../clip-forms';
+import { EpisodeActions } from '../../episode-actions';
 
 /**
  * One clip topic, read like a course outline: its episodes in order, each
  * with its week and who plans and makes it. One main action, adding an
  * episode; editing or deleting the topic waits under "more". Everybody may
  * manage it (D22); deleting the series is admin's.
+ *
+ * Each episode row opens the episode; beside it, outside the link, its edit
+ * and delete icons -- each shown only to whom the action would allow.
  */
 export default async function SeriesPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
@@ -60,24 +64,28 @@ export default async function SeriesPage(props: { params: Promise<{ id: string }
             const chip = chipFor(c);
             const { maker } = makerOf(c, data, t, locale);
             return (
-              <li key={c.id}>
-                <Link
-                  href={`/clips/episode/${c.id}`}
-                  className={`tap-exempt flex items-start gap-3 px-4 sm:px-5 py-3 hover:bg-gray-50 ${c.week_key === today ? 'bg-blue-50' : ''}`}
+              <li key={c.id} className={c.week_key === today ? 'bg-blue-50' : undefined}>
+                <EpisodeActions
+                  episode={{ id: c.id, rowVersion: c.row_version, no: Number(c.episode_no), title: c.title, details: c.details }}
+                  canEdit={episodeEditProblem(actor, c, today) === null}
+                  canDelete={episodeDeleteProblem(actor, c, series.created_by) === null}
                 >
-                  <span className="min-w-0 flex-1 space-y-0.5">
-                    <span className="block text-sm text-gray-500 tabular-nums">
-                      {t('clips.episode.no', { n: Number(c.episode_no) })}
-                      {' · '}
-                      {c.week_key ? weekLabel(c.week_key, locale) : t('clips.series.noWeek')}
+                  <Link
+                    href={`/clips/episode/${c.id}`}
+                    className="tap-exempt flex min-w-0 flex-1 items-start gap-3 px-4 sm:px-5 py-3 hover:bg-gray-50"
+                  >
+                    <span className="min-w-0 flex-1 space-y-0.5">
+                      <span className="block text-sm text-gray-500 tabular-nums">
+                        {t('clips.episode.no', { n: Number(c.episode_no) })}
+                        {' · '}
+                        {c.week_key ? weekLabel(c.week_key, locale) : t('clips.series.noWeek')}
+                      </span>
+                      <span className="block font-medium text-gray-900 break-words">{c.title}</span>
+                      {c.week_key && <MakerLine label={t('clips.people.maker')} maker={maker} />}
                     </span>
-                    <span className="block font-medium text-gray-900 break-words">{c.title}</span>
-                    {c.week_key && (
-                      <MakerLine label={t('clips.people.maker')} maker={maker} />
-                    )}
-                  </span>
-                  <Chip label={t(chip.label)} style={chip.style} />
-                </Link>
+                    <Chip label={t(chip.label)} style={chip.style} />
+                  </Link>
+                </EpisodeActions>
               </li>
             );
           })}

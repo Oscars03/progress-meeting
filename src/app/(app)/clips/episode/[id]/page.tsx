@@ -13,6 +13,8 @@ import {
   canonicalForWeek,
   clashingIds,
   durationOf,
+  episodeDeleteProblem,
+  episodeEditProblem,
   formatDuration,
   moveNoticeActive,
   nextFreeWeek,
@@ -23,9 +25,8 @@ import {
 import { loadClips } from '../../load';
 import { STATUS_KEY, makerOf, nameFrom, weekLabel, weekOptions } from '../../describe';
 import { More, MoreSection, NotReady, Swatch } from '../../clip-ui';
+import { EpisodeActions } from '../../episode-actions';
 import {
-  DeleteEpisode,
-  EpisodeTextPanel,
   LengthPanel,
   NextStep,
   PublishPanel,
@@ -49,7 +50,10 @@ const NEXT_HINT: Record<string, TranslationKey> = {
  * 2. the one next step, as the page's only main button;
  * 3. its week: move to another, or take it out -- in plain sight;
  * 4. "more": every other control, folded away (length once ready, publish
- *    record, rename, step back, skip, delete).
+ *    record, step back, skip).
+ *
+ * Edit (title and details) and delete are icons in the header, each shown
+ * only to whom the action would allow.
  */
 export default async function EpisodePage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
@@ -93,9 +97,8 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
 
   const duration = durationOf(clip);
   const post = isLabFacebookUrl(clip.published_url) ? safeHttpsUrl(clip.published_url) : null;
-  const textLocked = !isAdmin && (published || Boolean(clip.week_key && clip.week_key < today));
-  const canDelete =
-    isAdmin || (status === 'planned' && (clip.created_by === actor.id || series?.created_by === actor.id));
+  const canEdit = episodeEditProblem(actor, clip, today) === null;
+  const canDelete = episodeDeleteProblem(actor, clip, series?.created_by) === null;
   const defaultPoster = data.members.some((m) => m.id === actor.id) ? actor.id : '';
 
   // The single next step. Published and skipped have none.
@@ -104,6 +107,7 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
 
   const stageIndex = CLIP_STAGES.indexOf(status as (typeof CLIP_STAGES)[number]);
   const backTo = stageIndex > 0 && (!published || isAdmin) ? CLIP_STAGES[stageIndex - 1] : null;
+  const hasMore = status === 'ready' || published || Boolean(backTo) || isAdmin;
 
   const row = 'grid grid-cols-[7.5rem_1fr] gap-x-3 gap-y-0.5 py-2.5 first:pt-0 last:pb-0';
 
@@ -112,6 +116,16 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
       <PageHeader
         back={series ? `/clips/series/${series.id}` : '/clips'}
         title={<span className="break-words">{clip.title}</span>}
+        actions={
+          canEdit || canDelete ? (
+            <EpisodeActions
+              episode={{ ...base, no: Number(clip.episode_no), title: clip.title, details: clip.details }}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              afterDelete={series ? `/clips/series/${series.id}` : '/clips'}
+            />
+          ) : undefined
+        }
         description={
           series ? (
             <p className="inline-flex flex-wrap items-center gap-x-2">
@@ -262,7 +276,7 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
       )}
 
       {/* 4. Everything else */}
-      {!locked && (
+      {!locked && hasMore && (
         <More label={t('clips.more')}>
           {published && (
             <MoreSection title={t(clip.week_key ? 'clips.week.moveHeading' : 'clips.week.pickHeading')}>
@@ -286,13 +300,6 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
               />
             </MoreSection>
           )}
-          <MoreSection title={t('clips.more.rename')}>
-            {textLocked ? (
-              <p className="text-sm text-gray-500">{t('clips.error.pastWeekLocked')}</p>
-            ) : (
-              <EpisodeTextPanel clip={base} title={clip.title} details={clip.details} />
-            )}
-          </MoreSection>
           {(backTo || isAdmin) && (
             <MoreSection title={t('clips.stage.heading')}>
               <StageExtras
@@ -302,11 +309,6 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
                 canUnskip={isAdmin && status === 'skipped'}
               />
             </MoreSection>
-          )}
-          {canDelete && (
-            <div className="pt-4 border-t border-gray-100">
-              <DeleteEpisode clip={base} seriesId={clip.series_id} />
-            </div>
           )}
         </More>
       )}

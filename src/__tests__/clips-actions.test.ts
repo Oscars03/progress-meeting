@@ -12,6 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { ClipRecord } from '../lib/db/schema';
+import { episodeDeleteProblem, episodeEditProblem } from '../lib/clips';
 
 const getServerSessionMock = vi.fn();
 vi.mock('next-auth', () => ({ getServerSession: () => getServerSessionMock() }));
@@ -561,5 +563,77 @@ describe('past weeks', () => {
     });
     signedInAs('root', 'admin');
     expect(await actions.updateEpisodeAction('e1', { title: 'Fixed' }, 1)).toMatchObject({ ok: true });
+  });
+});
+
+describe('the edit and delete icons follow the actions', () => {
+  // [signed in as, real role, role preview]. 'a' looks after series s1, 'b'
+  // added the episode, 'c' is neither.
+  const ACTORS: [string, string, string | undefined][] = [
+    ['a', 'student', undefined],
+    ['b', 'student', undefined],
+    ['c', 'student', undefined],
+    ['prof', 'professor', undefined],
+    ['root', 'admin', undefined],
+    ['root', 'admin', 'student'],
+  ];
+  const STATES = [
+    { status: 'planned', week_key: '' },
+    { status: 'planned', week_key: '2026-W48' },
+    { status: 'planned', week_key: '2026-W45' },
+    { status: 'in_production', week_key: '2026-W46' },
+    { status: 'ready', week_key: '2026-W46' },
+    { status: 'published', week_key: '2026-W44' },
+    { status: 'skipped', week_key: '2026-W43' },
+  ];
+
+  /** A fresh e2 in the given state, added by 'b'. */
+  function reset(state: Record<string, unknown>) {
+    store.tables.clips = store.tables.clips.filter((r) => r.id !== 'e2');
+    store.tables.clips.push(clip('e2', { episode_no: 2, created_by: 'b', ...state }));
+    return rowOf('e2') as unknown as ClipRecord;
+  }
+
+  /** The role the pages see: the preview's, if an admin is previewing. */
+  const seenRole = (role: string, previewing: string | undefined) => previewing ?? role;
+
+  it('shows the pencil exactly when updateEpisodeAction would save', async () => {
+    for (const [id, role, previewing] of ACTORS) {
+      for (const state of STATES) {
+        const row = reset(state);
+        signedInAs(id, role);
+        preview.value = previewing;
+        const shown = episodeEditProblem({ role: seenRole(role, previewing) }, row, '2026-W46') === null;
+        const res = await actions.updateEpisodeAction('e2', { title: 'Renamed' }, 1);
+        expect(res.ok, `${id}/${previewing ?? role} on ${state.status} ${state.week_key}`).toBe(shown);
+      }
+    }
+  });
+
+  it('shows the bin exactly when deleteEpisodeAction would delete', async () => {
+    for (const [id, role, previewing] of ACTORS) {
+      for (const state of STATES) {
+        const row = reset(state);
+        signedInAs(id, role);
+        preview.value = previewing;
+        // Series s1 was created by 'a'.
+        const shown = episodeDeleteProblem({ id, role: seenRole(role, previewing) }, row, 'a') === null;
+        const res = await actions.deleteEpisodeAction('e2', 1);
+        expect(res.ok, `${id}/${previewing ?? role} on ${state.status} ${state.week_key}`).toBe(shown);
+      }
+    }
+  });
+
+  it('shows the icons to the right people', () => {
+    const planned = { status: 'planned', week_key: '2026-W48', created_by: 'b' };
+    expect(episodeDeleteProblem({ id: 'a', role: 'student' }, planned, 'a')).toBeNull();
+    expect(episodeDeleteProblem({ id: 'b', role: 'student' }, planned, 'a')).toBeNull();
+    expect(episodeDeleteProblem({ id: 'c', role: 'student' }, planned, 'a')).toBe('forbidden');
+    expect(episodeDeleteProblem({ id: 'a', role: 'student' }, { ...planned, status: 'ready' }, 'a')).toBe('adminOnly');
+    expect(episodeDeleteProblem({ id: 'root', role: 'admin' }, { ...planned, status: 'published' }, 'a')).toBeNull();
+    expect(episodeEditProblem({ role: 'student' }, planned, '2026-W46')).toBeNull();
+    expect(episodeEditProblem({ role: 'student' }, { ...planned, week_key: '2026-W45' }, '2026-W46')).toBe('pastWeekLocked');
+    expect(episodeEditProblem({ role: 'student' }, { ...planned, status: 'published' }, '2026-W46')).toBe('publishedLocked');
+    expect(episodeEditProblem({ role: 'admin' }, { ...planned, status: 'published', week_key: '2026-W40' }, '2026-W46')).toBeNull();
   });
 });
