@@ -49,35 +49,11 @@ export function Chip({ label, style }: { label: string; style: string }) {
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${style}`}>{label}</span>;
 }
 
-/**
- * "วาง: พี · ทำ: ซี" -- planner and maker side by side with fixed labels, so
- * it reads without colour, in either theme.
- */
-export function PeopleLine({
-  planLabel,
-  makeLabel,
-  planner,
-  maker,
-  same,
-  sameLabel,
-}: {
-  planLabel: string;
-  makeLabel: string;
-  planner: string;
-  maker: string;
-  same: boolean;
-  sameLabel: string;
-}) {
+/** "ผู้ทำคลิป: ซี" -- the maker with a fixed label, so it reads without colour. */
+export function MakerLine({ label, maker }: { label: string; maker: string }) {
   return (
-    <span className="text-sm text-gray-600 break-words">
-      {planLabel}: <span className="text-gray-900">{planner}</span>
-      {' · '}
-      {makeLabel}: <span className="text-gray-900">{maker}</span>
-      {same && (
-        <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-800" title={sameLabel}>
-          =
-        </span>
-      )}
+    <span className="block text-sm text-gray-600 break-words">
+      {label}: <span className="text-gray-900">{maker}</span>
     </span>
   );
 }

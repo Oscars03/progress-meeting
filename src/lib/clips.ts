@@ -3,15 +3,13 @@
  * lab's own Facebook Page.
  *
  * Topics are a catalogue. A **series** has several **episodes**, and each
- * episode occupies one calendar week. Two people are named on an episode:
- *
- * - the **maker**, who produces the clip. Never chosen by hand: it is the
- *   `week_leads` lead of the working week before the episode's week -- whoever
- *   hosted last week's meeting makes this week's clip, held or not. Frozen
- *   (`maker_id`) when work starts, so moving the episode later does not hand
- *   half-done work to somebody else.
- * - the **planner**, who plans the content. Assigned by the owner outside the
- *   app and recorded by anybody; nothing here guesses it.
+ * episode occupies one calendar week. One person is named on an episode: the
+ * **maker**, who produces the clip. Never chosen by hand: it is the
+ * `week_leads` lead of the working week before the episode's week -- whoever
+ * hosted last week's meeting makes this week's clip, held or not. Frozen
+ * (`maker_id`) when work starts, so moving the episode later does not hand
+ * half-done work to somebody else. (There is no planner, draft link, notes or
+ * due date: owner decision, 2026-11-12.)
  *
  * Nothing here reads or writes the sheet. Pages compute from what they read,
  * and only a person pressing a button writes -- see clips/actions.ts.
@@ -60,7 +58,6 @@ export const LIMITS = {
   seriesDescription: 2000,
   episodeTitle: 200,
   episodeDetails: 2000,
-  notes: 2000,
 } as const;
 
 /* ------------------------------------------------------------------ */
@@ -290,36 +287,11 @@ export function clashingIds(clips: Pick<ClipRecord, 'id' | 'week_key'>[]): Set<s
 /* Dates                                                               */
 /* ------------------------------------------------------------------ */
 
-/** When an episode is due: its own date if set, else Sunday 23:59 of its week. Null without either. */
-export function dueAt(clip: Pick<ClipRecord, 'due_at' | 'week_key'>): string | null {
-  if (clip.due_at) return clip.due_at;
-  const monday = weekStartDate(clip.week_key);
-  if (!monday) return null;
-  const sunday = new Date(`${monday}T12:00:00Z`);
-  sunday.setUTCDate(sunday.getUTCDate() + 6);
-  return new Date(`${sunday.toISOString().slice(0, 10)}T23:59:00${LAB_UTC_OFFSET}`).toISOString();
-}
-
-/** A YYYY-MM-DD as 23:59 that day in the lab, ISO; null if not a date. */
-export function endOfLabDay(date: string): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  const at = new Date(`${date}T23:59:00${LAB_UTC_OFFSET}`);
-  return Number.isNaN(at.getTime()) ? null : at.toISOString();
-}
-
 /** A YYYY-MM-DD as noon that day in the lab, ISO; null if not a date. */
 export function noonOfLabDay(date: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const at = new Date(`${date}T12:00:00${LAB_UTC_OFFSET}`);
   return Number.isNaN(at.getTime()) ? null : at.toISOString();
-}
-
-/** Past its due time and not yet published or skipped. */
-export function isLate(clip: Pick<ClipRecord, 'due_at' | 'week_key' | 'status'>, now: Date = new Date()): boolean {
-  const status = statusOf(clip);
-  if (status === 'published' || status === 'skipped') return false;
-  const due = dueAt(clip);
-  return due !== null && now.getTime() > Date.parse(due);
 }
 
 /** Whether the "moved" notice should still show. */
@@ -344,12 +316,11 @@ export type TransitionProblem =
   | 'notOneStep'
   | 'adminOnly'
   | 'needsWeek'
-  | 'plannerRequired'
   | 'durationRequired'
   | 'usePublishForm';
 
 export function transitionProblem(
-  clip: Pick<ClipRecord, 'status' | 'week_key' | 'planner_id' | 'duration_sec'>,
+  clip: Pick<ClipRecord, 'status' | 'week_key' | 'duration_sec'>,
   to: ClipStatus,
   isAdmin: boolean
 ): TransitionProblem | null {
@@ -369,10 +340,7 @@ export function transitionProblem(
 
   if (b < a) return from === 'published' && !isAdmin ? 'adminOnly' : null;
 
-  if (to === 'in_production') {
-    if (!clip.week_key) return 'needsWeek';
-    if (!clip.planner_id) return 'plannerRequired';
-  }
+  if (to === 'in_production' && !clip.week_key) return 'needsWeek';
   if (to === 'ready') {
     const d = durationOf(clip);
     if (d === null || !isAllowedDuration(d)) return 'durationRequired';

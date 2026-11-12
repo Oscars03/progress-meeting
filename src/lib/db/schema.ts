@@ -33,6 +33,10 @@ export const SCHEMAS = {
   calendar_shares: [...COMMON_COLUMNS, 'token_hash', 'week_key', 'user_ids', 'expires_at', 'revoked_at'],
   // Weekly clips (schema 21). A series is a topic with several episodes; an
   // episode occupies one calendar week. See lib/clips.ts.
+  // Unused since 2026-11-12 by owner decision (maker only, no planner, draft
+  // link, notes or due date): due_at, draft_url, notes, planner_id,
+  // planner_set_by, planner_set_at. Kept so the sheet still matches; the app
+  // neither reads nor writes them (new rows get them empty).
   clip_series: [...COMMON_COLUMNS, 'title', 'description', 'color', 'status'],
   clips: [
     ...COMMON_COLUMNS,
@@ -466,11 +470,13 @@ export type ClipRecord = BaseRecord & {
   /** planned | in_production | ready | published | skipped */
   status: string;
   status_at: string;
-  /** '' = Sunday 23:59 of the week, in the lab's time. */
+  /** Unused since 2026-11-12 (owner decision); kept for the sheet. */
   due_at: string;
   /** Whole seconds, 1..300, or '' until known. */
   duration_sec: number | string;
+  /** Unused since 2026-11-12 (owner decision); kept for the sheet. */
   draft_url: string;
+  /** Unused since 2026-11-12 (owner decision); kept for the sheet. */
   notes: string;
   /** The post on the lab's Facebook Page. */
   published_url: string;
@@ -480,7 +486,7 @@ export type ClipRecord = BaseRecord & {
   moved_from: string;
   moved_by: string;
   moved_at: string;
-  /** Who plans the content; '' until somebody records it. Never derived. */
+  /** Unused since 2026-11-12 (owner decision: no planner); kept for the sheet. */
   planner_id: string;
   planner_set_by: string;
   planner_set_at: string;

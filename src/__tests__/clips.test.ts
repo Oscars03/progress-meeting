@@ -14,10 +14,8 @@ import {
   canonicalForWeek,
   clashingIds,
   clipMaker,
-  dueAt,
   formatDuration,
   isAllowedDuration,
-  isLate,
   moveNoticeActive,
   nextEpisodeNo,
   nextFreeWeek,
@@ -252,12 +250,11 @@ describe('the 5:00 cap', () => {
   });
 });
 
-describe('stages (D9, D26)', () => {
-  const base = { status: 'planned', week_key: '2026-W47', planner_id: 'p', duration_sec: '' as number | string };
+describe('stages (D9)', () => {
+  const base = { status: 'planned', week_key: '2026-W47', duration_sec: '' as number | string };
 
-  it('needs a week and a planner to start production', () => {
+  it('needs only a week to start production (no planner since 2026-11-12)', () => {
     expect(transitionProblem({ ...base, week_key: '' }, 'in_production', false)).toBe('needsWeek');
-    expect(transitionProblem({ ...base, planner_id: '' }, 'in_production', false)).toBe('plannerRequired');
     expect(transitionProblem(base, 'in_production', false)).toBeNull();
   });
 
@@ -287,19 +284,6 @@ describe('stages (D9, D26)', () => {
 });
 
 describe('dates', () => {
-  it('is due Sunday 23:59 in the lab, unless a date was set', () => {
-    expect(dueAt({ due_at: '', week_key: '2026-W46' })).toBe('2026-11-15T16:59:00.000Z');
-    expect(dueAt({ due_at: '2026-11-12T16:59:00.000Z', week_key: '2026-W46' })).toBe('2026-11-12T16:59:00.000Z');
-    expect(dueAt({ due_at: '', week_key: '' })).toBeNull();
-  });
-
-  it('is late past its due time unless published or skipped', () => {
-    const after = new Date('2026-11-16T00:00:00Z');
-    expect(isLate({ due_at: '', week_key: '2026-W46', status: 'in_production' }, after)).toBe(true);
-    expect(isLate({ due_at: '', week_key: '2026-W46', status: 'published' }, after)).toBe(false);
-    expect(isLate({ due_at: '', week_key: '2026-W46', status: 'planned' }, new Date('2026-11-12T00:00:00Z'))).toBe(false);
-  });
-
   it('shows a move notice for 14 days', () => {
     const now = new Date('2026-11-30T00:00:00Z');
     expect(moveNoticeActive({ moved_at: '2026-11-17T00:00:00Z' }, now)).toBe(true);

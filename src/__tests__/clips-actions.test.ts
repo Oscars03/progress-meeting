@@ -3,7 +3,7 @@
  *
  * Everybody signed in manages clip content (owner, D22), so most of what is
  * checked here is the data rules -- free weeks only, the 13-week horizon, the
- * 5:00 cap, the planner before production -- plus the few things that stay
+ * 5:00 cap, starting production with no extra input -- plus the few things that stay
  * admin's: deleting a series and changing a published episode.
  *
  * The sheet and the session are mocked. The mock repository keeps rows in
@@ -186,7 +186,6 @@ beforeEach(() => {
         status: 'published',
         duration_sec: 200,
         maker_id: 'a',
-        planner_id: 'c',
         published_url: 'https://www.facebook.com/lab/videos/1',
       }),
     ],
@@ -202,7 +201,7 @@ describe('signing in', () => {
     getServerSessionMock.mockResolvedValue(null);
     expect(await actions.createSeriesAction({ title: 'X' })).toMatchObject({ ok: false, error: 'error.signInRequired' });
     expect(await actions.bookEpisodeAction('e2', 1, 'next')).toMatchObject({ ok: false, error: 'error.signInRequired' });
-    expect(await actions.setPlannerAction('e1', 'c', 1)).toMatchObject({ ok: false, error: 'error.signInRequired' });
+    expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1)).toMatchObject({ ok: false, error: 'error.signInRequired' });
     expect(insert).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
@@ -217,8 +216,8 @@ describe('creating topics (D3, D17, D18)', () => {
     expect(episodes).toHaveLength(2);
     expect(episodes.map(([, doc]) => doc.episode_no)).toEqual([1, 2]);
     expect(episodes[0][3]).toEqual({ uniqueBy: { series_id: expect.any(String), episode_no: 1 } });
-    // Queued: no week, and nobody set as maker or planner.
-    expect(episodes[0][1]).toMatchObject({ week_key: '', maker_id: '', planner_id: '' });
+    // Queued: no week, and nobody set as maker.
+    expect(episodes[0][1]).toMatchObject({ week_key: '', maker_id: '' });
   });
 
   it('lets a professor add an episode to somebody else’s series, at the end', async () => {
@@ -316,7 +315,7 @@ describe('booking and moving (D4, D19, D20)', () => {
   });
 
   it('lets anybody move an episode in production to a free week, keeping its maker', async () => {
-    Object.assign(rowOf('e1'), { status: 'in_production', maker_id: 'b', planner_id: 'c' });
+    Object.assign(rowOf('e1'), { status: 'in_production', maker_id: 'b' });
     signedInAs('prof', 'professor');
     const res = await actions.moveEpisodeAction('e1', 1, '2026-W49');
     expect(res).toMatchObject({ ok: true, week: '2026-W49' });
@@ -326,9 +325,9 @@ describe('booking and moving (D4, D19, D20)', () => {
       moved_from: '2026-W47',
       moved_by: 'prof',
       moved_at: expect.any(String),
-      due_at: '',
     });
     expect(fields).not.toHaveProperty('maker_id');
+    expect(fields).not.toHaveProperty('due_at');
     expect(rowOf('e1').maker_id).toBe('b');
   });
 
@@ -375,62 +374,29 @@ describe('booking and moving (D4, D19, D20)', () => {
   });
 });
 
-describe('the planner (D25, D26, D27)', () => {
-  it('lets anybody record any active member, and says when it is also the maker', async () => {
-    signedInAs('c');
-    // e1 is in W47, so its maker is W46's lead, b.
-    expect(await actions.setPlannerAction('e1', 'b', 1)).toEqual({ ok: true, sameAsMaker: true });
-    expect(rowOf('e1')).toMatchObject({ planner_id: 'b', planner_set_by: 'c', planner_set_at: expect.any(String) });
-    expect(await actions.setPlannerAction('e1', 'prof', 2)).toEqual({ ok: true, sameAsMaker: false });
-  });
-
-  it('refuses somebody who is not an active member', async () => {
-    signedInAs('c');
-    expect(await actions.setPlannerAction('e1', 'gone', 1)).toMatchObject({ error: 'clips.error.notMember' });
-    expect(await actions.setPlannerAction('e1', 'root', 1)).toMatchObject({ error: 'clips.error.notMember' });
-    expect(await actions.setPlannerAction('e1', 'nobody', 1)).toMatchObject({ error: 'clips.error.notMember' });
-  });
-
-  it('can be cleared while planned, not once work has started', async () => {
-    signedInAs('c');
-    rowOf('e1').planner_id = 'a';
-    expect(await actions.setPlannerAction('e1', '', 1)).toMatchObject({ ok: true });
-    Object.assign(rowOf('e1'), { status: 'in_production', planner_id: 'a' });
-    expect(await actions.setPlannerAction('e1', '', 2)).toMatchObject({ error: 'clips.error.plannerClearLocked' });
-  });
-
-  it('is required before production starts', async () => {
-    signedInAs('c');
-    expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1)).toMatchObject({
-      error: 'clips.error.plannerRequired',
-    });
-  });
-});
-
 describe('stages and the maker (D9, D24)', () => {
   it('freezes the derived maker when production starts, and lets it go back to the week', async () => {
     signedInAs('c');
-    rowOf('e1').planner_id = 'a';
     expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1)).toMatchObject({ ok: true });
     expect(rowOf('e1')).toMatchObject({ status: 'in_production', maker_id: 'b' });
     expect(await actions.setEpisodeStatusAction('e1', 'planned', 2)).toMatchObject({ ok: true });
     expect(rowOf('e1').maker_id).toBe('');
   });
 
-  it('records the planner in the same step that starts production', async () => {
+  it('starts production with no extra input, in one write, and never touches the planner column', async () => {
     signedInAs('c');
-    expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1, { plannerId: 'gone' })).toMatchObject({
-      error: 'clips.error.notMember',
-    });
-    expect(update).not.toHaveBeenCalled();
-    expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1, { plannerId: 'a' })).toMatchObject({ ok: true });
-    expect(rowOf('e1')).toMatchObject({ status: 'in_production', planner_id: 'a', planner_set_by: 'c', maker_id: 'b' });
+    expect(await actions.setEpisodeStatusAction('e1', 'in_production', 1)).toMatchObject({ ok: true });
+    expect(rowOf('e1')).toMatchObject({ status: 'in_production', maker_id: 'b' });
     expect(update).toHaveBeenCalledTimes(1);
+    const fields = update.mock.calls[0][2];
+    for (const unused of ['planner_id', 'planner_set_by', 'planner_set_at', 'due_at', 'draft_url', 'notes']) {
+      expect(fields).not.toHaveProperty(unused);
+    }
   });
 
   it('records the length in the same step that marks it ready, under the 5:00 cap', async () => {
     signedInAs('c');
-    Object.assign(rowOf('e1'), { status: 'in_production', planner_id: 'a' });
+    rowOf('e1').status = 'in_production';
     expect(await actions.setEpisodeStatusAction('e1', 'ready', 1, { duration: '5:01' })).toMatchObject({
       error: 'clips.error.tooLong',
     });
@@ -440,13 +406,12 @@ describe('stages and the maker (D9, D24)', () => {
 
   it('needs a week to start', async () => {
     signedInAs('c');
-    rowOf('e2').planner_id = 'a';
     expect(await actions.setEpisodeStatusAction('e2', 'in_production', 1)).toMatchObject({ error: 'clips.error.needsWeek' });
   });
 
   it('needs a length to be ready', async () => {
     signedInAs('c');
-    Object.assign(rowOf('e1'), { status: 'in_production', planner_id: 'a' });
+    rowOf('e1').status = 'in_production';
     expect(await actions.setEpisodeStatusAction('e1', 'ready', 1)).toMatchObject({ error: 'clips.error.durationRequired' });
   });
 
@@ -467,9 +432,8 @@ describe('stages and the maker (D9, D24)', () => {
     signedInAs('c');
     await actions.bookEpisodeAction('e2', 1, 'next');
     await actions.moveEpisodeAction('e1', 1, '2026-W49');
-    await actions.setPlannerAction('e1', 'a', 2);
-    await actions.updateEpisodeWorkAction('e1', { duration: '4:00', notes: 'x' }, 3);
-    await actions.updateEpisodeAction('e1', { title: 'New' }, 4);
+    await actions.updateEpisodeLengthAction('e1', '4:00', 2);
+    await actions.updateEpisodeAction('e1', { title: 'New' }, 3);
     await actions.unbookEpisodeAction('e2', 2);
     for (const [, , fields] of update.mock.calls) expect(fields).not.toHaveProperty('maker_id');
   });
@@ -482,7 +446,7 @@ describe('the 5:00 cap (D12)', () => {
     ['abc', 'clips.error.durationInvalid'],
   ])('refuses %s', async (duration, error) => {
     signedInAs('c');
-    expect(await actions.updateEpisodeWorkAction('e1', { duration }, 1)).toMatchObject({ ok: false, error });
+    expect(await actions.updateEpisodeLengthAction('e1', duration, 1)).toMatchObject({ ok: false, error });
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -491,21 +455,22 @@ describe('the 5:00 cap (D12)', () => {
     ['5:00', 300],
   ])('accepts %s', async (duration, seconds) => {
     signedInAs('c');
-    expect(await actions.updateEpisodeWorkAction('e1', { duration }, 1)).toMatchObject({ ok: true });
+    expect(await actions.updateEpisodeLengthAction('e1', duration, 1)).toMatchObject({ ok: true });
     expect(rowOf('e1').duration_sec).toBe(seconds);
   });
 
-  it('refuses a draft link that is not https', async () => {
+  it('keeps a length on a ready episode', async () => {
     signedInAs('c');
-    expect(await actions.updateEpisodeWorkAction('e1', { draftUrl: 'javascript:alert(1)' }, 1)).toMatchObject({
-      error: 'clips.error.badUrl',
-    });
+    Object.assign(rowOf('e1'), { status: 'ready', duration_sec: 240 });
+    expect(await actions.updateEpisodeLengthAction('e1', '', 1)).toMatchObject({ error: 'clips.error.durationRequired' });
+    expect(await actions.updateEpisodeLengthAction('e1', '3:00', 1)).toMatchObject({ ok: true });
+    expect(rowOf('e1').duration_sec).toBe(180);
   });
 });
 
 describe('publishing (D6, D14)', () => {
   beforeEach(() => {
-    Object.assign(rowOf('e1'), { status: 'ready', duration_sec: 240, planner_id: 'a', maker_id: 'b' });
+    Object.assign(rowOf('e1'), { status: 'ready', duration_sec: 240, maker_id: 'b' });
   });
 
   it('needs a Facebook link', async () => {
@@ -542,8 +507,7 @@ describe('publishing (D6, D14)', () => {
 
   it('leaves a published record to admin', async () => {
     signedInAs('c');
-    expect(await actions.updateEpisodeWorkAction('pub', { notes: 'x' }, 1)).toMatchObject({ error: 'clips.error.publishedLocked' });
-    expect(await actions.setPlannerAction('pub', 'a', 1)).toMatchObject({ error: 'clips.error.publishedLocked' });
+    expect(await actions.updateEpisodeLengthAction('pub', '4:00', 1)).toMatchObject({ error: 'clips.error.publishedLocked' });
     expect(
       await actions.publishEpisodeAction('pub', { url: 'https://fb.watch/y', date: '2026-11-15', postedBy: 'b' }, 1)
     ).toMatchObject({ error: 'clips.error.publishedLocked' });

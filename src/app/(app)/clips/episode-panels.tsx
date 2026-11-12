@@ -13,10 +13,9 @@ import {
   moveEpisodeAction,
   publishEpisodeAction,
   setEpisodeStatusAction,
-  setPlannerAction,
   unbookEpisodeAction,
   updateEpisodeAction,
-  updateEpisodeWorkAction,
+  updateEpisodeLengthAction,
 } from './actions';
 import { ErrorLine, FIELD, useClipAction } from './use-clip-action';
 import type { WeekOption } from './clip-forms';
@@ -76,7 +75,6 @@ function MemberSelect({
   onChange,
   members,
   emptyLabel,
-  emptyDisabled = false,
   required = false,
 }: {
   label: string;
@@ -84,16 +82,13 @@ function MemberSelect({
   onChange: (v: string) => void;
   members: Member[];
   emptyLabel: string;
-  emptyDisabled?: boolean;
   required?: boolean;
 }) {
   return (
     <label className="block text-sm">
       <span className="text-gray-700">{label}</span>
       <select className={`${FIELD} mt-1`} value={value} required={required} onChange={(e) => onChange(e.target.value)}>
-        <option value="" disabled={emptyDisabled}>
-          {emptyLabel}
-        </option>
+        <option value="">{emptyLabel}</option>
         {members.map((m) => (
           <option key={m.id} value={m.id}>
             {m.name}
@@ -106,16 +101,14 @@ function MemberSelect({
 
 /**
  * The one thing to do next on an episode, as the page's single main button:
- * book a week, start production (recording the planner in the same tap if
- * there is none), mark it ready (with its length), or record the Facebook
- * post. The server checks every step again.
+ * book a week, start production, mark it ready (with its length), or record
+ * the Facebook post. The server checks every step again.
  */
 export function NextStep({
   clip,
   step,
   nextFree,
   members,
-  needsPlanner = false,
   duration,
   publish,
 }: {
@@ -124,15 +117,12 @@ export function NextStep({
   /** For `book`: the week a tap would take, or null when none is free. */
   nextFree: WeekOption | null;
   members: Member[];
-  /** For `start`: true when a planner still has to be chosen. */
-  needsPlanner?: boolean;
   duration: number | null;
   /** For `publish`: the defaults. */
   publish: { date: string; postedBy: string };
 }) {
   const { t } = usePrefs();
   const { run, pending, error } = useClipAction();
-  const [planner, setPlanner] = useState('');
   const { length, setLength, problem } = useLength(duration);
 
   if (step === 'book') {
@@ -159,49 +149,45 @@ export function NextStep({
     return <PublishPanel clip={clip} url="" date={publish.date} postedBy={publish.postedBy} members={members} isPublished={false} />;
   }
 
+  if (step === 'start') {
+    return (
+      <div className="space-y-2">
+        <ErrorLine text={error} />
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={pending}
+          onClick={() => run(() => setEpisodeStatusAction(clip.id, 'in_production', clip.rowVersion), { done: t('clips.toast.started') })}
+        >
+          {pending ? t('common.saving') : t('clips.stage.toInProduction')}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <form
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (step === 'start') {
-          run(() => setEpisodeStatusAction(clip.id, 'in_production', clip.rowVersion, needsPlanner ? { plannerId: planner } : {}), {
-            done: t('clips.toast.started'),
-          });
-        } else {
-          run(() => setEpisodeStatusAction(clip.id, 'ready', clip.rowVersion, { duration: length }), {
-            done: t('clips.toast.ready'),
-          });
-        }
+        run(() => setEpisodeStatusAction(clip.id, 'ready', clip.rowVersion, { duration: length }), {
+          done: t('clips.toast.ready'),
+        });
       }}
     >
-      {needsPlanner && (
-        <MemberSelect
-          label={t('clips.people.planner')}
-          value={planner}
-          onChange={setPlanner}
-          members={members}
-          emptyLabel={t('clips.people.pickPlanner')}
-          emptyDisabled
-          required
-        />
-      )}
-      {step === 'ready' && <LengthField value={length} onChange={setLength} problem={problem} required />}
+      <LengthField value={length} onChange={setLength} problem={problem} required />
       <ErrorLine text={error} />
-      <button
-        type="submit"
-        className="btn btn-primary"
-        disabled={pending || (needsPlanner && !planner) || (step === 'ready' && (!length.trim() || problem !== null))}
-      >
-        {pending ? t('common.saving') : t(step === 'start' ? 'clips.stage.toInProduction' : 'clips.stage.toReady')}
+      <button type="submit" className="btn btn-primary" disabled={pending || !length.trim() || problem !== null}>
+        {pending ? t('common.saving') : t('clips.stage.toReady')}
       </button>
     </form>
   );
 }
 
 /**
- * Choose a week by hand, move to another, or take it out of its week. Free
- * weeks only; the server checks again.
+ * Choose a week by hand, move to another, or take it out of its week -- shown
+ * on the episode page itself, not folded away. Free weeks only; the server
+ * checks again.
  */
 export function WeekPanel({
   clip,
@@ -231,15 +217,15 @@ export function WeekPanel({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {freeWeeks.length === 0 ? (
         <p className="text-sm text-gray-500">{t('clips.book.noneFree')}</p>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
+        <>
           <label className="sr-only" htmlFor={`week-${clip.id}`}>
             {t('clips.book.pick')}
           </label>
-          <select id={`week-${clip.id}`} className={`${FIELD} w-auto max-w-full`} value={week} onChange={(e) => setWeek(e.target.value)}>
+          <select id={`week-${clip.id}`} name="week" className={FIELD} value={week} onChange={(e) => setWeek(e.target.value)}>
             <option value="">{t('clips.book.pick')}</option>
             {freeWeeks.map((w) => (
               <option key={w.key} value={w.key}>
@@ -247,63 +233,19 @@ export function WeekPanel({
               </option>
             ))}
           </select>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={pending || !week} onClick={place}>
+        </>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {freeWeeks.length > 0 && (
+          <button type="button" className="btn btn-secondary" disabled={pending || !week} onClick={place}>
             {t(clip.week ? 'clips.move.submit' : 'clips.book.submit')}
           </button>
-        </div>
-      )}
-      {clip.week && (
-        <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={unbook}>
-          {t('clips.unbook.submit')}
-        </button>
-      )}
-      <ErrorLine text={error} />
-    </div>
-  );
-}
-
-/** Record or change the planner (D25): anybody, any active member. */
-export function PlannerPanel({
-  clip,
-  plannerId,
-  members,
-  canClear,
-}: {
-  clip: Base;
-  plannerId: string;
-  members: Member[];
-  canClear: boolean;
-}) {
-  const { t } = usePrefs();
-  const toast = useToast();
-  const [pick, setPick] = useState(plannerId);
-  const { run, pending, error } = useClipAction();
-
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-0 flex-1 basis-48">
-          <MemberSelect
-            label={t('clips.people.planner')}
-            value={pick}
-            onChange={setPick}
-            members={members}
-            emptyLabel={t('clips.people.plannerNone')}
-            emptyDisabled={!canClear}
-          />
-        </div>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          disabled={pending || pick === plannerId}
-          onClick={() =>
-            run(() => setPlannerAction(clip.id, pick, clip.rowVersion), {
-              after: (res) => toast(res.sameAsMaker ? t('clips.people.samePersonSaved') : t('common.saved')),
-            })
-          }
-        >
-          {t('common.save')}
-        </button>
+        )}
+        {clip.week && (
+          <button type="button" className="btn btn-secondary" disabled={pending} onClick={unbook}>
+            {t('clips.unbook.submit')}
+          </button>
+        )}
       </div>
       <ErrorLine text={error} />
     </div>
@@ -311,31 +253,13 @@ export function PlannerPanel({
 }
 
 /**
- * Draft link, notes, due date -- and the length once the episode is ready
- * (before that, the "ready" step asks for it). The 5:00 cap shows inline and
- * holds the save back; the server refuses it regardless.
+ * Correct the length once the episode is ready (before that, the "ready"
+ * step asks for it). The 5:00 cap shows inline and holds the save back; the
+ * server refuses it regardless.
  */
-export function WorkPanel({
-  clip,
-  duration,
-  showLength,
-  draftUrl,
-  notes,
-  dueDate,
-}: {
-  clip: Base;
-  duration: number | null;
-  showLength: boolean;
-  draftUrl: string;
-  notes: string;
-  /** YYYY-MM-DD when a due date was set by hand, else ''. */
-  dueDate: string;
-}) {
+export function LengthPanel({ clip, duration }: { clip: Base; duration: number | null }) {
   const { t } = usePrefs();
   const { length, setLength, problem } = useLength(duration);
-  const [draft, setDraft] = useState(draftUrl);
-  const [text, setText] = useState(notes);
-  const [due, setDue] = useState(dueDate);
   const { run, pending, error } = useClipAction();
 
   return (
@@ -343,43 +267,12 @@ export function WorkPanel({
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        run(
-          () =>
-            updateEpisodeWorkAction(
-              clip.id,
-              { ...(showLength ? { duration: length } : {}), draftUrl: draft, notes: text, dueDate: due },
-              clip.rowVersion
-            ),
-          { done: t('common.saved') }
-        );
+        run(() => updateEpisodeLengthAction(clip.id, length, clip.rowVersion), { done: t('common.saved') });
       }}
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        {showLength && <LengthField value={length} onChange={setLength} problem={problem} />}
-        <label className="block text-sm">
-          <span className="text-gray-700">{t('clips.work.due')}</span>
-          <input type="date" className={`${FIELD} mt-1`} value={due} onChange={(e) => setDue(e.target.value)} />
-        </label>
-      </div>
-      <label className="block text-sm">
-        <span className="text-gray-700">{t('clips.work.draft')}</span>
-        <input
-          type="url"
-          name="draft-url"
-          autoComplete="off"
-          className={`${FIELD} mt-1`}
-          placeholder="https://…"
-          value={draft}
-          maxLength={2048}
-          onChange={(e) => setDraft(e.target.value)}
-        />
-      </label>
-      <label className="block text-sm">
-        <span className="text-gray-700">{t('clips.work.notes')}</span>
-        <textarea className={`${FIELD} mt-1`} rows={3} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} />
-      </label>
+      <LengthField value={length} onChange={setLength} problem={problem} required />
       <ErrorLine text={error} />
-      <button type="submit" className="btn btn-secondary" disabled={pending || (showLength && problem !== null)}>
+      <button type="submit" className="btn btn-secondary" disabled={pending || !length.trim() || problem !== null}>
         {pending ? t('common.saving') : t('common.save')}
       </button>
     </form>

@@ -8,8 +8,8 @@ import { weekRange } from '@/lib/meeting-history';
 import { isMonthKey, monthOfWeek, shiftMonth, weekKey, weeksOfMonth } from '@/lib/week';
 import { canonicalForWeek, clashingIds, clipMaker, seriesColor } from '@/lib/clips';
 import { loadClips } from '../load';
-import { chipFor, describeMaker, peopleOf } from '../describe';
-import { Chip, ModeSwitch, NotReady, PeopleLine, Swatch } from '../clip-ui';
+import { chipFor, describeMaker, makerOf } from '../describe';
+import { Chip, MakerLine, ModeSwitch, NotReady, Swatch } from '../clip-ui';
 
 /**
  * Page 2 of the weekly clips: the calendar summary, one slot per week.
@@ -105,26 +105,14 @@ export default async function ClipsCalendarPage(props: { searchParams: Promise<{
                         )}
                       </span>
                       <span className="block text-sm text-gray-700 break-words">{clip.title}</span>
-                      {(() => {
-                        const people = peopleOf(clip, data, t, locale);
-                        return (
-                          <PeopleLine
-                            planLabel={t('clips.people.planShort')}
-                            makeLabel={t('clips.people.makeShort')}
-                            planner={people.planner}
-                            maker={people.maker}
-                            same={people.same}
-                            sameLabel={t('clips.people.samePerson')}
-                          />
-                        );
-                      })()}
+                      <MakerLine label={t('clips.people.maker')} maker={makerOf(clip, data, t, locale).maker} />
                     </Link>
                   ) : (
                     <span className="block text-sm">
                       <span className="block text-gray-500">{t('clips.calendar.empty')}</span>
                       {week >= today && (
                         <span className="block text-gray-600">
-                          {t('clips.people.makeShort')}: {(() => {
+                          {t('clips.people.maker')}: {(() => {
                             const m = describeMaker(clipMaker({ week_key: week }, data.leads, data.users, data.breaks), data.users, t, locale);
                             return m.name ? `${m.name}${m.tentative ? '?' : ''}` : m.note;
                           })()}
