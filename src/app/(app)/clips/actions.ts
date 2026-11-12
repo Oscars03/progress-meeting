@@ -20,6 +20,8 @@ import {
   LIMITS,
   MAX_EPISODES_AT_ONCE,
   clipMaker,
+  episodeDeleteProblem,
+  episodeEditProblem,
   isAllowedDuration,
   isClipStatus,
   isSeriesStatus,
@@ -293,10 +295,9 @@ export async function updateEpisodeAction(
   return toResult(async () => {
     const actor = await requireSession();
     const { clip } = await freshClip(id);
-    assertNotPublished(actor, clip);
-    if (!isAdmin(actor) && clip.week_key && clip.week_key < weekKey()) {
-      throw new UserError('clips.error.pastWeekLocked');
-    }
+    const problem = episodeEditProblem(actor, clip, weekKey());
+    if (problem === 'publishedLocked') throw new UserError('clips.error.publishedLocked');
+    if (problem === 'pastWeekLocked') throw new UserError('clips.error.pastWeekLocked');
     await SheetRepo.update<ClipRecord>(
       'clips',
       id,
@@ -321,11 +322,11 @@ export async function deleteEpisodeAction(id: string, rowVersion: number): Promi
     const actor = await requireSession();
     const { clip } = await freshClip(id);
     if (!isAdmin(actor)) {
-      if (statusOf(clip) !== 'planned') throw new UserError('clips.error.deleteAdminOnly');
-      const series = await SheetRepo.findOne<ClipSeriesRecord>('clip_series', clip.series_id);
-      if (clip.created_by !== actor.id && series?.created_by !== actor.id) {
-        throw new UserError('error.forbidden');
-      }
+      const series =
+        statusOf(clip) === 'planned' ? await SheetRepo.findOne<ClipSeriesRecord>('clip_series', clip.series_id) : null;
+      const problem = episodeDeleteProblem(actor, clip, series?.created_by);
+      if (problem === 'adminOnly') throw new UserError('clips.error.deleteAdminOnly');
+      if (problem === 'forbidden') throw new UserError('error.forbidden');
     }
     await SheetRepo.delete('clips', id, version(rowVersion), actor.id);
     revalidateClips();

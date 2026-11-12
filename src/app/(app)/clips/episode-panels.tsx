@@ -1,20 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { usePrefs } from '@/lib/ui/prefs';
 import { useConfirm } from '@/lib/ui/confirm';
-import { useToast } from '@/lib/ui/toast';
 import { MAX_DURATION_SEC, formatDuration, parseDuration } from '@/lib/clips';
 import type { TranslationKey } from '@/lib/ui/i18n';
 import {
   bookEpisodeAction,
-  deleteEpisodeAction,
   moveEpisodeAction,
   publishEpisodeAction,
   setEpisodeStatusAction,
   unbookEpisodeAction,
-  updateEpisodeAction,
   updateEpisodeLengthAction,
 } from './actions';
 import { ErrorLine, FIELD, useClipAction } from './use-clip-action';
@@ -347,37 +343,6 @@ export function PublishPanel({
   );
 }
 
-/** Reword the episode. */
-export function EpisodeTextPanel({ clip, title, details }: { clip: Base; title: string; details: string }) {
-  const { t } = usePrefs();
-  const [name, setName] = useState(title);
-  const [body, setBody] = useState(details);
-  const { run, pending, error } = useClipAction();
-
-  return (
-    <form
-      className="space-y-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        run(() => updateEpisodeAction(clip.id, { title: name, details: body }, clip.rowVersion), { done: t('common.saved') });
-      }}
-    >
-      <label className="block text-sm">
-        <span className="text-gray-700">{t('clips.form.episodeTitle')}</span>
-        <input className={`${FIELD} mt-1`} value={name} maxLength={200} required onChange={(e) => setName(e.target.value)} />
-      </label>
-      <label className="block text-sm">
-        <span className="text-gray-700">{t('clips.form.details')}</span>
-        <textarea className={`${FIELD} mt-1`} rows={4} maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} />
-      </label>
-      <ErrorLine text={error} />
-      <button type="submit" className="btn btn-secondary" disabled={pending || !name.trim()}>
-        {pending ? t('common.saving') : t('common.save')}
-      </button>
-    </form>
-  );
-}
-
 /** Step back one stage, and admin's skip / bring back. */
 export function StageExtras({
   clip,
@@ -421,38 +386,6 @@ export function StageExtras({
           </button>
         )}
       </div>
-      <ErrorLine text={error} />
-    </div>
-  );
-}
-
-/** Remove the episode; back to its topic afterwards. */
-export function DeleteEpisode({ clip, seriesId }: { clip: Base; seriesId: string }) {
-  const { t } = usePrefs();
-  const router = useRouter();
-  const ask = useConfirm();
-  const toast = useToast();
-  const { run, pending, error } = useClipAction();
-
-  return (
-    <div>
-      <button
-        type="button"
-        className="btn btn-danger-soft btn-sm"
-        disabled={pending}
-        onClick={async () => {
-          if (!(await ask(t('clips.episode.confirmDelete'), { danger: true }))) return;
-          run(() => deleteEpisodeAction(clip.id, clip.rowVersion), {
-            after: () => {
-              toast(t('clips.toast.episodeDeleted'));
-              router.push(seriesId ? `/clips/series/${seriesId}` : '/clips');
-            },
-            refresh: false,
-          });
-        }}
-      >
-        {t('clips.episode.delete')}
-      </button>
       <ErrorLine text={error} />
     </div>
   );

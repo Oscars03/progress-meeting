@@ -350,6 +350,45 @@ export function transitionProblem(
 }
 
 /* ------------------------------------------------------------------ */
+/* Who may edit or delete an episode                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Why somebody may not reword an episode (title and details), or null when
+ * they may. Admin always may. Anybody else: not once it is published, nor once
+ * its week is over -- the topic of a past week is a record. The action refuses
+ * with these and the pages show the edit icon only on null, so the two never
+ * disagree.
+ */
+export function episodeEditProblem(
+  actor: { role: string },
+  clip: Pick<ClipRecord, 'status' | 'week_key'>,
+  today: string
+): 'publishedLocked' | 'pastWeekLocked' | null {
+  if (actor.role === 'admin') return null;
+  if (statusOf(clip) === 'published') return 'publishedLocked';
+  if (clip.week_key && clip.week_key < today) return 'pastWeekLocked';
+  return null;
+}
+
+/**
+ * Why somebody may not delete an episode, or null when they may. A planned
+ * one: whoever added it, whoever looks after the series, or admin. Anything
+ * further along is a record of work done, and is admin's. Shared by the action
+ * and the pages' delete icon, like the one above.
+ */
+export function episodeDeleteProblem(
+  actor: { id: string; role: string },
+  clip: Pick<ClipRecord, 'status' | 'created_by'>,
+  seriesCreatedBy: string | undefined
+): 'adminOnly' | 'forbidden' | null {
+  if (actor.role === 'admin') return null;
+  if (statusOf(clip) !== 'planned') return 'adminOnly';
+  if (clip.created_by !== actor.id && seriesCreatedBy !== actor.id) return 'forbidden';
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* Series                                                              */
 /* ------------------------------------------------------------------ */
 
