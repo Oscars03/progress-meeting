@@ -376,6 +376,117 @@ describe('booking and moving (D4, D19, D20)', () => {
   });
 });
 
+describe('swapping two booked episodes (owner, 2026-11-13)', () => {
+  beforeEach(() => {
+    store.tables.clips.push(
+      clip('e3', { series_id: 's2', episode_no: 1, week_key: '2026-W48', scheduled_at: '2026-11-02T00:00:00Z' })
+    );
+  });
+
+  const weeks = () => ({ e1: rowOf('e1').week_key, e3: rowOf('e3').week_key });
+
+  it('trades the weeks, records the move on both, and keeps a pinned maker on its row', async () => {
+    Object.assign(rowOf('e1'), { status: 'in_production', maker_id: 'b' });
+    signedInAs('c');
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 1)).toMatchObject({ ok: true, week: '2026-W48' });
+    expect(weeks()).toEqual({ e1: '2026-W48', e3: '2026-W47' });
+    expect(rowOf('e1')).toMatchObject({ moved_from: '2026-W47', moved_by: 'c', maker_id: 'b' });
+    expect(rowOf('e3')).toMatchObject({ moved_from: '2026-W48', moved_by: 'c', maker_id: '' });
+    // Three guarded writes: A out, B into A's week, A into B's -- each with
+    // the version read and unique on the week it fills.
+    expect(update.mock.calls.map(([, id, fields, v, , opts]) => [id, fields.week_key, v, opts])).toEqual([
+      ['e1', '', 1, { uniqueBy: { week_key: '' } }],
+      ['e3', '2026-W47', 1, { uniqueBy: { week_key: '2026-W47' } }],
+      ['e1', '2026-W48', 2, { uniqueBy: { week_key: '2026-W48' } }],
+    ]);
+    for (const [, , fields] of update.mock.calls) expect(fields).not.toHaveProperty('maker_id');
+  });
+
+  it('refuses a stale screen on either episode before writing anything', async () => {
+    signedInAs('c');
+    expect(await actions.swapEpisodesAction('e1', 7, 'e3', 1)).toMatchObject({ ok: false, error: 'error.conflict' });
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 7)).toMatchObject({ ok: false, error: 'error.conflict' });
+    expect(update).not.toHaveBeenCalled();
+    expect(weeks()).toEqual({ e1: '2026-W47', e3: '2026-W48' });
+  });
+
+  it('follows the move rules: signed in, published and skipped are admin’s, valid weeks only', async () => {
+    getServerSessionMock.mockResolvedValue(null);
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 1)).toMatchObject({ error: 'error.signInRequired' });
+
+    signedInAs('c');
+    expect(await actions.swapEpisodesAction('e1', 1, 'pub', 1)).toMatchObject({ error: 'clips.error.publishedLocked' });
+    expect(await actions.swapEpisodesAction('pub', 1, 'e1', 1)).toMatchObject({ error: 'clips.error.publishedLocked' });
+    rowOf('e3').status = 'skipped';
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 1)).toMatchObject({ error: 'clips.error.skippedLocked' });
+    rowOf('e3').status = 'planned';
+    expect(await actions.swapEpisodesAction('e1', 1, 'e2', 1)).toMatchObject({ error: 'clips.error.notBooked' });
+    rowOf('e3').week_key = '2026-W45';
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 1)).toMatchObject({ error: 'clips.error.pastWeek' });
+    expect(update).not.toHaveBeenCalled();
+
+    rowOf('e3').week_key = '2026-W48';
+    signedInAs('root', 'admin');
+    expect(await actions.swapEpisodesAction('e1', 1, 'pub', 1)).toMatchObject({ ok: true, week: '2026-W46' });
+    expect([rowOf('e1').week_key, rowOf('pub').week_key]).toEqual(['2026-W46', '2026-W47']);
+  });
+
+  it('puts both back when the last step fails, and says nothing changed', async () => {
+    signedInAs('c');
+    const real = update.getMockImplementation()!;
+    update
+      .mockImplementationOnce(real)
+      .mockImplementationOnce(real)
+      .mockImplementationOnce(async () => {
+        throw new store.Conflict!('unique');
+      });
+    const log = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 1)).toMatchObject({ ok: false, error: 'clips.error.swapFailed' });
+    log.mockRestore();
+    expect(weeks()).toEqual({ e1: '2026-W47', e3: '2026-W48' });
+    expect(rowOf('e1')).toMatchObject({ moved_from: '', moved_by: '', moved_at: '', scheduled_at: '2026-11-01T00:00:00Z' });
+    expect(rowOf('e3')).toMatchObject({ moved_from: '', moved_by: '', scheduled_at: '2026-11-02T00:00:00Z' });
+    // B back first (freeing A's week), then A into it.
+    expect(update.mock.calls.slice(3).map(([, id, fields]) => [id, fields.week_key])).toEqual([
+      ['e3', '2026-W48'],
+      ['e1', '2026-W47'],
+    ]);
+  });
+
+  it('puts A back when the second step fails', async () => {
+    signedInAs('c');
+    const real = update.getMockImplementation()!;
+    update.mockImplementationOnce(real).mockImplementationOnce(async () => {
+      throw new store.Conflict!('stale');
+    });
+    const log = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 1)).toMatchObject({ ok: false, error: 'clips.error.swapFailed' });
+    log.mockRestore();
+    expect(weeks()).toEqual({ e1: '2026-W47', e3: '2026-W48' });
+    expect(rowOf('e1').moved_from).toBe('');
+  });
+
+  it('says so plainly when the undo itself is refused', async () => {
+    signedInAs('c');
+    const real = update.getMockImplementation()!;
+    const fail = async () => {
+      throw new store.Conflict!('unique');
+    };
+    update.mockImplementationOnce(real).mockImplementationOnce(real).mockImplementationOnce(fail).mockImplementationOnce(fail);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await actions.swapEpisodesAction('e1', 1, 'e3', 1)).toMatchObject({
+      ok: false,
+      error: 'clips.error.swapIncomplete',
+      vars: { a: 'e1', b: 'e3' },
+    });
+    warn.mockRestore();
+    err.mockRestore();
+    // Stopped at the first refusal: A stays out of any week rather than clash.
+    expect(weeks()).toEqual({ e1: '', e3: '2026-W47' });
+  });
+});
+
 describe('stages and the maker (D9, D24)', () => {
   it('freezes the derived maker when production starts, and lets it go back to the week', async () => {
     signedInAs('c');

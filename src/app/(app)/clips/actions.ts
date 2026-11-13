@@ -5,6 +5,7 @@ import { SheetRepo, ConflictError } from '@/lib/db/sheet-repo';
 import { requireRole, requireSession, type SessionUser } from '@/lib/auth-guard';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
+import { logError } from '@/lib/app-log';
 import type {
   ClipRecord,
   ClipSeriesRecord,
@@ -31,6 +32,7 @@ import {
   parseDuration,
   seriesStartWeek,
   statusOf,
+  swapProblem,
   transitionProblem,
   weekProblem,
   formatDuration,
@@ -456,6 +458,120 @@ export async function unbookEpisodeAction(id: string, rowVersion: number): Promi
       actor.id
     );
     revalidateClips();
+  });
+}
+
+const SWAP_ERROR = {
+  ...WEEK_ERROR,
+  notBooked: 'clips.error.notBooked',
+  sameWeek: 'clips.error.sameWeek',
+  publishedLocked: 'clips.error.publishedLocked',
+  skippedLocked: 'clips.error.skippedLocked',
+} as const;
+
+/** The week fields of a row as read, to put back if a swap stops half-way. */
+function weekFieldsOf(clip: ClipRecord): Record<string, string> {
+  return {
+    week_key: clip.week_key,
+    scheduled_at: clip.scheduled_at,
+    moved_from: clip.moved_from,
+    moved_by: clip.moved_by,
+    moved_at: clip.moved_at,
+  };
+}
+
+/**
+ * Trade the weeks of two booked episodes (owner, 2026-11-13: "swap"). The same
+ * rules as moving each of them: anybody signed in; a published or skipped
+ * episode only by admin; each week one the other could be moved into
+ * (swapProblem). A pinned maker stays on its row, as with a move; an unpinned
+ * one follows the new week by itself. Both rows record the move (`moved_*`).
+ *
+ * Sheets has no transaction, so this is three guarded writes, each carrying
+ * the row_version just read and, when it fills a week, unique on that week:
+ *
+ *   1. A leaves its week (nothing else can clash with an empty week);
+ *   2. B goes into A's old week;
+ *   3. A goes into B's old week.
+ *
+ * If step 2 or 3 fails, the earlier steps are put back in reverse order, with
+ * the same guards. The answer says whether nothing changed (swapFailed) or
+ * the undo itself failed and the weeks need a look (swapIncomplete).
+ */
+export async function swapEpisodesAction(
+  id: string,
+  rowVersion: number,
+  otherId: string,
+  otherRowVersion: number
+): Promise<ActionResult<{ week: string }>> {
+  return toResult(async () => {
+    const actor = await requireSession();
+    const [clips, breaks] = await Promise.all([
+      SheetRepo.find<ClipRecord>('clips', { fresh: true }),
+      SheetRepo.find<TermBreakRecord>('term_breaks'),
+    ]);
+    const a = clips.find((c) => c.id === id);
+    const b = clips.find((c) => c.id === otherId);
+    if (!a || !b) throw new UserError('error.notFound');
+    // Either screen out of date: refuse before writing anything.
+    if (a.row_version !== version(rowVersion) || b.row_version !== version(otherRowVersion)) {
+      throw new ConflictError(`swap ${id} <-> ${otherId}: a row changed since the page was read`);
+    }
+    const problem = swapProblem(actor, a, b, clips, breaks, weekKey());
+    if (problem) throw new UserError(SWAP_ERROR[problem]);
+
+    const weekA = a.week_key;
+    const weekB = b.week_key;
+    // Copied now: what to put back if a later step fails.
+    const beforeA = weekFieldsOf(a);
+    const beforeB = weekFieldsOf(b);
+    const now = new Date().toISOString();
+    const write = (rowId: string, fields: Record<string, string>, expected: number) =>
+      SheetRepo.update<ClipRecord>('clips', rowId, fields, expected, actor.id, {
+        uniqueBy: { week_key: fields.week_key },
+      });
+
+    /** Put rows back as read, newest change first; stop at the first refusal. */
+    const undo = async (
+      cause: unknown,
+      steps: { id: string; fields: Record<string, string>; version: number }[]
+    ): Promise<never> => {
+      logError('clips_swap_step_failed', cause, { level: 'warn', userId: actor.id, detail: { id, otherId } });
+      for (const step of steps) {
+        try {
+          await write(step.id, step.fields, step.version);
+        } catch (err) {
+          logError('clips_swap_undo_failed', err, { userId: actor.id, detail: { id, otherId, stuck: step.id } });
+          revalidateClips();
+          throw new UserError('clips.error.swapIncomplete', { a: a.title, b: b.title });
+        }
+      }
+      throw new UserError('clips.error.swapFailed');
+    };
+
+    // 1. A out of its week.
+    const a1 = await write(a.id, { week_key: '', moved_from: weekA, moved_by: actor.id, moved_at: now }, a.row_version);
+
+    // 2. B into A's old week.
+    let b2: ClipRecord;
+    try {
+      b2 = await write(b.id, { week_key: weekA, scheduled_at: now, moved_from: weekB, moved_by: actor.id, moved_at: now }, b.row_version);
+    } catch (err) {
+      return await undo(err, [{ id: a.id, fields: beforeA, version: Number(a1.row_version) }]);
+    }
+
+    // 3. A into B's old week.
+    try {
+      await write(a.id, { week_key: weekB, scheduled_at: now }, Number(a1.row_version));
+    } catch (err) {
+      return await undo(err, [
+        { id: b.id, fields: beforeB, version: Number(b2.row_version) },
+        { id: a.id, fields: beforeA, version: Number(a1.row_version) },
+      ]);
+    }
+
+    revalidateClips();
+    return { week: weekB };
   });
 }
 

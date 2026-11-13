@@ -10,6 +10,7 @@ import {
   moveEpisodeAction,
   publishEpisodeAction,
   setEpisodeStatusAction,
+  swapEpisodesAction,
   unbookEpisodeAction,
   updateEpisodeLengthAction,
 } from './actions';
@@ -180,24 +181,53 @@ export function NextStep({
   );
 }
 
+/** A week another episode holds, that this one may trade with (swapProblem). */
+export type SwapOption = WeekOption & {
+  other: { id: string; rowVersion: number; title: string; inWork: boolean };
+};
+
 /**
- * Choose a week by hand, move to another, or take it out of its week -- shown
- * on the episode page itself, not folded away. Free weeks only; the server
- * checks again.
+ * Choose a week by hand, move to another, swap with the episode in a taken
+ * one, or take it out of its week -- shown on the episode page itself, not
+ * folded away. One list, in week order: free weeks to move into, and the
+ * taken weeks a swap is allowed with, labelled as such. The server checks
+ * every choice again.
  */
 export function WeekPanel({
   clip,
   freeWeeks,
+  swaps = [],
 }: {
-  clip: Base & { week: string; inWork: boolean };
+  clip: Base & { week: string; weekLabel: string; title: string; inWork: boolean };
   freeWeeks: WeekOption[];
+  /** Only for a booked episode. */
+  swaps?: SwapOption[];
 }) {
   const { t } = usePrefs();
   const ask = useConfirm();
   const [week, setWeek] = useState('');
   const { run, pending, error } = useClipAction();
 
+  const swapByWeek = new Map(swaps.map((s) => [s.key, s]));
+  const options = [...freeWeeks.map((w) => ({ key: w.key, label: w.label })), ...swaps.map((s) => ({
+    key: s.key,
+    label: t('clips.swap.option', { week: s.label, title: s.other.title }),
+  }))].sort((a, b) => a.key.localeCompare(b.key));
+  const swap = clip.week ? swapByWeek.get(week) : undefined;
+
   const place = async () => {
+    if (swap) {
+      const vars = { a: clip.title, b: swap.other.title, weekA: clip.weekLabel, weekB: swap.label };
+      const ok = await ask(t(clip.inWork || swap.other.inWork ? 'clips.swap.confirmInWork' : 'clips.swap.confirm', vars), {
+        title: t('clips.swap.confirmTitle'),
+        confirmLabel: t('clips.swap.confirmLabel'),
+      });
+      if (!ok) return;
+      run(() => swapEpisodesAction(clip.id, clip.rowVersion, swap.other.id, swap.other.rowVersion), {
+        done: t('clips.toast.swapped'),
+      });
+      return;
+    }
     if (!clip.week) {
       run(() => bookEpisodeAction(clip.id, clip.rowVersion, week), { done: t('clips.toast.booked') });
       return;
@@ -214,7 +244,7 @@ export function WeekPanel({
 
   return (
     <div className="space-y-3">
-      {freeWeeks.length === 0 ? (
+      {options.length === 0 ? (
         <p className="text-sm text-gray-500">{t('clips.book.noneFree')}</p>
       ) : (
         <>
@@ -223,7 +253,7 @@ export function WeekPanel({
           </label>
           <select id={`week-${clip.id}`} name="week" className={FIELD} value={week} onChange={(e) => setWeek(e.target.value)}>
             <option value="">{t('clips.book.pick')}</option>
-            {freeWeeks.map((w) => (
+            {options.map((w) => (
               <option key={w.key} value={w.key}>
                 {w.label}
               </option>
@@ -232,9 +262,11 @@ export function WeekPanel({
         </>
       )}
       <div className="flex flex-wrap gap-2">
-        {freeWeeks.length > 0 && (
-          <button type="button" className="btn btn-secondary" disabled={pending || !week} onClick={place}>
-            {t(clip.week ? 'clips.move.submit' : 'clips.book.submit')}
+        {options.length > 0 && (
+          <button type="button" className="btn btn-secondary max-w-full truncate" disabled={pending || !week} onClick={place}>
+            {swap
+              ? t('clips.swap.submit', { title: swap.other.title })
+              : t(clip.week ? 'clips.move.submit' : 'clips.book.submit')}
           </button>
         )}
         {clip.week && (
