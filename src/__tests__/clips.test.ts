@@ -23,6 +23,7 @@ import {
   seriesColor,
   seriesStartWeek,
   seriesSummary,
+  swapProblem,
   transitionProblem,
   weekProblem,
 } from '../lib/clips';
@@ -206,6 +207,35 @@ describe('booking weeks', () => {
     // An episode does not clash with itself.
     expect(weekProblem('2026-W47', clips, BREAKS, 'x', TODAY)).toBeNull();
     expect(weekProblem('nonsense', clips, BREAKS, null, TODAY)).toBe('badWeek');
+  });
+
+  it('allows a swap only where both moves would be allowed', () => {
+    const student = { role: 'student' };
+    const admin = { role: 'admin' };
+    const a = clip('a', { week_key: '2026-W47' });
+    const b = clip('b', { week_key: '2026-W48' });
+    const clips = [a, b];
+    expect(swapProblem(student, a, b, clips, BREAKS, TODAY)).toBeNull();
+    // Each holds the week the other is going into: that is not a clash.
+    expect(swapProblem(student, b, a, clips, BREAKS, TODAY)).toBeNull();
+    expect(swapProblem(student, a, clip('q'), clips, BREAKS, TODAY)).toBe('notBooked');
+    expect(swapProblem(student, a, a, clips, BREAKS, TODAY)).toBe('sameWeek');
+
+    const pub = clip('p', { week_key: '2026-W49', status: 'published' });
+    expect(swapProblem(student, a, pub, [a, pub], BREAKS, TODAY)).toBe('publishedLocked');
+    expect(swapProblem(admin, a, pub, [a, pub], BREAKS, TODAY)).toBeNull();
+    const skip = clip('s', { week_key: '2026-W49', status: 'skipped' });
+    expect(swapProblem(student, skip, a, [a, skip], BREAKS, TODAY)).toBe('skippedLocked');
+
+    // Neither may land in a week that is over, a break, or out of reach.
+    const past = clip('old', { week_key: '2026-W45' });
+    expect(swapProblem(student, a, past, [a, past], BREAKS, TODAY)).toBe('pastWeek');
+    expect(swapProblem(student, past, a, [a, past], BREAKS, TODAY)).toBe('pastWeek');
+    const onBreak = clip('br', { week_key: '2026-W50' });
+    expect(swapProblem(admin, a, onBreak, [a, onBreak], BREAKS, TODAY)).toBe('breakWeek');
+    // A week two episodes claim is not swapped into.
+    const twin = clip('twin', { week_key: '2026-W48' });
+    expect(swapProblem(student, a, b, [a, b, twin], BREAKS, TODAY)).toBe('weekTaken');
   });
 
   it('gives a week claimed twice to the one booked first, and marks both', () => {
