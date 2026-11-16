@@ -17,7 +17,7 @@ import type {
 } from '@/lib/db/schema';
 import { labDay } from '@/lib/lab-time';
 import { facesOf } from '@/lib/avatar-face';
-import { canAddSubproject, canEditDetails, canEditWork, canRemoveWork } from '@/lib/task-rights';
+import { canAddSubproject, canChangePeople, canEditDetails, canEditWork, canRemoveWork } from '@/lib/task-rights';
 import {
   isDay,
   laterDay,
@@ -79,6 +79,8 @@ export type TrackerRow = {
     work: boolean;
     /** Rename, re-date, move between rounds. */
     edit: boolean;
+    /** Change who it is for, from the edit form. */
+    people: boolean;
     remove: boolean;
     /** Break it into sub-projects: never true of a sub-project. */
     addSub: boolean;
@@ -212,6 +214,7 @@ export function toRows(input: {
       can: {
         work: canEditWork(actor, task),
         edit: canEditDetails(actor, task),
+        people: canChangePeople(actor, task),
         remove: canRemoveWork(actor, task, thisWeek, leads),
         addSub: !parentOf(task) && !task.parent_id && canAddSubproject(actor, task),
       },

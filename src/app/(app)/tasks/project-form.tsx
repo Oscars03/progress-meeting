@@ -18,6 +18,8 @@ type Errors = { title?: string; people?: string; due?: string };
  * An advisor chooses who it is for, and has to choose somebody -- the board
  * exists to say who is doing what. A student is always adding their own, so
  * the only name on offer is theirs; they may say which advisor asked for it.
+ * Editing work they wrote down, a student may change who it is for as well
+ * (`row.can.people`): hand it on, or share it.
  *
  * With a `parent` it is a sub-project: the round and the label are the
  * parent's and are not asked, and a new one starts with the parent's people
@@ -67,6 +69,8 @@ export default function ProjectForm({
     row ? row.assigneeIds : !canAssign ? [me] : parent ? parent.assigneeIds : []
   );
   const [assigner, setAssigner] = useState(row?.assignerId ?? '');
+  // Whether the people are a choice here, rather than just the student's own name.
+  const canPick = canAssign || Boolean(row?.can.people);
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -100,14 +104,18 @@ export default function ProjectForm({
     e.preventDefault();
     const next: Errors = {};
     if (!title.trim()) next.title = t('tasks.titleRequired');
-    if (canAssign && picked.length === 0) next.people = t('tasks.assigneeRequired');
+    if (canPick && picked.length === 0) next.people = t('tasks.assigneeRequired');
     if (!due) next.due = t('tracker.form.dueRequired');
     else if (start && due < start) next.due = t('tasks.dueBeforeStart');
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
     setError(null);
-    const who = canAssign ? { assignee_ids: picked } : { assigner_id: assigner };
+    const who = canAssign
+      ? { assignee_ids: picked }
+      : canPick
+        ? { assignee_ids: picked, assigner_id: assigner }
+        : { assigner_id: assigner };
     startTransition(async () => {
       try {
         const res = row
@@ -138,7 +146,7 @@ export default function ProjectForm({
           return;
         }
         router.refresh();
-        const names = (canAssign ? picked : [me]).map((id) => byId.get(id)?.name ?? '').join(', ');
+        const names = (canPick ? picked : [me]).map((id) => byId.get(id)?.name ?? '').join(', ');
         onSaved(row ? t('tracker.saved', { title: title.trim() }) : t('tracker.added', { title: title.trim(), names }));
       } catch {
         setError(t('error.generic'));
@@ -216,10 +224,16 @@ export default function ProjectForm({
               <span id="trk-f-people" className="text-gray-600">
                 {t('tasks.assignees')} <span className="text-red-600">*</span>
               </span>
-              <InfoTip>{canAssign ? t('tracker.form.peopleHint') : t('tracker.form.peopleSelf')}</InfoTip>
+              <InfoTip>
+                {canAssign
+                  ? t('tracker.form.peopleHint')
+                  : canPick
+                    ? t('tracker.form.peopleOwner')
+                    : t('tracker.form.peopleSelf')}
+              </InfoTip>
             </div>
             <div role="group" aria-labelledby="trk-f-people" className="flex flex-wrap gap-1.5">
-              {canAssign ? (
+              {canPick ? (
                 pickable.map((p) => (
                   <button
                     key={p.id}
@@ -241,7 +255,7 @@ export default function ProjectForm({
                   </span>
                 )
               )}
-              {canAssign && pickable.length === 0 && (
+              {canPick && pickable.length === 0 && (
                 <span className="text-gray-500">{t('tracker.form.noPeople')}</span>
               )}
             </div>

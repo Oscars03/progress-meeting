@@ -36,12 +36,26 @@ export function canEditWork(actor: SessionUser, task: Pick<TaskRecord, 'assignee
  * Who may change what a piece of work *is* -- its name, round, dates and label.
  *
  * The advisors, and whoever wrote it down. A student who added their own work
- * can correct it; one who was handed work cannot rename the assignment. Who
- * it is *for* stays with canAssignWork: a student's own work is theirs alone.
+ * can correct it; one who was handed work cannot rename the assignment.
  */
 export function canEditDetails(actor: SessionUser, task: Pick<TaskRecord, 'owner_id'>): boolean {
   if (canAssignWork(actor)) return true;
   return Boolean(task.owner_id) && task.owner_id === actor.id;
+}
+
+/**
+ * Who may change the people on a piece of work once it exists.
+ *
+ * The same two as canEditDetails: the advisors, on anything, and whoever wrote
+ * it down, on that. A student can hand their own work on, or share it, without
+ * an advisor at the keyboard (owner, 2026-11-16). Work an advisor gave them is
+ * not theirs to pass along -- they did not write it down, so this is false.
+ *
+ * Adding new work is still only ever for yourself (createTask): this is about
+ * correcting who it is for, not a way to put work on somebody else's list.
+ */
+export function canChangePeople(actor: SessionUser, task: Pick<TaskRecord, 'owner_id'>): boolean {
+  return canEditDetails(actor, task);
 }
 
 /**
