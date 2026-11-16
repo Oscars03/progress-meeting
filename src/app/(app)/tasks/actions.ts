@@ -7,11 +7,14 @@ import {
   canAddOwnWork,
   canAddSubproject,
   canAssignWork,
+  canChangePeople,
   canEditDetails,
   canEditWork,
   canRemoveWork,
 } from '@/lib/task-rights';
 import type { TaskRoundRecord, UserRecord } from '@/lib/db/schema';
+import { isMember } from '@/lib/members';
+import { assigneesOf } from './tracker-model';
 import { toResult, type ActionResult } from '@/lib/action-result';
 import { UserError } from '@/lib/user-error';
 import type { TaskRecord, TaskUpdateRecord, WeekLeadRecord } from '@/lib/db/schema';
@@ -66,6 +69,23 @@ async function readAssigner(value: string | undefined): Promise<string> {
     throw new UserError('tasks.assignerMustBeProfessor');
   }
   return named.id;
+}
+
+/**
+ * The people a piece of work is changed to be for. Somebody has to be named,
+ * and each one must be in the lab -- or already on the work, so that someone
+ * who has since left can be kept on it, or taken off, but not added back.
+ */
+async function readAssignees(requested: string[], current: string[]): Promise<string[]> {
+  const ids = [...new Set(Array.isArray(requested) ? requested.map(String) : [])].filter(Boolean);
+  if (ids.length === 0) throw new UserError('tasks.assigneeRequired');
+  const users = await SheetRepo.find<UserRecord>('users');
+  for (const id of ids) {
+    if (current.includes(id)) continue;
+    const user = users.find((u) => u.id === id);
+    if (!user || !isMember(user)) throw new UserError('error.invalidValue', { value: id });
+  }
+  return ids;
 }
 
 /**
@@ -267,13 +287,11 @@ export async function updateTaskDetails(
     );
     if (data.round_id !== undefined && !sub) updates.round_id = await readRound(data.round_id);
 
-    // Who the work is for is the advisors' to change. The owner of their own
-    // work may edit everything else about it, but not hand it to somebody.
+    // Who the work is for: an advisor on anything, a student on work they
+    // wrote down themselves (canChangePeople).
     if (data.assignee_ids !== undefined) {
-      if (!canAssignWork(actor)) throw new AuthorizationError();
-      const assignees = [...new Set(data.assignee_ids)].filter(Boolean);
-      if (assignees.length === 0) throw new UserError('tasks.assigneeRequired');
-      updates.assignee_ids = assignees;
+      if (!canChangePeople(actor, task)) throw new AuthorizationError();
+      updates.assignee_ids = await readAssignees(data.assignee_ids, assigneesOf(task));
     }
     if (data.assigner_id !== undefined) updates.assigner_id = await readAssigner(data.assigner_id);
 

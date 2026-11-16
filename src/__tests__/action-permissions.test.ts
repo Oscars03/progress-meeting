@@ -983,6 +983,13 @@ describe('task permissions', () => {
     beforeEach(() => {
       tables['tasks'] = [
         { id: 'own', title: 'Mine', owner_id: 'student1', assignee_ids: ['student1'], status: 'not_started', row_version: 4 },
+        { id: 'given', title: 'Set by the advisor', owner_id: 'prof', assignee_ids: ['student1'], status: 'not_started', row_version: 2 },
+      ];
+      tables['users'] = [
+        { id: 'prof', name: 'Advisor', role: 'professor', active: true, row_version: 1 },
+        { id: 'student1', name: 'Student', role: 'student', active: true, row_version: 1 },
+        { id: 'student2', name: 'Other', role: 'student', active: true, row_version: 1 },
+        { id: 'left', name: 'Gone', role: 'student', active: false, row_version: 1 },
       ];
     });
 
@@ -999,12 +1006,46 @@ describe('task permissions', () => {
       );
     });
 
-    // Correcting your own work is not handing it to somebody else.
-    it('cannot be handed to somebody else by that student', async () => {
+    it('can be handed on, or shared, by the student who wrote it', async () => {
       signedInAs('student1');
-      const result = await updateTaskDetails('own', { assignee_ids: ['student2'] }, 4);
+      const result = await updateTaskDetails('own', { assignee_ids: ['student2', 'student1', 'student2'] }, 4);
+      expect(result.ok).toBe(true);
+      expect(update).toHaveBeenCalledWith(
+        'tasks',
+        'own',
+        expect.objectContaining({ assignee_ids: ['student2', 'student1'] }),
+        4,
+        'student1'
+      );
+    });
+
+    it('cannot be left with nobody on it', async () => {
+      signedInAs('student1');
+      const result = await updateTaskDetails('own', { assignee_ids: [] }, 4);
+      expect(result).toMatchObject({ ok: false, error: 'tasks.assigneeRequired' });
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('cannot be given to somebody who is not in the lab', async () => {
+      signedInAs('student1');
+      expect((await updateTaskDetails('own', { assignee_ids: ['left'] }, 4)).ok).toBe(false);
+      expect((await updateTaskDetails('own', { assignee_ids: ['nobody'] }, 4)).ok).toBe(false);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    // Work an advisor set is theirs to reassign, not the student's to pass on.
+    it('does not let a student pass on work an advisor gave them', async () => {
+      signedInAs('student1');
+      const result = await updateTaskDetails('given', { assignee_ids: ['student2'] }, 2);
       expect(result.ok).toBe(false);
       expect(update).not.toHaveBeenCalled();
+    });
+
+    it('lets an advisor reassign work they set', async () => {
+      signedInAs('prof', 'professor');
+      const result = await updateTaskDetails('given', { assignee_ids: ['student2'] }, 2);
+      expect(result.ok).toBe(true);
+      expect(update).toHaveBeenCalledWith('tasks', 'given', expect.objectContaining({ assignee_ids: ['student2'] }), 2, 'prof');
     });
 
     it('cannot be edited by another student', async () => {
