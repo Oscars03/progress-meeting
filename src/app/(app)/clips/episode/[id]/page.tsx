@@ -21,6 +21,7 @@ import {
   seriesColor,
   seriesStartWeek,
   statusOf,
+  swapProblem,
 } from '@/lib/clips';
 import { loadClips } from '../../load';
 import { STATUS_KEY, makerOf, nameFrom, weekLabel, weekOptions } from '../../describe';
@@ -48,7 +49,8 @@ const NEXT_HINT: Record<string, TranslationKey> = {
  * 1. what it is: week, maker, length (and the Facebook post once published)
  *    -- read-only;
  * 2. the one next step, as the page's only main button;
- * 3. its week: move to another, or take it out -- in plain sight;
+ * 3. its week: move to another, swap with a taken one, or take it out --
+ *    in plain sight;
  * 4. "more": every other control, folded away (length once ready, publish
  *    record, step back, skip).
  *
@@ -88,6 +90,23 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
     bookableWeeks(data.breaks, today).filter((k) => !taken.has(k)),
     locale
   );
+  // Taken weeks this episode may trade with: the one episode holding each,
+  // where swapping would be allowed (the same rule the action checks).
+  const swaps = clip.week_key
+    ? bookableWeeks(data.breaks, today).flatMap((k) => {
+        const holders = data.clips.filter((c) => c.week_key === k);
+        const other = holders.length === 1 ? holders[0] : null;
+        if (!other || swapProblem(actor, clip, other, data.clips, data.breaks, today)) return [];
+        return [
+          {
+            key: k,
+            label: weekLabel(k, locale),
+            other: { id: other.id, rowVersion: other.row_version, title: other.title, inWork: statusOf(other) !== 'planned' },
+          },
+        ];
+      })
+    : [];
+  const weekClip = { ...base, week: clip.week_key, weekLabel: clip.week_key ? weekLabel(clip.week_key, locale) : '', title: clip.title };
   const nextFree = clip.week_key
     ? null
     : nextFreeWeek(data.clips, data.breaks, seriesStartWeek(data.clips, clip, today), today);
@@ -271,7 +290,7 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
       {!published && !skippedLocked && (
         <section className="p-4 sm:p-5 bg-white rounded-xl shadow-sm border border-gray-100 space-y-3">
           <h3 className="font-semibold text-gray-900">{t(clip.week_key ? 'clips.week.moveHeading' : 'clips.week.pickHeading')}</h3>
-          <WeekPanel clip={{ ...base, week: clip.week_key, inWork: status !== 'planned' }} freeWeeks={freeWeeks} />
+          <WeekPanel clip={{ ...weekClip, inWork: status !== 'planned' }} freeWeeks={freeWeeks} swaps={swaps} />
         </section>
       )}
 
@@ -280,7 +299,7 @@ export default async function EpisodePage(props: { params: Promise<{ id: string 
         <More label={t('clips.more')}>
           {published && (
             <MoreSection title={t(clip.week_key ? 'clips.week.moveHeading' : 'clips.week.pickHeading')}>
-              <WeekPanel clip={{ ...base, week: clip.week_key, inWork: true }} freeWeeks={freeWeeks} />
+              <WeekPanel clip={{ ...weekClip, inWork: true }} freeWeeks={freeWeeks} swaps={swaps} />
             </MoreSection>
           )}
           {(status === 'ready' || published) && (

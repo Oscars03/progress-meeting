@@ -216,6 +216,38 @@ export function weekProblem(
   return null;
 }
 
+export type SwapProblem = 'notBooked' | 'sameWeek' | 'publishedLocked' | 'skippedLocked' | WeekProblem;
+
+/**
+ * Why two booked episodes may not trade weeks, or null when they may. A swap
+ * is two moves at once, so each has to be a move the actor could make: both
+ * booked, neither published nor skipped unless the actor is admin, and each
+ * week one the other episode could go into (not over, not a break, within
+ * the horizon, and held by nobody else -- a clash is never swapped into).
+ * Shared by the swap action and the page that offers it, so the two agree.
+ */
+export function swapProblem(
+  actor: { role: string },
+  a: Pick<ClipRecord, 'id' | 'week_key' | 'status'>,
+  b: Pick<ClipRecord, 'id' | 'week_key' | 'status'>,
+  clips: Pick<ClipRecord, 'id' | 'week_key'>[],
+  breaks: TermBreakRecord[],
+  today: string = weekKey(),
+  horizon: number = BOOKING_HORIZON
+): SwapProblem | null {
+  if (!a.week_key || !b.week_key) return 'notBooked';
+  if (a.id === b.id || a.week_key === b.week_key) return 'sameWeek';
+  if (actor.role !== 'admin') {
+    if (statusOf(a) === 'published' || statusOf(b) === 'published') return 'publishedLocked';
+    if (statusOf(a) === 'skipped' || statusOf(b) === 'skipped') return 'skippedLocked';
+  }
+  const rest = clips.filter((c) => c.id !== a.id && c.id !== b.id);
+  return (
+    weekProblem(b.week_key, rest, breaks, a.id, today, horizon) ??
+    weekProblem(a.week_key, rest, breaks, b.id, today, horizon)
+  );
+}
+
 /**
  * Where an episode's next free week search starts: this week, or the week
  * after the latest week booked by an earlier episode of the same series, so a

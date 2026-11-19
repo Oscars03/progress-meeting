@@ -72,6 +72,13 @@ export const clips = defineMessages({
     'clips.unbook.submit': 'เอาออกจากสัปดาห์',
     'clips.unbook.confirm': 'เอาตอนนี้ออกจากสัปดาห์ กลับไปรอคิว?',
     'clips.unbook.confirmInWork': 'ตอนนี้เริ่มทำไปแล้ว เอาออกจากสัปดาห์แล้วผู้ทำคลิปเดิมยังรับผิดชอบต่อ ทำต่อไหม?',
+    'clips.swap.option': '{week} (มีแล้ว: {title}) – สลับ',
+    'clips.swap.submit': 'สลับกับ “{title}”',
+    'clips.swap.confirmTitle': 'สลับสัปดาห์?',
+    'clips.swap.confirm': '“{a}” จะไป {weekB} และ “{b}” จะมา {weekA}',
+    'clips.swap.confirmInWork':
+      '“{a}” จะไป {weekB} และ “{b}” จะมา {weekA} มีตอนที่เริ่มทำไปแล้ว ผู้ทำคลิปเดิมยังรับผิดชอบต่อ และจะเห็นว่าถูกย้าย',
+    'clips.swap.confirmLabel': 'สลับ',
 
     'clips.week.heading': 'สัปดาห์',
     'clips.week.thisWeek': 'สัปดาห์นี้',
@@ -120,6 +127,7 @@ export const clips = defineMessages({
     'clips.toast.booked': 'ลงสัปดาห์แล้ว',
     'clips.toast.moved': 'ย้ายสัปดาห์แล้ว',
     'clips.toast.unbooked': 'เอาออกจากสัปดาห์แล้ว',
+    'clips.toast.swapped': 'สลับสัปดาห์แล้ว',
     'clips.toast.published': 'บันทึกว่าเผยแพร่แล้ว',
 
     'clips.error.titleRequired': 'กรุณาใส่ชื่อ',
@@ -149,6 +157,9 @@ export const clips = defineMessages({
     'clips.error.notOneStep': 'เปลี่ยนขั้นได้ทีละขั้นเท่านั้น',
     'clips.error.statusAdminOnly': 'การเปลี่ยนขั้นนี้ทำได้เฉพาะผู้ดูแลระบบ',
     'clips.error.usePublishForm': 'บันทึกการเผยแพร่ด้วยฟอร์มลิงก์โพสต์',
+    'clips.error.swapFailed': 'สลับไม่สำเร็จ มีคนแก้ตอนหรือสัปดาห์นั้นพอดี ยังไม่มีอะไรเปลี่ยน โหลดหน้าใหม่แล้วลองอีกครั้ง',
+    'clips.error.swapIncomplete':
+      'สลับค้างครึ่งทางและย้อนกลับไม่ได้ ตรวจสัปดาห์ของ “{a}” และ “{b}” — อาจมีตอนหนึ่งกลับไปรอคิว',
     'clips.newTopic': '+ เพิ่มหัวข้อคลิป',
     'clips.topics.heading': 'หัวข้อคลิป',
     'clips.topics.done': 'หัวข้อคลิปที่จบแล้วหรือเก็บแล้ว ({n})',
@@ -250,6 +261,13 @@ export const clips = defineMessages({
     'clips.unbook.confirm': 'Take this episode out of its week, back into the queue?',
     'clips.unbook.confirmInWork':
       'Work on this episode has started. Its maker stays responsible after it leaves the week. Go ahead?',
+    'clips.swap.option': '{week} (taken: {title}) – swap',
+    'clips.swap.submit': 'Swap with “{title}”',
+    'clips.swap.confirmTitle': 'Swap weeks?',
+    'clips.swap.confirm': '“{a}” goes to {weekB}, and “{b}” comes to {weekA}.',
+    'clips.swap.confirmInWork':
+      '“{a}” goes to {weekB}, and “{b}” comes to {weekA}. Work has started on one of them: its maker stays responsible and will see that it moved.',
+    'clips.swap.confirmLabel': 'Swap',
 
     'clips.week.heading': 'Week',
     'clips.week.thisWeek': 'This week',
@@ -299,6 +317,7 @@ export const clips = defineMessages({
     'clips.toast.booked': 'Booked into the week',
     'clips.toast.moved': 'Moved to the new week',
     'clips.toast.unbooked': 'Taken out of its week',
+    'clips.toast.swapped': 'Weeks swapped',
     'clips.toast.published': 'Recorded as published',
 
     'clips.error.titleRequired': 'Please enter a title',
@@ -328,6 +347,10 @@ export const clips = defineMessages({
     'clips.error.notOneStep': 'Stages change one step at a time',
     'clips.error.statusAdminOnly': 'Only an admin can make this stage change',
     'clips.error.usePublishForm': 'Record publishing with the post link form',
+    'clips.error.swapFailed':
+      'Could not swap: one of the episodes or weeks changed a moment ago. Nothing was changed — reload and try again.',
+    'clips.error.swapIncomplete':
+      'The swap stopped half-way and could not be undone. Check the weeks of “{a}” and “{b}” — one may be back in the queue.',
     'clips.newTopic': '+ Add clip topic',
     'clips.topics.heading': 'Clip topics',
     'clips.topics.done': 'Finished or archived topics ({n})',
